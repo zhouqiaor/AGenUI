@@ -99,7 +99,9 @@ _ICON_FALLBACK_MAP = {
 _ICON_FALLBACK_DEFAULT = "info"
 
 
-def _autofix_components(comp_dict: dict | None) -> dict | None:
+def _autofix_components(
+    comp_dict: dict | None, data_dict: dict | None = None
+) -> dict | None:
     """Mutate a parsed protocol in place to satisfy A2UI validation rules.
 
     Returns the same dict (or None when the input is unusable). The cleaned
@@ -111,9 +113,21 @@ def _autofix_components(comp_dict: dict | None) -> dict | None:
       * only Text/RichText may use text-only style keys (e.g. `color`)
       * unknown style keys (e.g. `gap`) -> drop them (not in the whitelist)
       * Icon `name` not in the allowed set -> replace with a valid fallback
+      * padding/margin shorthand -> expand to 4 values
+      * border-radius/border-width -> collapse to single px value
+      * binding path outside dataModel root -> prepend root prefix
     """
     if not isinstance(comp_dict, dict):
         return comp_dict
+    # Resolve the dataModel root path for binding-path fixup.
+    data_root = ""
+    if isinstance(data_dict, dict):
+        dm = data_dict.get("updateDataModel", {})
+        if isinstance(dm, dict):
+            rp = dm.get("path")
+            if isinstance(rp, str) and rp:
+                data_root = rp
+
     components = comp_dict.get("updateComponents", {}).get("components")
     if not isinstance(components, list):
         return comp_dict
@@ -174,7 +188,24 @@ def _autofix_components(comp_dict: dict | None) -> dict | None:
                 parts = sv.split()
                 if len(parts) > 1:
                     styles[sk] = parts[0]
+        # fix binding paths outside dataModel root (validator line 223-227).
+        if data_root and data_root != "/":
+            _fix_binding_paths(comp, data_root)
     return comp_dict
+
+
+def _fix_binding_paths(node, data_root: str) -> None:
+    """Recursively fix absolute binding paths that fall outside data_root."""
+    if isinstance(node, dict):
+        for key, val in list(node.items()):
+            if key == "path" and isinstance(val, str):
+                if val.startswith("/") and val != data_root and not val.startswith(f"{data_root}/"):
+                    node[key] = f"{data_root}{val}"
+            else:
+                _fix_binding_paths(val, data_root)
+    elif isinstance(node, list):
+        for item in node:
+            _fix_binding_paths(item, data_root)
 
 
 # Instruction wrapped around the user message on refinement turns (i.e. when a
@@ -265,7 +296,7 @@ def _attempt(full_text: str) -> dict[str, Any]:
         }
 
     validation = validate_payloads(comp_dict, data_dict)
-    comp_dict = _autofix_components(comp_dict)
+    comp_dict = _autofix_components(comp_dict, data_dict)
     validation = validate_payloads(comp_dict, data_dict)
     return {
         "components": comp_dict,
