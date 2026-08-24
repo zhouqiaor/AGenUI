@@ -156,6 +156,17 @@ def _autofix_components(comp_dict: dict | None) -> dict | None:
         # drop any unknown style key (e.g. `gap`).
         for k in [k for k in styles if k not in allowed]:
             styles.pop(k, None)
+        # expand padding/margin shorthand to 4 values (validator requires 4).
+        for sk in ("padding", "margin"):
+            sv = styles.get(sk)
+            if isinstance(sv, str):
+                parts = sv.split()
+                if len(parts) == 1:
+                    styles[sk] = f"{parts[0]} {parts[0]} {parts[0]} {parts[0]}"
+                elif len(parts) == 2:
+                    styles[sk] = f"{parts[0]} {parts[1]} {parts[0]} {parts[1]}"
+                elif len(parts) == 3:
+                    styles[sk] = f"{parts[0]} {parts[1]} {parts[2]} {parts[1]}"
     return comp_dict
 
 
