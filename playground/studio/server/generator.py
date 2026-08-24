@@ -167,6 +167,13 @@ def _autofix_components(comp_dict: dict | None) -> dict | None:
                     styles[sk] = f"{parts[0]} {parts[1]} {parts[0]} {parts[1]}"
                 elif len(parts) == 3:
                     styles[sk] = f"{parts[0]} {parts[1]} {parts[2]} {parts[1]}"
+        # collapse border-radius/border-width to single px (validator requires 1).
+        for sk in ("border-radius", "border-width"):
+            sv = styles.get(sk)
+            if isinstance(sv, str):
+                parts = sv.split()
+                if len(parts) > 1:
+                    styles[sk] = parts[0]
     return comp_dict
 
 
