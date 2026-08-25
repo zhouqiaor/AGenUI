@@ -1,0 +1,11 @@
+{
+  "name": "agenui-harmony-tokens",
+  "version": "1.0.0",
+  "description": "HarmonyOS Design Token pipeline for AGenUI",
+  "scripts": {
+    "build:tokens": "node style-dictionary.config.mjs"
+  },
+  "devDependencies": {
+    "style-dictionary": "^4.3.0"
+  }
+}

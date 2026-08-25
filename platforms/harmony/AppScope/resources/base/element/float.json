@@ -1,0 +1,68 @@
+{
+  "float": [
+    {
+      "name": "font_display_size",
+      "value": 30
+    },
+    {
+      "name": "font_title_size",
+      "value": 22
+    },
+    {
+      "name": "font_subtitle_size",
+      "value": 18
+    },
+    {
+      "name": "font_body_size",
+      "value": 16
+    },
+    {
+      "name": "font_caption_size",
+      "value": 14
+    },
+    {
+      "name": "font_overline_size",
+      "value": 12
+    },
+    {
+      "name": "space_2xs",
+      "value": 4
+    },
+    {
+      "name": "space_xs",
+      "value": 8
+    },
+    {
+      "name": "space_sm",
+      "value": 12
+    },
+    {
+      "name": "space_md",
+      "value": 16
+    },
+    {
+      "name": "space_lg",
+      "value": 24
+    },
+    {
+      "name": "space_xl",
+      "value": 32
+    },
+    {
+      "name": "radius_sm",
+      "value": 8
+    },
+    {
+      "name": "radius_md",
+      "value": 12
+    },
+    {
+      "name": "radius_lg",
+      "value": 16
+    },
+    {
+      "name": "radius_full",
+      "value": 999
+    }
+  ]
+}
