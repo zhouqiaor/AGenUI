@@ -68,7 +68,6 @@
             android:name=".widget.WidgetRenderActivity"
             android:exported="false"
             android:excludeFromRecents="true"
-            android:noHistory="true"
             android:taskAffinity=""
             android:theme="@style/Theme.AGenUIPlayground.Transparent" />
 
