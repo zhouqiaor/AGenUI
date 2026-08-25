@@ -1,0 +1,18 @@
+# Build output
+build/
+build.bat
+build_errors.txt
+
+# CMake generated
+_deps/
+
+# IDE
+.vs/
+*.user
+
+# Compiled artifacts
+*.dll
+*.exe
+*.lib
+*.pdb
+*.obj
