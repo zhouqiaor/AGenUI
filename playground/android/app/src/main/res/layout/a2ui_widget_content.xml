@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/a2ui_widget_bg"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <!-- Title bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/widgetTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/widget_title"
+            android:textColor="#333333"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/btnRefresh"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/widget_refresh"
+            android:src="@drawable/a2ui_widget_ic_refresh" />
+
+        <ImageButton
+            android:id="@+id/btnSwitchTemplate"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="4dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/widget_switch_template"
+            android:src="@drawable/a2ui_widget_ic_template" />
+    </LinearLayout>
+
+    <!-- A2UI rendered content -->
+    <ImageView
+        android:id="@+id/widgetImageView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:contentDescription="@string/widget_a2ui_content"
+        android:scaleType="fitStart" />
+
+    <!-- Template bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/btnTemplateWeather"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:padding="4dp"
+            android:text="@string/widget_template_weather"
+            android:textColor="#6200EE"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/btnTemplateAgenda"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:padding="4dp"
+            android:text="@string/widget_template_agenda"
+            android:textColor="#666666"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/btnTemplateTodo"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:padding="4dp"
+            android:text="@string/widget_template_todo"
+            android:textColor="#666666"
+            android:textSize="11sp" />
+    </LinearLayout>
+</LinearLayout>

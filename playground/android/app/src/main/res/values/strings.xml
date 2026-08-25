@@ -47,4 +47,17 @@
     <string name="hint_json_editor">Enter JSON here…</string>
     <string name="hint_no_logs">No logs yet</string>
     <string name="hint_empty_json">{}</string>
+
+    <!-- A2UI Widget -->
+    <string name="widget_description">AGenUI desktop widget</string>
+    <string name="widget_title">A2UI Widget</string>
+    <string name="widget_loading">Loading…</string>
+    <string name="widget_refresh">Refresh</string>
+    <string name="widget_switch_template">Switch template</string>
+    <string name="widget_a2ui_content">A2UI rendered content</string>
+    <string name="widget_template_weather">Weather</string>
+    <string name="widget_template_agenda">Agenda</string>
+    <string name="widget_template_todo">Todo</string>
+    <string name="widget_render_error">Render error</string>
+    <string name="widget_render_success">Widget rendered</string>
 </resources>

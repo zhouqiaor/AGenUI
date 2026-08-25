@@ -195,6 +195,8 @@ endif()
 if(NOT DEFINED AGENUI_REPO_ROOT)
     message(FATAL_ERROR "AGENUI_REPO_ROOT is not defined. It must be passed via build.gradle externalNativeBuild arguments.")
 endif()
+# Windows path backslash to forward slash conversion (prevents CMake escape errors)
+string(REPLACE "\\" "/" AGENUI_REPO_ROOT "${AGENUI_REPO_ROOT}")
 set(AGENUI_CPP_ROOT "${AGENUI_REPO_ROOT}/core")
 
 include_directories(

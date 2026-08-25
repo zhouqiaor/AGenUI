@@ -22,4 +22,16 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
+
+    <!-- Transparent theme for widget rendering Activity.
+         NOTE: Do NOT use windowNoDisplay=true — it requires Activity to call
+         finish() before onResume() completes, which crashes since we wait for
+         async surface creation callbacks. windowIsTranslucent + transparent
+         background is sufficient to make the Activity invisible. -->
+    <style name="Theme.AGenUIPlayground.Transparent" parent="Theme.AGenUIPlayground.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
 </resources>

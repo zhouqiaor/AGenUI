@@ -1,0 +1,46 @@
+[
+  {
+    "type": "createSurface",
+    "surfaceId": "__SURFACE_ID__",
+    "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+    "width": 300
+  },
+  {
+    "type": "updateComponents",
+    "surfaceId": "__SURFACE_ID__",
+    "components": [
+      {
+        "id": "root",
+        "type": "Card",
+        "children": [
+          {
+            "id": "root_c0",
+            "type": "Column",
+            "children": [
+              {"id": "root_c0_c0", "type": "Text", "text": "今日议程", "styles": {"fontSize": 18, "fontWeight": "bold"}},
+              {"id": "root_c0_c1", "type": "Row", "children": [
+                {"id": "root_c0_c1_c0", "type": "Text", "text": "09:00", "styles": {"fontSize": 12, "color": "#007DFF"}},
+                {"id": "root_c0_c1_c1", "type": "Text", "text": " 产品周会", "styles": {"fontSize": 13}}
+              ], "styles": {"padding": {"vertical": 4}}},
+              {"id": "root_c0_c2", "type": "Row", "children": [
+                {"id": "root_c0_c2_c0", "type": "Text", "text": "11:00", "styles": {"fontSize": 12, "color": "#007DFF"}},
+                {"id": "root_c0_c2_c1", "type": "Text", "text": " 设计评审", "styles": {"fontSize": 13}}
+              ], "styles": {"padding": {"vertical": 4}}},
+              {"id": "root_c0_c3", "type": "Row", "children": [
+                {"id": "root_c0_c3_c0", "type": "Text", "text": "14:00", "styles": {"fontSize": 12, "color": "#007DFF"}},
+                {"id": "root_c0_c3_c1", "type": "Text", "text": " 用户访谈", "styles": {"fontSize": 13}}
+              ], "styles": {"padding": {"vertical": 4}}}
+            ],
+            "styles": {"crossAxisAlignment": "start", "padding": {"all": 16}}
+          }
+        ],
+        "styles": {"margin": {"all": 8}}
+      }
+    ]
+  },
+  {
+    "type": "updateDataModel",
+    "surfaceId": "__SURFACE_ID__",
+    "value": {}
+  }
+]

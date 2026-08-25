@@ -71,7 +71,7 @@ if (playgroundSigningConfigured) {
 
 android {
     namespace 'com.amap.agenuiplayground'
-    compileSdk 35
+    compileSdk 36
 
     signingConfigs {
         if (playgroundSigningConfigured) {
