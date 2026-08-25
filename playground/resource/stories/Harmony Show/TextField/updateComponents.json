@@ -1,0 +1,41 @@
+{
+  "version": "v0.9",
+  "updateComponents": {
+    "surfaceId": "harmony_textfield_demo",
+    "components": [
+      {
+        "id": "root",
+        "component": "Column",
+        "children": ["tf-label", "tf-input", "tf-hint"],
+        "align": "stretch",
+        "styles": { "padding": "24px 16px", "gap": "8px", "background-color": "#FFFFFF" }
+      },
+      {
+        "id": "tf-label",
+        "component": "Text",
+        "text": "Email",
+        "styles": { "font-size": "14px", "font-weight": "500", "color": "#181818", "text-align": "left" }
+      },
+      {
+        "id": "tf-input",
+        "component": "TextField",
+        "placeholder": "Enter your email",
+        "styles": {
+          "width": "auto",
+          "height": "48px",
+          "border-radius": "8px",
+          "background-color": "#F5F6F7",
+          "border-width": "1px",
+          "border-color": "#E8EAED",
+          "padding": "8px 16px"
+        }
+      },
+      {
+        "id": "tf-hint",
+        "component": "Text",
+        "text": "HarmonyOS TextField: surface_muted bg, 8vp radius, focus state changes border to brand #007DFF.",
+        "styles": { "font-size": "12px", "color": "#999999", "text-align": "left" }
+      }
+    ]
+  }
+}

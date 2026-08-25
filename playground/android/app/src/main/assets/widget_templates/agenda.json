@@ -17,30 +17,59 @@
             "id": "root_c0",
             "type": "Column",
             "children": [
-              {"id": "root_c0_c0", "type": "Text", "text": "今日议程", "styles": {"fontSize": 18, "fontWeight": "bold"}},
-              {"id": "root_c0_c1", "type": "Row", "children": [
-                {"id": "root_c0_c1_c0", "type": "Text", "text": "09:00", "styles": {"fontSize": 12, "color": "#007DFF"}},
-                {"id": "root_c0_c1_c1", "type": "Text", "text": " 产品周会", "styles": {"fontSize": 13}}
-              ], "styles": {"padding": {"vertical": 4}}},
-              {"id": "root_c0_c2", "type": "Row", "children": [
-                {"id": "root_c0_c2_c0", "type": "Text", "text": "11:00", "styles": {"fontSize": 12, "color": "#007DFF"}},
-                {"id": "root_c0_c2_c1", "type": "Text", "text": " 设计评审", "styles": {"fontSize": 13}}
-              ], "styles": {"padding": {"vertical": 4}}},
-              {"id": "root_c0_c3", "type": "Row", "children": [
-                {"id": "root_c0_c3_c0", "type": "Text", "text": "14:00", "styles": {"fontSize": 12, "color": "#007DFF"}},
-                {"id": "root_c0_c3_c1", "type": "Text", "text": " 用户访谈", "styles": {"fontSize": 13}}
-              ], "styles": {"padding": {"vertical": 4}}}
-            ],
-            "styles": {"crossAxisAlignment": "start", "padding": {"all": 16}}
+              {
+                "id": "root_c0_c0",
+                "type": "Row",
+                "children": [
+                  {"id": "root_c0_c0_c0", "type": "Text", "text": "今日议程", "styles": {"fontSize": 18, "fontWeight": "bold", "color": "#181818"}},
+                  {"id": "root_c0_c0_c1", "type": "Text", "text": "3 场会议", "styles": {"fontSize": 14, "color": "#666666", "marginLeft": 8}}
+                ],
+                "styles": {"paddingLeft": 16, "paddingTop": 16, "paddingRight": 16, "paddingBottom": 8, "alignItems": "center"}
+              },
+              {
+                "id": "root_c0_c1",
+                "type": "Container",
+                "styles": {"backgroundColor": "#E8F3FF", "borderRadius": 8, "marginLeft": 16, "marginRight": 16, "paddingLeft": 12, "paddingRight": 12, "paddingTop": 8, "paddingBottom": 8},
+                "children": [
+                  {
+                    "id": "root_c0_c1_c0",
+                    "type": "Row",
+                    "children": [
+                      {"id": "root_c0_c1_c0_c0", "type": "Text", "text": "09:00", "styles": {"fontSize": 14, "fontWeight": "bold", "color": "#007DFF"}},
+                      {"id": "root_c0_c1_c0_c1", "type": "Text", "text": "产品周会", "styles": {"fontSize": 14, "color": "#181818", "marginLeft": 12}}
+                    ],
+                    "styles": {"alignItems": "center"}
+                  }
+                ]
+              },
+              {
+                "id": "root_c0_c2",
+                "type": "Row",
+                "children": [
+                  {"id": "root_c0_c2_c0", "type": "Text", "text": "11:00", "styles": {"fontSize": 14, "fontWeight": "bold", "color": "#007DFF"}},
+                  {"id": "root_c0_c2_c1", "type": "Text", "text": "设计评审", "styles": {"fontSize": 14, "color": "#181818", "marginLeft": 12}}
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 8, "paddingBottom": 8, "alignItems": "center"}
+              },
+              {
+                "id": "root_c0_c3",
+                "type": "Divider",
+                "styles": {"backgroundColor": "#E8EAED", "height": 1, "marginLeft": 16, "marginRight": 16}
+              },
+              {
+                "id": "root_c0_c4",
+                "type": "Row",
+                "children": [
+                  {"id": "root_c0_c4_c0", "type": "Text", "text": "14:00", "styles": {"fontSize": 14, "fontWeight": "bold", "color": "#007DFF"}},
+                  {"id": "root_c0_c4_c1", "type": "Text", "text": "技术分享会", "styles": {"fontSize": 14, "color": "#181818", "marginLeft": 12}}
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 8, "paddingBottom": 16, "alignItems": "center"}
+              }
+            ]
           }
         ],
-        "styles": {"margin": {"all": 8}}
+        "styles": {"borderRadius": 16, "backgroundColor": "#FFFFFF", "elevation": 2}
       }
     ]
-  },
-  {
-    "type": "updateDataModel",
-    "surfaceId": "__SURFACE_ID__",
-    "value": {}
   }
 ]

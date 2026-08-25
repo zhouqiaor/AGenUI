@@ -232,7 +232,7 @@ public class WidgetRenderActivity extends Activity {
             views.setOnClickPendingIntent(buttonIds[i],
                     android.app.PendingIntent.getBroadcast(this, appWidgetId * 10 + 3 + i, tmplIntent,
                             android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE));
-            int color = templates[i].equals(template) ? 0xFF6200EE : 0xFF666666;
+            int color = templates[i].equals(template) ? 0xFF007DFF : 0xFF666666;
             views.setTextColor(buttonIds[i], color);
         }
 

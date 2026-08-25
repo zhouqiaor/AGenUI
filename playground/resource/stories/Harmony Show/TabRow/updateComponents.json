@@ -1,0 +1,51 @@
+{
+  "version": "v0.9",
+  "updateComponents": {
+    "surfaceId": "harmony_tabrow_demo",
+    "components": [
+      {
+        "id": "root",
+        "component": "Column",
+        "children": ["tabs", "tab-content"],
+        "align": "stretch",
+        "styles": { "background-color": "#FFFFFF" }
+      },
+      {
+        "id": "tabs",
+        "component": "Tabs",
+        "tabs": [
+          { "title": "Recommended", "child": "tab1" },
+          { "title": "Following", "child": "tab2" },
+          { "title": "Hot", "child": "tab3" }
+        ],
+        "selectedIndex": 0,
+        "styles": {
+          "height": "48px",
+          "border-bottom-width": "1px",
+          "border-bottom-color": "#E8EAED"
+        }
+      },
+      {
+        "id": "tab1",
+        "component": "Text",
+        "text": "Recommended content with HarmonyOS brand underline indicator.",
+        "variant": "body",
+        "styles": { "padding": "16px", "font-size": "14px", "color": "#181818", "text-align": "center" }
+      },
+      {
+        "id": "tab2",
+        "component": "Text",
+        "text": "Following content",
+        "variant": "body",
+        "styles": { "padding": "16px", "font-size": "14px", "color": "#181818", "text-align": "center" }
+      },
+      {
+        "id": "tab3",
+        "component": "Text",
+        "text": "Hot content",
+        "variant": "body",
+        "styles": { "padding": "16px", "font-size": "14px", "color": "#181818", "text-align": "center" }
+      }
+    ]
+  }
+}
