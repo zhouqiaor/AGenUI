@@ -2,33 +2,206 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_gravity="center"
-    android:layout_margin="24dp"
+    android:layout_gravity="bottom"
     android:background="@drawable/a2ui_widget_bg"
     android:orientation="vertical"
-    android:padding="20dp">
+    android:padding="16dp">
 
+    <!-- Title -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
         android:text="@string/widget_ai_input_title"
         android:textColor="#333333"
         android:textSize="18sp"
         android:textStyle="bold" />
 
-    <EditText
-        android:id="@+id/etAiInput"
+    <!-- Tab Bar -->
+    <LinearLayout
+        android:id="@+id/tabBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <TextView
+            android:id="@+id/tabKeyboard"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:background="@drawable/tab_selector_bg"
+            android:gravity="center"
+            android:text="键盘"
+            android:textColor="@color/tab_text_color"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tabVoice"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:background="@drawable/tab_selector_bg"
+            android:gravity="center"
+            android:text="语音"
+            android:textColor="@color/tab_text_color"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/tabFile"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="1"
+            android:background="@drawable/tab_selector_bg"
+            android:gravity="center"
+            android:text="文件"
+            android:textColor="@color/tab_text_color"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <!-- Content Area (ViewFlipper) -->
+    <ViewFlipper
+        android:id="@+id/contentFlipper"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:hint="@string/widget_ai_input_hint"
-        android:inputType="textMultiLine"
-        android:minHeight="80dp"
-        android:textColor="#333333"
-        android:textColorHint="#999999"
-        android:textSize="15sp"
-        android:importantForAutofill="no" />
+        android:minHeight="120dp">
 
+        <!-- Tab 1: Keyboard Input -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <EditText
+                android:id="@+id/etAiInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/widget_ai_input_hint"
+                android:inputType="textMultiLine"
+                android:minHeight="80dp"
+                android:textColor="#333333"
+                android:textColorHint="#999999"
+                android:textSize="15sp"
+                android:importantForAutofill="no" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvQuickWeather"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/chip_bg"
+                    android:padding="6dp"
+                    android:layout_marginEnd="8dp"
+                    android:text="天气"
+                    android:textColor="#007DFF"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/tvQuickTodo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/chip_bg"
+                    android:padding="6dp"
+                    android:layout_marginEnd="8dp"
+                    android:text="待办"
+                    android:textColor="#007DFF"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/tvQuickAgenda"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/chip_bg"
+                    android:padding="6dp"
+                    android:text="日程"
+                    android:textColor="#007DFF"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Tab 2: Voice Input -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:minHeight="120dp">
+
+            <TextView
+                android:id="@+id/tvVoiceStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="点击麦克风开始语音输入"
+                android:textColor="#666666"
+                android:textSize="14sp" />
+
+            <ImageButton
+                android:id="@+id/btnMic"
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/mic_button_bg"
+                android:src="@android:drawable/ic_btn_speak_now"
+                android:contentDescription="语音输入" />
+
+            <TextView
+                android:id="@+id/tvVoiceResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:textColor="#333333"
+                android:textSize="14sp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- Tab 3: File Import -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:minHeight="120dp">
+
+            <TextView
+                android:id="@+id/tvFileHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="选择 PDF/DOCX/TXT 文件"
+                android:textColor="#666666"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/btnSelectFile"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/file_button_bg"
+                android:gravity="center"
+                android:text="选择文件"
+                android:textColor="#007DFF"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/tvFilePreview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:ellipsize="end"
+                android:maxLines="5"
+                android:textColor="#666666"
+                android:textSize="13sp"
+                android:visibility="gone" />
+        </LinearLayout>
+    </ViewFlipper>
+
+    <!-- Bottom Buttons -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -54,7 +227,7 @@
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:padding="8dp"
             android:text="@string/widget_ai_input_send"
-            android:textColor="#6200EE"
+            android:textColor="#007DFF"
             android:textSize="14sp"
             android:textStyle="bold" />
     </LinearLayout>

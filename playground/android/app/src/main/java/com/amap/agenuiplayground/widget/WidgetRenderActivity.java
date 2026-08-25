@@ -65,6 +65,8 @@ public class WidgetRenderActivity extends Activity {
     private final Runnable refreshRunnable = this::doRefresh;
     private volatile boolean streamFinished = false;
     private WidgetPartialParser partialParser;
+    private long streamStartTimeMs = 0;
+    private WidgetHistoryRepository historyRepository;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -180,6 +182,8 @@ public class WidgetRenderActivity extends Activity {
             return;
         }
 
+        historyRepository = new WidgetHistoryRepository(this);
+        streamStartTimeMs = System.currentTimeMillis();
         surfaceId = "ai-generated";
         surfaceManager = new SurfaceManager(this);
         partialParser = new WidgetPartialParser();
@@ -273,6 +277,8 @@ public class WidgetRenderActivity extends Activity {
         if (streamFinished) return;
         streamFinished = true;
 
+        long latencyMs = System.currentTimeMillis() - streamStartTimeMs;
+
         // Extract and validate A2UI JSON
         String a2uiJson = WidgetProtocolValidator.extractA2UIJson(content);
         boolean valid = false;
@@ -290,6 +296,11 @@ public class WidgetRenderActivity extends Activity {
                     valid = true;
                 }
             }
+        }
+
+        // Record to history
+        if (historyRepository != null) {
+            historyRepository.record(userText, content != null ? content : "", latencyMs, valid);
         }
 
         if (streamSurface == null) {
@@ -320,33 +331,57 @@ public class WidgetRenderActivity extends Activity {
     private void onStreamError(Exception e) {
         if (streamFinished) return;
         streamFinished = true;
+        long latencyMs = System.currentTimeMillis() - streamStartTimeMs;
         Log.e(TAG, "Stream error, falling back", e);
+
+        // Record failure to history
+        if (historyRepository != null) {
+            historyRepository.record(userText, "", latencyMs, false);
+        }
+
         loadFallback();
     }
 
     /**
      * Fallback: keyword-matched template or notecard.
+     * Uses WidgetFallbackBuilder to send version-format JSON to the existing SurfaceManager.
      */
     private void loadFallback() {
         Log.d(TAG, "Loading fallback template");
 
         String matchedTemplate = matchKeywordTemplate(userText);
-        if (matchedTemplate == null) {
+        boolean matched = matchedTemplate != null;
+        if (!matched) {
             matchedTemplate = "notecard";
         }
 
-        // Load fallback template
-        String fallbackJson = WidgetProtocolTemplates.loadTemplate(this, matchedTemplate,
-                "widget_" + appWidgetId + "_" + System.currentTimeMillis());
+        // Build fallback JSON chunks in version format
+        List<String> fallbackChunks;
+        if (matched) {
+            // Load Phase 1 template and convert to version format
+            String templateJson = WidgetProtocolTemplates.loadTemplate(this, matchedTemplate,
+                    "ai-generated");
+            if (templateJson == null) {
+                // Ultimate fallback: build notecard directly
+                fallbackChunks = WidgetFallbackBuilder.buildNoteCard("ai-generated",
+                        "生成失败", "请重试或更换描述");
+            } else {
+                fallbackChunks = WidgetFallbackBuilder.convertToVersionFormat(
+                        templateJson, "ai-generated");
+            }
+        } else {
+            // No keyword match: build notecard directly
+            fallbackChunks = WidgetFallbackBuilder.buildNoteCard("ai-generated",
+                    "生成失败", "请重试或更换描述");
+        }
 
-        if (fallbackJson == null) {
-            // Ultimate fallback: just finish
+        if (fallbackChunks.isEmpty()) {
             pushErrorWidget();
             finish();
             return;
         }
 
-        // Use a new SurfaceManager for fallback (the old one may be in a bad state)
+        // Reuse existing surfaceManager — destroy old surface, create new with same ID
         try {
             if (surfaceManager != null) {
                 surfaceManager.destroy();
@@ -356,27 +391,18 @@ public class WidgetRenderActivity extends Activity {
         }
 
         surfaceManager = new SurfaceManager(this);
-        String fallbackSurfaceId = "widget_" + appWidgetId + "_" + System.currentTimeMillis();
-
         final CountDownLatch surfaceCreated = new CountDownLatch(1);
         final AtomicReference<Surface> surfaceRef = new AtomicReference<>(null);
         registerSurfaceListener(surfaceManager, surfaceRef, surfaceCreated);
 
-        String createSurfaceJson, updateComponentsJson, updateDataModelJson;
         try {
-            JSONArray arr = new JSONArray(fallbackJson);
-            createSurfaceJson = arr.optJSONObject(0) != null ? arr.optJSONObject(0).toString() : null;
-            updateComponentsJson = arr.optJSONObject(1) != null ? arr.optJSONObject(1).toString() : null;
-            updateDataModelJson = (arr.optJSONObject(2) != null) ? arr.optJSONObject(2).toString() : null;
-
             surfaceManager.beginTextStream();
-            if (createSurfaceJson != null) surfaceManager.receiveTextChunk(createSurfaceJson);
-            if (updateComponentsJson != null) surfaceManager.receiveTextChunk(updateComponentsJson);
-            if (updateDataModelJson != null && !updateDataModelJson.contains("\"value\":{}"))
-                surfaceManager.receiveTextChunk(updateDataModelJson);
+            for (String chunk : fallbackChunks) {
+                surfaceManager.receiveTextChunk(chunk);
+            }
             surfaceManager.endTextStream();
         } catch (Exception e) {
-            Log.e(TAG, "Fallback template failed", e);
+            Log.e(TAG, "Fallback stream failed", e);
             pushErrorWidget();
             finish();
             return;
