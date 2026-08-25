@@ -28,7 +28,7 @@ public class WidgetLLMConfig {
 
     // ===== Test API key — MUST REPLACE before production use =====
     // 用户在使用前需要替换为自己的真实 API Key
-    public static final String DEFAULT_API_KEY = "sk-test-placeholder-replace-me";
+    public static final String DEFAULT_API_KEY = "sk-ws-H.EHLPPMY.QJz8.MEYCIQCk200amtQ7U7w9eXryCE3aARf7q2M58Xd2gXJmQOke6QIhAMJ9mBKcqvUG_d-5ePJFrIQFB7NirlVnAs-SxdAyWKkU";
 
     private final SharedPreferences prefs;
 
