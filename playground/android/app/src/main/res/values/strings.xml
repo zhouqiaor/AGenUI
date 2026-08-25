@@ -60,4 +60,11 @@
     <string name="widget_template_todo">Todo</string>
     <string name="widget_render_error">Render error</string>
     <string name="widget_render_success">Widget rendered</string>
+
+    <!-- AI Input -->
+    <string name="widget_ai_input">AI input</string>
+    <string name="widget_ai_input_title">AI 生成 Widget</string>
+    <string name="widget_ai_input_hint">描述你想生成的内容…</string>
+    <string name="widget_ai_input_cancel">取消</string>
+    <string name="widget_ai_input_send">发送</string>
 </resources>

@@ -39,6 +39,15 @@
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/widget_switch_template"
             android:src="@drawable/a2ui_widget_ic_template" />
+
+        <ImageButton
+            android:id="@+id/btnAiInput"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="4dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/widget_ai_input"
+            android:src="@drawable/a2ui_widget_ic_ai" />
     </LinearLayout>
 
     <!-- A2UI rendered content -->

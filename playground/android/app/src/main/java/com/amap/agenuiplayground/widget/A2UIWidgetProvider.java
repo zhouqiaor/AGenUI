@@ -22,6 +22,7 @@ public class A2UIWidgetProvider extends AppWidgetProvider {
 
     public static final String ACTION_REFRESH = "com.amap.agenuiplayground.widget.ACTION_REFRESH";
     public static final String ACTION_SWITCH_TEMPLATE = "com.amap.agenuiplayground.widget.ACTION_SWITCH_TEMPLATE";
+    public static final String ACTION_AI_INPUT = "com.amap.agenuiplayground.widget.ACTION_AI_INPUT";
     public static final String EXTRA_APPWIDGET_ID = "appWidgetId";
     public static final String EXTRA_TEMPLATE = "template";
 
@@ -53,6 +54,31 @@ public class A2UIWidgetProvider extends AppWidgetProvider {
                 WidgetProtocolCache.saveTemplate(context, appWidgetId, template);
                 renderWidget(context, appWidgetId, template);
             }
+        } else if (ACTION_AI_INPUT.equals(action)) {
+            int appWidgetId = intent.getIntExtra(EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
+            if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
+                launchInputActivity(context, appWidgetId);
+            }
+        }
+    }
+
+    private void launchInputActivity(Context context, int appWidgetId) {
+        Log.d(TAG, "launchInputActivity: id=" + appWidgetId);
+        Intent inputIntent = new Intent(context, WidgetInputActivity.class);
+        inputIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        inputIntent.putExtra(EXTRA_APPWIDGET_ID, appWidgetId);
+
+        int flags = android.app.PendingIntent.FLAG_UPDATE_CURRENT
+                | android.app.PendingIntent.FLAG_IMMUTABLE;
+        try {
+            android.app.PendingIntent pi = android.app.PendingIntent.getActivity(
+                    context, appWidgetId, inputIntent, flags);
+            pi.send();
+        } catch (android.app.PendingIntent.CanceledException e) {
+            Log.e(TAG, "Failed to launch WidgetInputActivity", e);
+            // Fallback: direct start (may fail on Android 10+ from background)
+            inputIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(inputIntent);
         }
     }
 

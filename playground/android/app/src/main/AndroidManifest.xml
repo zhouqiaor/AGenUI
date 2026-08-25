@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Notification permission required for Picasso RemoteViewsAction on Android 13+ -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Microphone for voice input (P2.2) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:allowBackup="true"
@@ -56,6 +58,7 @@
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.amap.agenuiplayground.widget.ACTION_REFRESH" />
                 <action android:name="com.amap.agenuiplayground.widget.ACTION_SWITCH_TEMPLATE" />
+                <action android:name="com.amap.agenuiplayground.widget.ACTION_AI_INPUT" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
@@ -67,7 +70,14 @@
             android:name=".widget.WidgetRenderActivity"
             android:exported="false"
             android:excludeFromRecents="true"
-            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AGenUIPlayground.Transparent" />
+
+        <!-- AI Input Activity (transparent, for user text input) -->
+        <activity
+            android:name=".widget.WidgetInputActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
             android:taskAffinity=""
             android:theme="@style/Theme.AGenUIPlayground.Transparent" />
 
