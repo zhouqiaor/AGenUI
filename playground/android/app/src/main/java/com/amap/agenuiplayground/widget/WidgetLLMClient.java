@@ -119,14 +119,18 @@ public class WidgetLLMClient {
 
                     try {
                         JSONObject json = new JSONObject(data);
-                        JSONObject delta = json.optJSONArray("choices")
-                                .optJSONObject(0)
-                                .optJSONObject("delta");
-                        if (delta != null) {
-                            String content = delta.optString("content", "");
-                            if (!content.isEmpty()) {
-                                fullContent.append(content);
-                                callback.onChunk(content);
+                        org.json.JSONArray choices = json.optJSONArray("choices");
+                        if (choices != null && choices.length() > 0) {
+                            JSONObject choice = choices.optJSONObject(0);
+                            if (choice != null) {
+                                JSONObject delta = choice.optJSONObject("delta");
+                                if (delta != null) {
+                                    String content = delta.optString("content", "");
+                                    if (!content.isEmpty()) {
+                                        fullContent.append(content);
+                                        callback.onChunk(content);
+                                    }
+                                }
                             }
                         }
                     } catch (Exception e) {
@@ -160,6 +164,8 @@ public class WidgetLLMClient {
                             WidgetPromptBuilder.buildMessagesJson(systemPrompt, userText)));
             body.put("stream", true);
             body.put("temperature", 0.2);
+            // Disable thinking mode for fast widget generation (qwen3.7-plus supports this)
+            body.put("enable_thinking", false);
         } catch (Exception e) {
             Log.e(TAG, "Failed to build request body", e);
         }
