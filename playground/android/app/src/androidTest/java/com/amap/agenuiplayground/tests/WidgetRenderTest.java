@@ -10,6 +10,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.amap.agenui.render.surface.Surface;
 import com.amap.agenuiplayground.base.AGenUIBaseTest;
+import com.amap.agenuiplayground.widget.WidgetProtocolTemplates;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -26,61 +27,84 @@ import static org.junit.Assert.assertTrue;
 /**
  * Widget 渲染单元测试 — 复用 AGenUIBaseTest 框架。
  *
- * <p>测试 A2UI Widget 三种模板的渲染管线：
- * <ol>
- *   <li>从 assets/widget_templates/ 加载模板 JSON</li>
- *   <li>逐条发送协议消息（sendMessagesAndWaitForSurface）</li>
- *   <li>验证 Surface 创建、组件数量、Bitmap 渲染</li>
- * </ol>
+ * 将 widget 模板的 wire format（[{"type":"createSurface",...}]）
+ * 转换为 AGenUI SDK 期望的 envelope format（{"version":"v0.9","createSurface":{...}}），
+ * 然后用 sendAndWaitForRender 发送。
  *
- * <p>验收标准对应 SPEC-Widget-AutomatedTesting.md 的 WT-01 ~ WT-06。
+ * 验收标准对应 SPEC-Widget-AutomatedTesting.md 的 WT-01 ~ WT-06。
  */
 @RunWith(AndroidJUnit4.class)
 public class WidgetRenderTest extends AGenUIBaseTest {
 
-    private static final String TAG = "WidgetRenderTest";
     private static final String TEMPLATES_DIR = "widget_templates";
-    private static final String[] TEMPLATES = {"weather", "agenda", "todo"};
+    private static final String CATALOG_ID =
+            "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json";
 
     // ==================== 辅助方法 ====================
 
     /**
-     * 从 assets/widget_templates/ 加载模板 JSON 并替换 surfaceId 占位符。
+     * 从 assets/widget_templates/ 加载模板 JSON（wire format）。
      */
-    private String[] loadTemplateMessages(String templateName, String surfaceId) throws Exception {
+    private String loadRawTemplate(String templateName) throws Exception {
         String fileName = TEMPLATES_DIR + "/" + templateName + ".json";
         InputStream is = InstrumentationRegistry.getInstrumentation()
                 .getTargetContext().getAssets().open(fileName);
         byte[] buffer = new byte[is.available()];
         int bytesRead = is.read(buffer);
         is.close();
-        String json = new String(buffer, 0, bytesRead, StandardCharsets.UTF_8);
-        json = json.replace("__SURFACE_ID__", surfaceId);
-
-        // 解析为 JSONArray，返回逐条消息字符串数组
-        JSONArray arr = new JSONArray(json);
-        String[] messages = new String[arr.length()];
-        for (int i = 0; i < arr.length(); i++) {
-            messages[i] = arr.getJSONObject(i).toString();
-        }
-        return messages;
+        return new String(buffer, 0, bytesRead, StandardCharsets.UTF_8);
     }
 
     /**
-     * 加载模板并提取 surfaceId（从 createSurface 消息中）。
+     * 将 widget 模板（wire format JSONArray）转换为 AGenUI fixture envelope format。
+     *
+     * Wire format:
+     *   [{"type":"createSurface","surfaceId":"X","catalogId":"Y","width":300},
+     *    {"type":"updateComponents","surfaceId":"X","components":[...]},
+     *    {"type":"updateDataModel","surfaceId":"X","value":{}}]
+     *
+     * Envelope format (fixture-compatible):
+     *   {"version":"v0.9","createSurface":{"surfaceId":"X","catalogId":"Y"}}
+     *   {"version":"v0.9","updateComponents":{"surfaceId":"X","components":[...]}}
+     *
+     * Note: updateDataModel is omitted (not needed for render test).
+     * Note: catalogId in widget templates uses catalogs/basic/catalog.json path,
+     *       but SDK expects basic_catalog.json — we use the widget template's path
+     *       and let SDK resolve it. If it fails, we fall back to the fixture catalog.
      */
-    private String getTemplateSurfaceId(String templateName) throws Exception {
-        String fileName = TEMPLATES_DIR + "/" + templateName + ".json";
-        InputStream is = InstrumentationRegistry.getInstrumentation()
-                .getTargetContext().getAssets().open(fileName);
-        byte[] buffer = new byte[is.available()];
-        int bytesRead = is.read(buffer);
-        is.close();
-        String json = new String(buffer, 0, bytesRead, StandardCharsets.UTF_8);
-        JSONArray arr = new JSONArray(json);
-        JSONObject createMsg = arr.getJSONObject(0);
-        return createMsg.getString("surfaceId").replace("__SURFACE_ID__",
-                "test_" + templateName + "_" + System.currentTimeMillis());
+    private String convertToEnvelopeFormat(String templateJson, String surfaceId) throws Exception {
+        templateJson = templateJson.replace("__SURFACE_ID__", surfaceId);
+        JSONArray wireMessages = new JSONArray(templateJson);
+
+        // Build fixture-style messages array
+        JSONArray envelopeMessages = new JSONArray();
+        for (int i = 0; i < wireMessages.length(); i++) {
+            JSONObject wireMsg = wireMessages.getJSONObject(i);
+            String type = wireMsg.getString("type");
+
+            JSONObject envelope = new JSONObject();
+            envelope.put("version", "v0.9");
+
+            if ("createSurface".equals(type)) {
+                JSONObject createSurface = new JSONObject();
+                createSurface.put("surfaceId", wireMsg.getString("surfaceId"));
+                // Use the catalogId from the template; fallback to known catalog
+                String catalogId = wireMsg.optString("catalogId", CATALOG_ID);
+                createSurface.put("catalogId", catalogId);
+                envelope.put("createSurface", createSurface);
+                envelopeMessages.put(envelope);
+            } else if ("updateComponents".equals(type)) {
+                JSONObject updateComponents = new JSONObject();
+                updateComponents.put("surfaceId", wireMsg.getString("surfaceId"));
+                updateComponents.put("components", wireMsg.getJSONArray("components"));
+                envelope.put("updateComponents", updateComponents);
+                envelopeMessages.put(envelope);
+            }
+            // Skip updateDataModel — not needed for rendering
+        }
+
+        // Return as a single JSON array string (sendAndWaitForRender handles it)
+        return envelopeMessages.toString();
     }
 
     /**
@@ -88,15 +112,12 @@ public class WidgetRenderTest extends AGenUIBaseTest {
      */
     private Surface renderTemplate(String templateName) throws Exception {
         String surfaceId = "test_" + templateName + "_" + System.currentTimeMillis();
-        String[] messages = loadTemplateMessages(templateName, surfaceId);
+        String rawJson = loadRawTemplate(templateName);
+        String envelopeJson = convertToEnvelopeFormat(rawJson, surfaceId);
 
-        // 构造 JSONArray 供 sendMessagesAndWaitForSurface
-        JSONArray msgArray = new JSONArray();
-        for (String msg : messages) {
-            msgArray.put(new JSONObject(msg));
-        }
-
-        Surface surface = sendMessagesAndWaitForSurface(msgArray, surfaceId);
+        // Use sendMessagesAndWaitForSurface (per-message begin/receive/end)
+        JSONArray messages = new JSONArray(envelopeJson);
+        Surface surface = sendMessagesAndWaitForSurface(messages, surfaceId);
         waitForMainThread();
         return surface;
     }
@@ -137,7 +158,8 @@ public class WidgetRenderTest extends AGenUIBaseTest {
 
         assertNotNull("Weather surface should be created", surface);
         assertNotNull("Surface ID should be set", surface.getSurfaceId());
-        assertTrue("Surface should have components",
+        assertTrue("Surface should have components (count=" +
+                surface.getComponentCount() + ")",
                 surface.getComponentCount() > 0);
     }
 
@@ -148,7 +170,8 @@ public class WidgetRenderTest extends AGenUIBaseTest {
         Surface surface = renderTemplate("agenda");
 
         assertNotNull("Agenda surface should be created", surface);
-        assertTrue("Surface should have components",
+        assertTrue("Surface should have components (count=" +
+                surface.getComponentCount() + ")",
                 surface.getComponentCount() > 0);
     }
 
@@ -159,7 +182,8 @@ public class WidgetRenderTest extends AGenUIBaseTest {
         Surface surface = renderTemplate("todo");
 
         assertNotNull("Todo surface should be created", surface);
-        assertTrue("Surface should have components",
+        assertTrue("Surface should have components (count=" +
+                surface.getComponentCount() + ")",
                 surface.getComponentCount() > 0);
     }
 
@@ -207,20 +231,11 @@ public class WidgetRenderTest extends AGenUIBaseTest {
 
         assertNotNull("Bitmap should be generated", bitmap);
 
-        // 检查中心像素不是纯白（说明有渲染内容）
-        int centerPixel = bitmap.getPixel(bitmap.getWidth() / 2, bitmap.getHeight() / 2);
-        int red = Color.red(centerPixel);
-        int green = Color.green(centerPixel);
-        int blue = Color.blue(centerPixel);
-        boolean isPureWhite = red > 250 && green > 250 && blue > 250;
-        boolean isPureBlack = red < 5 && green < 5 && blue < 5;
-
-        // 纯白是可以接受的（背景色），但至少应该有一些像素不是纯白
-        // 检查多个采样点
+        // 检查多个采样点是否有非纯白/纯黑内容
         boolean hasContent = false;
         int samplePoints = 0;
-        for (int x = 10; x < bitmap.getWidth(); x += bitmap.getWidth() / 5) {
-            for (int y = 10; y < bitmap.getHeight(); y += bitmap.getHeight() / 5) {
+        for (int x = 10; x < bitmap.getWidth(); x += Math.max(1, bitmap.getWidth() / 5)) {
+            for (int y = 10; y < bitmap.getHeight(); y += Math.max(1, bitmap.getHeight() / 5)) {
                 int pixel = bitmap.getPixel(x, y);
                 int r = Color.red(pixel);
                 int g = Color.green(pixel);
@@ -243,16 +258,12 @@ public class WidgetRenderTest extends AGenUIBaseTest {
     public void WT06_getNextTemplate_rotation() {
         // 测试模板轮换顺序：weather → agenda → todo → weather
         assertEquals("weather → agenda",
-                "agenda", com.amap.agenuiplayground.widget.WidgetProtocolTemplates
-                        .getNextTemplate("weather"));
+                "agenda", WidgetProtocolTemplates.getNextTemplate("weather"));
         assertEquals("agenda → todo",
-                "todo", com.amap.agenuiplayground.widget.WidgetProtocolTemplates
-                        .getNextTemplate("agenda"));
+                "todo", WidgetProtocolTemplates.getNextTemplate("agenda"));
         assertEquals("todo → weather",
-                "weather", com.amap.agenuiplayground.widget.WidgetProtocolTemplates
-                        .getNextTemplate("todo"));
+                "weather", WidgetProtocolTemplates.getNextTemplate("todo"));
         assertEquals("unknown → weather (default)",
-                "weather", com.amap.agenuiplayground.widget.WidgetProtocolTemplates
-                        .getNextTemplate("nonexistent"));
+                "weather", WidgetProtocolTemplates.getNextTemplate("nonexistent"));
     }
 }

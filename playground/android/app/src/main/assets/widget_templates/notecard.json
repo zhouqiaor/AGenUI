@@ -1,0 +1,35 @@
+[
+  {
+    "type": "createSurface",
+    "surfaceId": "__SURFACE_ID__",
+    "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+    "width": 300
+  },
+  {
+    "type": "updateComponents",
+    "surfaceId": "__SURFACE_ID__",
+    "components": [
+      {
+        "id": "root",
+        "type": "Card",
+        "children": [
+          {
+            "id": "root_c0",
+            "type": "Column",
+            "children": [
+              {"id": "root_c0_c0", "type": "Text", "text": "生成失败", "styles": {"fontSize": 18, "fontWeight": "bold", "color": "#CC3333"}},
+              {"id": "root_c0_c1", "type": "Text", "text": "请重试或更换描述", "styles": {"fontSize": 14, "color": "#999999"}}
+            ],
+            "styles": {"crossAxisAlignment": "center", "padding": {"all": 16}}
+          }
+        ],
+        "styles": {"margin": {"all": 8}}
+      }
+    ]
+  },
+  {
+    "type": "updateDataModel",
+    "surfaceId": "__SURFACE_ID__",
+    "value": {}
+  }
+]
