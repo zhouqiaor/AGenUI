@@ -51,7 +51,7 @@ public class HarmonyCard extends FrameLayout {
         shadowRadius = vp(16);
         shadowDx = 0;
         shadowDy = vp(2);
-        padding = vp(tokenResolver.spaceMd());
+        padding = (int) vp(tokenResolver.spaceMd());
 
         bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         bgPaint.setColor(tokenResolver.surfacePrimaryColor());

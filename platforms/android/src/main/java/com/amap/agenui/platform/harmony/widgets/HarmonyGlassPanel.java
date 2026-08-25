@@ -63,7 +63,7 @@ public class HarmonyGlassPanel extends FrameLayout {
         shadowPaint.setColor(0x14000000);
         shadowPaint.setStyle(Paint.Style.FILL);
 
-        int padding = vp(tokenResolver.spaceMd());
+        int padding = (int) vp(tokenResolver.spaceMd());
         setPadding(padding, padding, padding, padding);
         setWillNotDraw(false);
         setLayerType(View.LAYER_TYPE_SOFTWARE, null);

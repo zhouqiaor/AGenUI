@@ -66,7 +66,7 @@ public class HarmonySheet extends FrameLayout {
         shadowPaint.setColor(0x14000000);
         shadowPaint.setStyle(Paint.Style.FILL);
 
-        int contentPadding = vp(tokenResolver.spaceMd());
+        int contentPadding = (int) vp(tokenResolver.spaceMd());
         setPadding(contentPadding,
                    (int)(indicatorTopMargin + indicatorHeight + indicatorTopMargin),
                    contentPadding,
