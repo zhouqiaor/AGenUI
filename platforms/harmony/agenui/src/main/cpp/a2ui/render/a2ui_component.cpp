@@ -1,0 +1,1012 @@
+#include <arkui/native_interface.h>
+#include <arkui/native_animate.h>
+#include <arkui/native_node_napi.h>
+#include <atomic>
+#include <cmath>
+#include <cstdlib>
+#include <mutex>
+#include <sstream>
+#include <vector>
+
+#include "a2ui_component.h"
+#include "utils/a2ui_parse_utils.h"
+#include "a2ui/measure/a2ui_platform_layout_bridge.h"
+#include "a2ui/utils/a2ui_unit_utils.h"
+#include "a2ui/utils/a2ui_color_palette.h"
+#include "a2ui/utils/a2ui_shadow_utils.h"
+#include "a2ui/utils/a2ui_animate_utils.h"
+#include "a2ui_component_state.h"
+#include "agenui_engine_entry.h"
+#include "agenui_surface_manager_interface.h"
+#include "agenui_dispatcher_types.h"
+#include "a2ui/a2ui_message_listener.h"
+#include "log/a2ui_capi_log.h"
+#include "a2ui/bridge/image_loader_bridge.h"
+#include "a2ui/render/gradient_applier.h"
+#include "style_parser/agenui_color_parser.h"
+#include "surface/token_parser/agenui_token_parser.h"
+
+namespace a2ui {
+
+using colors::kColorTransparent;
+
+namespace {
+
+constexpr int32_t kDefaultAppearDurationMs = 400;
+
+float parseOpacityValue(const nlohmann::json& value, float fallback = 1.0f) {
+    if (value.is_number()) {
+        return value.get<float>();
+    }
+    if (value.is_string()) {
+        return static_cast<float>(std::atof(value.get<std::string>().c_str()));
+    }
+    return fallback;
+}
+
+float clampOpacity(float value) {
+    if (value < 0.0f) {
+        return 0.0f;
+    }
+    if (value > 1.0f) {
+        return 1.0f;
+    }
+    return value;
+}
+
+}  // namespace
+
+A2UIComponent::A2UIComponent(const std::string &id, const std::string &componentType)
+    : m_id(id), m_componentType(componentType), m_state(nullptr), m_parent(nullptr), m_nodeHandle(nullptr) {
+    static std::once_flag s_nodeApiOnce;
+    std::call_once(s_nodeApiOnce, [] {
+        OH_ArkUI_GetModuleInterface(ARKUI_NATIVE_NODE, ArkUI_NativeNodeAPI_1, g_nodeAPI);
+        if (g_nodeAPI == nullptr) {
+            HM_LOGE("Fatal: Failed to get ArkUI NativeNodeAPI_1");
+        }
+    });
+}
+
+A2UIComponent::~A2UIComponent() {
+}
+
+void A2UIComponent::setHeight(float height) {
+    m_height = height;
+    getNode().setHeight(height);
+}
+
+const nlohmann::json& A2UIComponent::getProperties() const {
+    if (m_state) {
+        return m_state->getProperties();
+    }
+    return m_properties;
+}
+
+void A2UIComponent::updateProperties(const nlohmann::json& newProps) {
+    if (!newProps.is_null() && !newProps.is_object()) {
+        return;
+    }
+    
+    if (m_state) {
+        HM_LOGD(" using incremental update (with State)", m_id.c_str());
+        
+        m_state->updateProperties(newProps);
+
+        // null (delete signal) → erase key; don't store JSON null (align iOS .deleted).
+        // newProps itself is unchanged, so null still propagates to onUpdateProperties.
+        for (auto it = newProps.begin(); it != newProps.end(); ++it) {
+            if (it.value().is_null()) {
+                m_properties.erase(it.key());
+            } else {
+                m_properties[it.key()] = it.value();
+            }
+        }
+        
+        updateLayoutProperties(newProps);
+
+        applyAccessibility(getProperties());
+
+        onUpdateProperties(newProps);
+        
+        if (m_state->isDirty()) {
+            updateView();
+            m_state->clearDirty();
+        }
+        playAppearAnimationIfNeeded();
+    } else {
+        HM_LOGD(" using full update (no State)", m_id.c_str());
+        
+        // null (delete signal) → erase key; don't store JSON null (align iOS .deleted).
+        for (auto it = newProps.begin(); it != newProps.end(); ++it) {
+            if (it.value().is_null()) {
+                m_properties.erase(it.key());
+            } else {
+                m_properties[it.key()] = it.value();
+            }
+        }
+        
+        updateLayoutProperties(newProps);
+
+        applyAccessibility(getProperties());
+
+        setupClickListener();
+        
+        onUpdateProperties(newProps);
+        playAppearAnimationIfNeeded();
+    }
+}
+
+void A2UIComponent::updateLayoutProperties(const nlohmann::json& newProps) {
+    float posX = 0.0f;
+    float posY = 0.0f;
+    float width = 100.0f;
+    float height = 100.0f;
+    if (newProps.contains("styles")) {
+        nlohmann::json stylesJson;
+        bool stylesValid = false;
+        if (newProps["styles"].is_object()) {
+            stylesJson = newProps["styles"];
+            stylesValid = true;
+        } else if (newProps["styles"].is_string()) {
+            try {
+                stylesJson = nlohmann::json::parse(newProps["styles"].get<std::string>());
+                stylesValid = true;
+            } catch (const nlohmann::json::exception& e) {
+                HM_LOGW("Failed to parse styles string: %s", e.what());
+            }
+        }
+        if (stylesValid) {
+            posX = stylesJson.value("x", 0.0f);
+            posY = stylesJson.value("y", 0.0f);
+            width = stylesJson.value("width", 0.0f);
+            height = stylesJson.value("height", 0.0f);
+            
+            if (stylesJson.contains("styleInfo") && stylesJson["styleInfo"].is_string()) {
+                m_styleInfo = stylesJson["styleInfo"].get<std::string>();
+            }
+            
+            HM_LOGD("[%s] styles: %s", m_id.c_str(), stylesJson.dump().c_str());
+            
+            
+            m_x = posX;
+            m_y = posY;
+            m_width = width;
+            m_height = height;
+            
+            if (!m_parent || m_parent->shouldApplyChildLayoutPosition(this)) {
+                getNode().setPosition(m_x, m_y);
+            } else {
+                // Parent opted out of full position, but may still apply partial position
+                // (e.g. ListComponent applies only the x axis for cross-axis alignment).
+                m_parent->onApplyChildPosition(this, m_x, m_y);
+            }
+            if (!m_parent || m_parent->shouldApplyChildLayoutSize(this)) {
+                getNode().setWidth(m_width);
+                getNode().setHeight(m_height);
+            }
+            // Root node has no Yoga parent to consume its margin.
+            // Yoga's getLayoutLeft/Top already include margin-left/top in the
+            // position, but margin-bottom/right are lost. Apply them to the
+            // ArkUI node so the parent Stack can allocate the correct space.
+            if (m_id == "root") {
+                float mt = 0, mr = 0, mb = 0, ml = 0;
+                resolveUserMargin(stylesJson, mt, mr, mb, ml);
+                if (mb > 0 || mr > 0) {
+                    getNode().setMargin(0, mr, mb, 0);
+                }
+            }
+            if (m_parent) {
+                m_parent->onChildLayoutSizeChanged(this);
+            }
+            HM_LOGI("Updated layout for component %s: x=%.1f, y=%.1f, width=%.1f, height=%.1f", m_id.c_str(), posX, posY, width, height);
+            
+            // Apply the background-image style
+            applyBackgroundImage(stylesJson);
+
+            // Apply the visibility style
+            applyVisibility(stylesJson);
+
+            // Apply the opacity style
+            applyOpacity(stylesJson);
+        }
+    }
+}
+
+void A2UIComponent::updateView() {
+    if (!m_state || !m_state->isDirty()) {
+        return;
+    }
+    
+    const auto& dirtyProps = m_state->getDirtyProperties();
+    const auto& properties = m_state->getProperties();
+    
+    HM_LOGD("[%s] updating %zu dirty properties", m_id.c_str(), dirtyProps.size());
+    
+    for (const auto& key : dirtyProps) {
+        if (properties.contains(key)) {
+            onUpdateProperty(key, properties[key]);
+        }
+    }
+}
+
+void A2UIComponent::addChild(A2UIComponent* child) {
+    if (!child) {
+        return;
+    }
+    m_children.push_back(child);
+    child->m_parent = this;
+
+    if (shouldAutoAddChildView() && m_nodeHandle && child->m_nodeHandle) {
+        g_nodeAPI->addChild(m_nodeHandle, child->getNodeHandle());
+    }
+
+    // Aligned with iOS Component.attachChildView gate: only create the child
+    // view when the parent allows eager creation and the parent chain permits
+    // it.  canCreateChildViewConsideringParent() walks up the parent chain,
+    // so a horizontal List (shouldCreateChildView=false) blocks creation of
+    // its children until the adapter explicitly calls child->createView().
+    if (shouldCreateChildView() && child->canCreateChildViewConsideringParent()) {
+        child->createView();
+    }
+
+    HM_LOGI("Parent %s added child %s (autoAddView=%s)", m_id.c_str(), child->m_id.c_str(), shouldAutoAddChildView() ? "true" : "false");
+}
+
+void A2UIComponent::removeChild(A2UIComponent* child) {
+    if (!child) {
+        return;
+    }
+    for (auto it = m_children.begin(); it != m_children.end(); ++it) {
+        if (*it == child) {
+            if (m_nodeHandle && child->m_nodeHandle) {
+                g_nodeAPI->removeChild(m_nodeHandle, child->getNodeHandle());
+            }
+            m_children.erase(it);
+            child->m_parent = nullptr;
+            HM_LOGI("Parent %s removed child %s", m_id.c_str(), child->m_id.c_str());
+            break;
+        }
+    }
+}
+
+void A2UIComponent::removeChildById(const std::string& childId) {
+    for (auto it = m_children.begin(); it != m_children.end(); ++it) {
+        if ((*it)->m_id == childId) {
+            if (m_nodeHandle && (*it)->m_nodeHandle) {
+                g_nodeAPI->removeChild(m_nodeHandle, (*it)->getNodeHandle());
+            }
+            (*it)->m_parent = nullptr;
+            m_children.erase(it);
+            HM_LOGI("Parent %s removed child %s", m_id.c_str(), childId.c_str());
+            break;
+        }
+    }
+}
+
+void A2UIComponent::destroy() {
+    HM_LOGI("Destroying component %s (type: %s, children: %zu)", m_id.c_str(), m_componentType.c_str(), m_children.size());
+
+    // Cancel any running opacity animator before the node is freed.
+    cancelOpacityAnimator(m_opacityAnimPayload);
+
+    onDestroy();
+
+    for (A2UIComponent* child : m_children) {
+        if (child) {
+            child->destroy();
+            delete child;
+        }
+    }
+    m_children.clear();
+    m_parent = nullptr;
+
+    if (m_actionClickRegistered && m_nodeHandle) {
+        g_nodeAPI->unregisterNodeEvent(m_nodeHandle, NODE_ON_CLICK);
+        m_actionClickRegistered = false;
+    }
+
+    if (m_backgroundImageHandle) {
+        if (!m_backgroundImageRequestId.empty()) {
+            ImageLoaderBridge::getInstance().cancel(m_backgroundImageRequestId);
+            m_backgroundImageRequestId.clear();
+        }
+        g_nodeAPI->removeChild(m_nodeHandle, m_backgroundImageHandle);
+        g_nodeAPI->disposeNode(m_backgroundImageHandle);
+        m_backgroundImageHandle = nullptr;
+        m_backgroundImageUrl.clear();
+    }
+
+    if (m_nodeHandle) {
+        g_nodeAPI->disposeNode(m_nodeHandle);
+        m_nodeHandle = nullptr;
+    }
+}
+
+bool A2UIComponent::shouldAutoAddChildView() const {
+    return true;
+}
+
+bool A2UIComponent::canCreateChildViewConsideringParent() const {
+    if (!shouldCreateChildView()) {
+        return false;
+    }
+    if (m_parent && !m_parent->canCreateChildViewConsideringParent()) {
+        return false;
+    }
+    return true;
+}
+
+void A2UIComponent::createView() {
+    if (m_viewCreated) {
+        return;
+    }
+    m_viewCreated = true;
+
+    // Recursively materialize children — mirrors iOS createChildViews().
+    // Lazy containers (e.g. horizontal List) have shouldCreateChildView()=false,
+    // so canCreateChildViewConsideringParent() returns false in addChild(),
+    // preventing createView() from being called on them.  Their children are
+    // materialized on demand by the adapter (handleAdapterAddNode).
+    for (A2UIComponent* child : m_children) {
+        if (child) {
+            child->createView();
+        }
+    }
+
+    // Apply all stored properties — mirrors iOS updateProperties(self.properties)
+    // called at the end of createView().
+    updateProperties(m_properties);
+}
+
+bool A2UIComponent::shouldApplyChildLayoutPosition(const A2UIComponent* child) const {
+    (void)child;
+    return true;
+}
+
+bool A2UIComponent::shouldApplyChildLayoutSize(const A2UIComponent* child) const {
+    (void)child;
+    return true;
+}
+
+float A2UIComponent::resolveAppearTargetOpacity(const nlohmann::json& properties) const {
+    if (properties.contains("opacity")) {
+        return clampOpacity(parseOpacityValue(properties["opacity"]));
+    }
+    if (properties.contains("styles")) {
+        nlohmann::json stylesJson;
+        if (properties["styles"].is_object()) {
+            stylesJson = properties["styles"];
+        } else if (properties["styles"].is_string()) {
+            try {
+                stylesJson = nlohmann::json::parse(properties["styles"].get<std::string>());
+            } catch (const nlohmann::json::exception&) {
+                return 1.0f;
+            }
+        }
+        if (stylesJson.is_object()) {
+            if (stylesJson.contains("opacity")) {
+                return clampOpacity(parseOpacityValue(stylesJson["opacity"]));
+            }
+        }
+    }
+    return 1.0f;
+}
+
+void A2UIComponent::prepareAppearAnimation(const nlohmann::json& properties) {
+    if (m_hasPlayedAppearAnimation || m_pendingAppearAnimation || !m_nodeHandle) {
+        return;
+    }
+    if (!m_surfaceAnimated) {
+        return;
+    }
+
+    m_appearTargetOpacity = resolveAppearTargetOpacity(properties);
+    if (m_appearTargetOpacity <= 0.0f) {
+        return;
+    }
+
+    // The animation lands on the declared opacity, so record it as already
+    // applied and let applyOpacity stay out of the way until it finishes.
+    m_appliedOpacity = m_appearTargetOpacity;
+    m_pendingAppearAnimation = true;
+    A2UINode(m_nodeHandle).setOpacity(0.0f);
+}
+
+void A2UIComponent::playAppearAnimationIfNeeded() {
+    if (!m_pendingAppearAnimation || !m_nodeHandle) {
+        return;
+    }
+    if (!m_surfaceAnimated) {
+        m_pendingAppearAnimation = false;
+        m_hasPlayedAppearAnimation = true;
+        A2UINode(m_nodeHandle).setOpacity(m_appearTargetOpacity);
+        return;
+    }
+    m_pendingAppearAnimation = false;
+    m_hasPlayedAppearAnimation = true;
+    animateNodeOpacityAfterMount(m_nodeHandle, m_appearTargetOpacity, kDefaultAppearDurationMs, &m_opacityAnimPayload);
+}
+
+void A2UIComponent::onUpdateProperty(const std::string& key, const nlohmann::json& value) {
+    HM_LOGD("[%s] property '%s' (base class, no-op)", m_id.c_str(), key.c_str());
+}
+
+void A2UIComponent::onUpdateProperties(const nlohmann::json& properties) {
+}
+
+
+void A2UIComponent::setupClickListener() {
+    if (!m_nodeHandle) {
+        return;
+    }
+
+    if (m_properties.contains("action") && m_properties["action"].is_object()) {
+        if (!m_actionClickRegistered) {
+            g_nodeAPI->addNodeEventReceiver(m_nodeHandle, onActionClickCallback);
+            g_nodeAPI->registerNodeEvent(m_nodeHandle, NODE_ON_CLICK, 0, this);
+            m_actionClickRegistered = true;
+            HM_LOGI("Registered click for component %s (type: %s)", m_id.c_str(), m_componentType.c_str());
+        }
+    } else {
+        if (m_actionClickRegistered) {
+            g_nodeAPI->unregisterNodeEvent(m_nodeHandle, NODE_ON_CLICK);
+            m_actionClickRegistered = false;
+            HM_LOGI("Unregistered click for component %s (type: %s)", m_id.c_str(), m_componentType.c_str());
+        }
+    }
+}
+
+void A2UIComponent::onActionClickCallback(ArkUI_NodeEvent* event) {
+    if (OH_ArkUI_NodeEvent_GetEventType(event) != ArkUI_NodeEventType::NODE_ON_CLICK) {
+        return;
+    }
+
+    void* userData = OH_ArkUI_NodeEvent_GetUserData(event);
+    if (!userData) {
+        HM_LOGW("userData is null");
+        return;
+    }
+
+    A2UIComponent* component = static_cast<A2UIComponent*>(userData);
+
+    if (component->isClickDisabled()) {
+        HM_LOGI("Click disabled for component %s (type: %s)", component->m_id.c_str(), component->m_componentType.c_str());
+        return;
+    }
+
+    HM_LOGI("Component clicked: %s (type: %s)", component->m_id.c_str(), component->m_componentType.c_str());
+
+    if (component->m_properties.contains("action") && component->m_properties["action"].is_object()) {
+        const auto& actionDef = component->m_properties["action"];
+        HM_LOGD("Dispatching action: %s", actionDef.dump().c_str());
+        component->dispatchAction(actionDef);
+    } else {
+        HM_LOGW("No action defined for component: %s", component->m_id.c_str());
+    }
+}
+
+void A2UIComponent::dispatchAction(const nlohmann::json& actionDef) {
+    if (m_surfaceId.empty()) {
+        HM_LOGE("surfaceId is empty, id=%s", m_id.c_str());
+        return;
+    }
+
+    nlohmann::json contextJson;
+    contextJson["action"] = actionDef;
+
+    agenui::ActionMessage actionMessage;
+    actionMessage.surfaceId = m_surfaceId;
+    actionMessage.sourceComponentId = m_id;
+    actionMessage.contextJson = contextJson.dump();
+
+    HM_LOGI("surfaceId=%s, componentId=%s, context=%s", m_surfaceId.c_str(), m_id.c_str(), actionMessage.contextJson.c_str());
+
+    if (m_instanceId == 0) {
+        HM_LOGE("instanceId not set, surfaceId=%s, componentId=%s", m_surfaceId.c_str(), m_id.c_str());
+        return;
+    }
+    auto* engine = agenui::getAGenUIEngine();
+    if (engine) {
+        auto sm = engine->findSurfaceManagerShared(m_instanceId);
+        if (sm) {
+            sm->submitUIAction(actionMessage);
+        } else {
+            HM_LOGE("ISurfaceManager not found for instanceId=%d", m_instanceId);
+        }
+    } else {
+        HM_LOGE("AGenUI Engine is null");
+    }
+}
+
+void A2UIComponent::notifyAppeared(const std::string& parentType, const nlohmann::json& properties) {
+    if (properties.empty()) {
+        return;
+    }
+    if (m_surfaceId.empty()) {
+        HM_LOGW("notifyAppeared: surfaceId is empty, id=%s", m_id.c_str());
+        return;
+    }
+
+    agenui::A2UIMessageListener* listener =
+        agenui::A2UIMessageListener::findListenerByInstanceId(m_instanceId);
+    if (!listener) {
+        HM_LOGW("notifyAppeared: listener not found for instanceId=%d, surfaceId=%s",
+                m_instanceId, m_surfaceId.c_str());
+        return;
+    }
+
+    listener->dispatchComponentAppeared(
+        m_surfaceId, m_id, parentType, properties.dump());
+}
+
+void A2UIComponent::syncState(const nlohmann::json& changeJson) {
+    if (m_surfaceId.empty()) {
+        HM_LOGE("surfaceId is empty, id=%s", m_id.c_str());
+        return;
+    }
+
+    if (!changeJson.is_object()) {
+        HM_LOGE("changeJson is not an object, id=%s", m_id.c_str());
+        return;
+    }
+
+    agenui::SyncUIToDataMessage syncMessage;
+    syncMessage.surfaceId = m_surfaceId;
+    syncMessage.componentId = m_id;
+    syncMessage.change = changeJson.dump();
+
+    HM_LOGI("surfaceId=%s, componentId=%s, change=%s",
+            m_surfaceId.c_str(), m_id.c_str(), syncMessage.change.c_str());
+
+    if (m_instanceId == 0) {
+        HM_LOGE("instanceId not set, surfaceId=%s, componentId=%s", m_surfaceId.c_str(), m_id.c_str());
+        return;
+    }
+    auto* engine = agenui::getAGenUIEngine();
+    if (engine) {
+        auto sm = engine->findSurfaceManagerShared(m_instanceId);
+        if (sm) {
+            sm->submitUIDataModel(syncMessage);
+        } else {
+            HM_LOGE("ISurfaceManager not found for instanceId=%d", m_instanceId);
+        }
+    } else {
+        HM_LOGE("AGenUI Engine is null");
+    }
+}
+
+
+uint32_t A2UIComponent::parseColor(const std::string& colorStr) {
+    // Delegates to the shared cross-platform CSS color parser
+    // (core/src/style_parser/agenui_color_parser.cpp). Solid colors return their
+    // ARGB; gradients fall through to transparent because callers of this method
+    // expect a single uint32_t — gradient values are written via GradientApplier
+    // from applyBackgroundColor instead.
+    if (colorStr.empty()) return kColorTransparent;
+    agenui::ColorValue cv;
+    if (!agenui::ColorParser::parse(colorStr, cv)) return kColorTransparent;
+    if (cv.type != agenui::ColorValueType::Solid) return kColorTransparent;
+    return cv.solidColor;
+}
+
+uint32_t A2UIComponent::parseColorWithToken(const nlohmann::json& colorValue, uint32_t fallbackValue) {
+    if (colorValue.is_string()) {
+        return parseColor(colorValue.get<std::string>());
+    } else if (colorValue.is_object()) {
+        if (colorValue.contains("call") && colorValue["call"].is_string()) {
+            std::string callType = colorValue["call"].get<std::string>();
+            if (callType == "token" && colorValue.contains("args")) {
+                const auto& args = colorValue["args"];
+                if (args.contains("name") && args["name"].is_string()) {
+                    std::string tokenName = args["name"].get<std::string>();
+                    std::string resolvedColor = agenui::TokenParser::getInstance().resolve(tokenName);
+                    HM_LOGI("Resolved FunctionCall token '%s' to '%s'", tokenName.c_str(), resolvedColor.c_str());
+                    return parseColor(resolvedColor);
+                }
+            }
+        }
+    }
+
+    return fallbackValue;
+}
+
+// extractUrlFromCssUrl is provided by utils/a2ui_parse_utils.h (inline).
+
+void A2UIComponent::applyBackgroundImage(const nlohmann::json& styles) {
+    if (!m_nodeHandle) {
+        return;
+    }
+    
+    std::string bgImageUrl;
+    if (styles.contains("background-image") && styles["background-image"].is_string()) {
+        bgImageUrl = styles["background-image"].get<std::string>();
+    } else if (styles.contains("backgroundImage") && styles["backgroundImage"].is_string()) {
+        bgImageUrl = styles["backgroundImage"].get<std::string>();
+    }
+    
+    bgImageUrl = extractUrlFromCssUrl(bgImageUrl);
+    
+    if (bgImageUrl.empty()) {
+        if (!m_backgroundImageRequestId.empty()) {
+            ImageLoaderBridge::getInstance().cancel(m_backgroundImageRequestId);
+            m_backgroundImageRequestId.clear();
+        }
+        if (m_backgroundImageHandle) {
+            g_nodeAPI->removeChild(m_nodeHandle, m_backgroundImageHandle);
+            g_nodeAPI->disposeNode(m_backgroundImageHandle);
+            m_backgroundImageHandle = nullptr;
+            m_backgroundImageUrl.clear();
+            HM_LOGI("Removed background image for component %s", m_id.c_str());
+        }
+        return;
+    }
+    
+    if (bgImageUrl == m_backgroundImageUrl && m_backgroundImageHandle) {
+        return;
+    }
+    
+    if (!m_backgroundImageRequestId.empty()) {
+        ImageLoaderBridge::getInstance().cancel(m_backgroundImageRequestId);
+        m_backgroundImageRequestId.clear();
+    }
+
+    if (m_backgroundImageHandle) {
+        g_nodeAPI->removeChild(m_nodeHandle, m_backgroundImageHandle);
+        g_nodeAPI->disposeNode(m_backgroundImageHandle);
+        m_backgroundImageHandle = nullptr;
+    }
+    
+    m_backgroundImageHandle = g_nodeAPI->createNode(ARKUI_NODE_IMAGE);
+    if (!m_backgroundImageHandle) {
+        HM_LOGE("Failed to create background image node for component %s", m_id.c_str());
+        return;
+    }
+    
+    A2UIImageNode bgNode(m_backgroundImageHandle);
+    bgNode.setObjectFitFill();
+    bgNode.setPercentWidth(1.0f);
+    bgNode.setPercentHeight(1.0f);
+    A2UINode bgNodeBase(m_backgroundImageHandle);
+    bgNodeBase.setZIndex(-1.0f);
+    bgNodeBase.setHitTestBehavior(ARKUI_HIT_TEST_MODE_NONE);
+    
+    g_nodeAPI->addChild(m_nodeHandle, m_backgroundImageHandle);
+    m_backgroundImageUrl = bgImageUrl;
+
+    // Check whether an external loader exists
+    if (ImageLoaderBridge::getInstance().hasLoader()) {
+        ArkUI_NodeHandle bgHandle = m_backgroundImageHandle;
+        std::string currentUrl   = bgImageUrl;
+        std::string componentId  = m_id;
+
+        std::string requestId = ImageLoaderBridge::getInstance().loadImage({
+            bgImageUrl,
+            getWidth(),
+            getHeight(),
+            m_id,
+            getSurfaceId(),
+            bgHandle,
+            [bgHandle, currentUrl, componentId](const std::string& rid, bool success, bool isCancelled) {
+                if (isCancelled) {
+                    HM_LOGI("bg image_loader: cancelled, componentId=%s url=%s",
+                        componentId.c_str(), currentUrl.c_str());
+                    return;
+                }
+                if (!success) {
+                    HM_LOGW("bg image_loader: failed, fallback ArkUI, componentId=%s url=%s",
+                        componentId.c_str(), currentUrl.c_str());
+                    if (bgHandle) {
+                        A2UIImageNode(bgHandle).setSrc(currentUrl);
+                    }
+                    return;
+                }
+                HM_LOGI("bg image_loader: success(PixelMap set), componentId=%s url=%s",
+                    componentId.c_str(), currentUrl.c_str());
+            }
+        });
+
+        if (requestId.empty()) {
+            HM_LOGW("bg image_loader: loadImage failed, fallback ArkUI, componentId=%s", m_id.c_str());
+            bgNode.setSrc(bgImageUrl);
+        } else {
+            m_backgroundImageRequestId = requestId;
+        }
+    } else {
+        bgNode.setSrc(bgImageUrl);
+    }
+
+    HM_LOGI("Set background image %s for component %s", bgImageUrl.c_str(), m_id.c_str());
+}
+
+void A2UIComponent::applyVisibility(const nlohmann::json& styles) {
+    if (!m_nodeHandle) {
+        return;
+    }
+    // Aligned with iOS CSSPropertyApplier (absent -> defaultValue "visible") and
+    // Android StyleHelper (resolveString default VISIBILITY="visible").
+    ArkUI_Visibility visibility = ARKUI_VISIBILITY_VISIBLE;
+    std::string value;
+    if (styles.contains("visibility") && styles["visibility"].is_string()) {
+        value = styles["visibility"].get<std::string>();
+        if (value == "hidden") {
+            visibility = ARKUI_VISIBILITY_HIDDEN;
+        }
+    }
+    A2UINode(m_nodeHandle).setVisibility(visibility);
+    HM_LOGI("Set visibility=%s for component %s", value.c_str(), m_id.c_str());
+}
+
+void A2UIComponent::applyDisplay(const nlohmann::json& styles) {
+    if (!m_nodeHandle) {
+        return;
+    }
+    // Aligned with iOS CSSPropertyApplier (absent -> defaultValue "flex") and
+    // Android StyleHelper (resolveString default DISPLAY="flex").
+    // display:none hides, everything else shows.  Runs after applyVisibility
+    // so display can override it, matching iOS apply order.
+    ArkUI_Visibility visibility = ARKUI_VISIBILITY_VISIBLE;
+    std::string value;
+    if (styles.contains("display") && styles["display"].is_string()) {
+        value = styles["display"].get<std::string>();
+        if (value == "none") {
+            visibility = ARKUI_VISIBILITY_HIDDEN;
+        }
+    }
+    A2UINode(m_nodeHandle).setVisibility(visibility);
+    HM_LOGI("Set display=%s for component %s", value.c_str(), m_id.c_str());
+}
+
+void A2UIComponent::applyOpacity(const nlohmann::json& styles) {
+    if (!m_nodeHandle) {
+        return;
+    }
+    // The appear animation owns the node opacity until it finishes: it starts at
+    // 0 and lands exactly on the declared value, so writing the final value here
+    // would skip the fade-in.
+    if (m_pendingAppearAnimation) {
+        return;
+    }
+    // Aligned with iOS CSSPropertyApplier (absent -> defaultValue 1.0) and
+    // Android StyleHelper (resolveFloat default OPACITY=1.0f).  parseOpacityValue
+    // also returns 1.0 on parse failure, so absent and invalid both land on 1.0.
+    const float opacity = styles.contains("opacity")
+        ? clampOpacity(parseOpacityValue(styles["opacity"]))
+        : 1.0f;
+    if (std::fabs(opacity - m_appliedOpacity) < 0.0001f) {
+        return;
+    }
+
+    m_appliedOpacity = opacity;
+    A2UINode(m_nodeHandle).setOpacity(opacity);
+    HM_LOGI("Set opacity=%.3f for component %s", opacity, m_id.c_str());
+}
+
+/**
+ * Parse and apply border styles from properties.styles
+ * Supported properties:
+ *   - border-radius / borderRadius: corner radius (number or string)
+ *   - border-width / borderWidth: border width (number or string, applied to all four sides)
+ *   - border-color / borderColor: border color (color string)
+ *   - background-color / backgroundColor: background color (color string)
+ */
+void A2UIComponent::applyBackgroundColor(const nlohmann::json& properties) {
+    if (!m_nodeHandle) {
+        return;
+    }
+    
+    if (!properties.contains("styles") || !properties["styles"].is_object()) {
+        return;
+    }
+    
+    const auto& styles = properties["styles"];
+    A2UINode node(m_nodeHandle);
+
+    // Accept background-color / backgroundColor / background (Android shorthand
+    // also dispatches to the same value resolution).
+    std::string bgColorKey;
+    if (styles.contains("background-color")) {
+        bgColorKey = "background-color";
+    } else if (styles.contains("backgroundColor")) {
+        bgColorKey = "backgroundColor";
+    } else if (styles.contains("background")) {
+        bgColorKey = "background";
+    }
+    // Aligned with iOS CSSPropertyApplier (absent -> defaultValue .clear) and
+    // Android StyleHelper (absent -> StyleDefaults.BACKGROUND_COLOR=TRANSPARENT).
+    if (bgColorKey.empty() || !styles[bgColorKey].is_string()) {
+        GradientApplier::reset(m_nodeHandle);
+        node.setBackgroundColor(kColorTransparent);
+        return;
+    }
+
+    const std::string raw = styles[bgColorKey].get<std::string>();
+    agenui::ColorValue cv;
+    if (!agenui::ColorParser::parse(raw, cv)) {
+        HM_LOGW("applyBackgroundColor: parse failed for '%s'", raw.c_str());
+        GradientApplier::reset(m_nodeHandle);
+        node.setBackgroundColor(kColorTransparent);
+        return;
+    }
+
+    if (cv.type == agenui::ColorValueType::Gradient) {
+        // Clear any solid color first so it does not bleed through the gradient
+        // when the gradient has alpha.
+        node.setBackgroundColor(kColorTransparent);
+        GradientApplier::apply(m_nodeHandle, cv.gradient, getWidth(), getHeight());
+    } else {
+        // Always reset gradient state when switching back to a solid color so a
+        // previous gradient does not linger on the node.
+        GradientApplier::reset(m_nodeHandle);
+        node.setBackgroundColor(cv.solidColor);
+    }
+}
+
+void A2UIComponent::applyBorderStyles(const nlohmann::json& properties) {
+    if (!m_nodeHandle) {
+        return;
+    }
+    
+    if (!properties.contains("styles") || !properties["styles"].is_object()) {
+        return;
+    }
+    
+    const auto& styles = properties["styles"];
+    A2UINode node(m_nodeHandle);
+    
+    // border-radius / overflow (both drive the single NODE_CLIP flag)
+    {
+        // Aligned with Android / iOS:
+        // - overflow "hidden" / "scroll" clips (Android StyleHelper.enableSelfClip,
+        //   i.e. View.setClipBounds on the declaring view -- deliberately NOT
+        //   setClipChildren, which is off by one level and leaks onto siblings;
+        //   iOS clipsToBounds = true for hidden + scroll)
+        // - overflow "visible" explicitly disables clipping (both ends do)
+        // - border-radius > 0 clips regardless of overflow, matching Android's
+        //   clipToOutline which stays on even with overflow: visible
+        std::string overflow;
+        if (styles.contains("overflow") && styles["overflow"].is_string()) {
+            overflow = styles["overflow"].get<std::string>();
+        }
+        const bool hasRadiusKey = styles.contains("border-radius");
+        float radius = 0.0f;
+        if (hasRadiusKey) {
+            const auto& radiusVal = styles["border-radius"];
+            if (radiusVal.is_number()) {
+                radius = radiusVal.get<float>();
+            } else if (radiusVal.is_string()) {
+                radius = static_cast<float>(std::atof(radiusVal.get<std::string>().c_str()));
+            }
+        }
+        // Aligned with iOS (absent -> defaultValue 0) / Android (BORDER_RADIUS=0):
+        // an absent or zero radius still resets the corner so a previous value
+        // does not linger.
+        if (radius > 0.0f) {
+            node.setBorderRadius(radius);
+        } else {
+            node.resetBorderRadius();
+        }
+        if (radius > 0.0f || overflow == "hidden" || overflow == "scroll") {
+            node.setClip(true);
+        } else if (hasRadiusKey || overflow == "visible") {
+            node.resetClip();
+        }
+    }
+    
+    // border-width
+    {
+        std::string bwKey;
+        if (styles.contains("border-width")) {
+            bwKey = "border-width";
+        } else if (styles.contains("borderWidth")) {
+            bwKey = "borderWidth";
+        }
+        float bw = 0.0f;
+        if (!bwKey.empty()) {
+            const auto& bwVal = styles[bwKey];
+            if (bwVal.is_number()) {
+                bw = bwVal.get<float>();
+            } else if (bwVal.is_string()) {
+                bw = static_cast<float>(std::atof(bwVal.get<std::string>().c_str()));
+            }
+        }
+        // Aligned with iOS (absent -> defaultValue 0) / Android (BORDER_WIDTH=0).
+        if (bw > 0.0f) {
+            node.setBorderWidth(bw, bw, bw, bw);
+            node.setBorderStyle(ARKUI_BORDER_STYLE_SOLID);
+        } else {
+            node.resetBorderWidth();
+            node.resetBorderStyle();
+        }
+    }
+    
+    // border-color
+    {
+        std::string bcKey;
+        if (styles.contains("border-color")) {
+            bcKey = "border-color";
+        } else if (styles.contains("borderColor")) {
+            bcKey = "borderColor";
+        }
+        // Aligned with iOS (absent -> defaultValue .clear) / Android (BORDER_COLOR=TRANSPARENT).
+        uint32_t borderColor = kColorTransparent;
+        if (!bcKey.empty() && styles[bcKey].is_string()) {
+            borderColor = parseColor(styles[bcKey].get<std::string>());
+        }
+        node.setBorderColor(borderColor);
+    }
+}
+
+void A2UIComponent::applyFilter(const nlohmann::json& properties) {
+    if (!m_nodeHandle) {
+        return;
+    }
+
+    if (!properties.contains("styles") || !properties["styles"].is_object()) {
+        return;
+    }
+
+    const auto& styles = properties["styles"];
+    // Aligned with iOS CSSPropertyApplier (absent -> defaultValue .invalid -> clear)
+    // and Android StyleHelper (absent/invalid -> clear shadow).
+    if (!styles.contains("filter") || !styles["filter"].is_string()) {
+        g_nodeAPI->resetAttribute(m_nodeHandle, NODE_CUSTOM_SHADOW);
+        return;
+    }
+
+    DropShadowParams params = parseDropShadow(styles["filter"].get<std::string>());
+    if (!params.valid) {
+        g_nodeAPI->resetAttribute(m_nodeHandle, NODE_CUSTOM_SHADOW);
+        return;
+    }
+
+    uint32_t color = parseColor(params.colorStr);
+    if (color == kColorTransparent && params.colorStr != "#00000000" && params.colorStr != "rgba(0, 0, 0, 0)" &&
+        params.colorStr != "rgba(0,0,0,0)" && params.colorStr != "rgb(0, 0, 0)") {
+        g_nodeAPI->resetAttribute(m_nodeHandle, NODE_CUSTOM_SHADOW);
+        return;
+    }
+    A2UINode(m_nodeHandle).setCustomShadow(params.blurRadius, params.offsetX, params.offsetY, color);
+}
+
+void A2UIComponent::applyAccessibility(const nlohmann::json& properties) {
+    if (!m_nodeHandle) {
+        return;
+    }
+
+    if (properties.contains("accessibility") && properties["accessibility"].is_object()
+        && !properties["accessibility"].empty()) {
+        const auto& a11y = properties["accessibility"];
+
+        // label -> NODE_ACCESSIBILITY_TEXT
+        if (a11y.contains("label") && a11y["label"].is_string()) {
+            const std::string& label = a11y["label"].get<std::string>();
+            if (!label.empty()) {
+                ArkUI_AttributeItem item = {nullptr, 0, label.c_str()};
+                g_nodeAPI->setAttribute(m_nodeHandle, NODE_ACCESSIBILITY_TEXT, &item);
+            } else {
+                g_nodeAPI->resetAttribute(m_nodeHandle, NODE_ACCESSIBILITY_TEXT);
+            }
+        } else {
+            g_nodeAPI->resetAttribute(m_nodeHandle, NODE_ACCESSIBILITY_TEXT);
+        }
+
+        // description -> NODE_ACCESSIBILITY_DESCRIPTION
+        if (a11y.contains("description") && a11y["description"].is_string()) {
+            const std::string& desc = a11y["description"].get<std::string>();
+            if (!desc.empty()) {
+                ArkUI_AttributeItem item = {nullptr, 0, desc.c_str()};
+                g_nodeAPI->setAttribute(m_nodeHandle, NODE_ACCESSIBILITY_DESCRIPTION, &item);
+            } else {
+                g_nodeAPI->resetAttribute(m_nodeHandle, NODE_ACCESSIBILITY_DESCRIPTION);
+            }
+        } else {
+            g_nodeAPI->resetAttribute(m_nodeHandle, NODE_ACCESSIBILITY_DESCRIPTION);
+        }
+    } else {
+        // Accessibility field is absent or empty -> reset to system defaults
+        g_nodeAPI->resetAttribute(m_nodeHandle, NODE_ACCESSIBILITY_TEXT);
+        g_nodeAPI->resetAttribute(m_nodeHandle, NODE_ACCESSIBILITY_DESCRIPTION);
+    }
+}
+
+} // namespace a2ui

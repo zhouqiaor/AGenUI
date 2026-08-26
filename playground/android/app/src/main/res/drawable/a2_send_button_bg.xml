@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A2 大屏深色会议主题 - 发送按钮（主操作，品牌蓝） -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_enabled="false">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/a2_send_disabled" />
+            <corners android:radius="@dimen/a2_card_radius" />
+        </shape>
+    </item>
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/a2_brand_pressed" />
+            <corners android:radius="@dimen/a2_card_radius" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/a2_send_enabled" />
+            <corners android:radius="@dimen/a2_card_radius" />
+        </shape>
+    </item>
+</selector>

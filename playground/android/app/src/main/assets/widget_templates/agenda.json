@@ -1,0 +1,160 @@
+[
+  {
+    "type": "createSurface",
+    "surfaceId": "__SURFACE_ID__",
+    "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+    "width": 300
+  },
+  {
+    "type": "updateComponents",
+    "surfaceId": "__SURFACE_ID__",
+    "components": [
+      {
+        "id": "root",
+        "type": "Card",
+        "children": [
+          {
+            "id": "root_c0",
+            "type": "Column",
+            "children": [
+              {
+                "id": "root_c0_c0",
+                "type": "Row",
+                "children": [
+                  {"id": "root_c0_c0_c0", "type": "Text", "text": "今日议程", "styles": {"fontSize": 18, "fontWeight": "bold", "color": "#181818"}},
+                  {"id": "root_c0_c0_c1", "type": "Text", "text": "3 场会议", "styles": {"fontSize": 14, "color": "#666666", "marginLeft": 8}}
+                ],
+                "styles": {"paddingLeft": 16, "paddingTop": 16, "paddingRight": 16, "paddingBottom": 8, "alignItems": "center"}
+              },
+              {
+                "id": "root_c0_c1",
+                "type": "Container",
+                "styles": {"backgroundColor": "#E8F3FF", "borderRadius": 8, "marginLeft": 16, "marginRight": 16, "paddingLeft": 12, "paddingRight": 12, "paddingTop": 8, "paddingBottom": 8},
+                "children": [
+                  {
+                    "id": "root_c0_c1_c0",
+                    "type": "Row",
+                    "children": [
+                      {"id": "root_c0_c1_c0_c0", "type": "Text", "text": "09:00", "styles": {"fontSize": 14, "fontWeight": "bold", "color": "#007DFF"}},
+                      {"id": "root_c0_c1_c0_c1", "type": "Text", "text": "产品周会", "styles": {"fontSize": 14, "color": "#181818", "marginLeft": 12}}
+                    ],
+                    "styles": {"alignItems": "center"}
+                  }
+                ]
+              },
+              {
+                "id": "root_c0_c2",
+                "type": "Row",
+                "children": [
+                  {"id": "root_c0_c2_c0", "type": "Text", "text": "11:00", "styles": {"fontSize": 14, "fontWeight": "bold", "color": "#007DFF"}},
+                  {"id": "root_c0_c2_c1", "type": "Text", "text": "设计评审", "styles": {"fontSize": 14, "color": "#181818", "marginLeft": 12}}
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 8, "paddingBottom": 8, "alignItems": "center"}
+              },
+              {
+                "id": "root_c0_c3",
+                "type": "Divider",
+                "styles": {"backgroundColor": "#E8EAED", "height": 1, "marginLeft": 16, "marginRight": 16}
+              },
+              {
+                "id": "root_c0_c4",
+                "type": "Row",
+                "children": [
+                  {"id": "root_c0_c4_c0", "type": "Text", "text": "14:00", "styles": {"fontSize": 14, "fontWeight": "bold", "color": "#007DFF"}},
+                  {"id": "root_c0_c4_c1", "type": "Text", "text": "技术分享会", "styles": {"fontSize": 14, "color": "#181818", "marginLeft": 12}}
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 8, "paddingBottom": 8, "alignItems": "center"}
+              },
+              {
+                "id": "root_c10",
+                "type": "Container",
+                "styles": {"backgroundColor": "#F5F7FA", "borderRadius": 8, "marginLeft": 16, "marginRight": 16, "marginTop": 4, "paddingLeft": 12, "paddingRight": 12, "paddingTop": 10, "paddingBottom": 10},
+                "children": [
+                  {"id": "root_c10_c0", "type": "Text", "text": "本周会议", "styles": {"fontSize": 13, "fontWeight": "bold", "color": "#666666"}}
+                ]
+              },
+              {
+                "id": "root_c11",
+                "type": "Row",
+                "children": [
+                  {
+                    "id": "root_c11_c0",
+                    "type": "Column",
+                    "styles": {"width": 56, "alignItems": "center"},
+                    "children": [
+                      {"id": "root_c11_c0_c0", "type": "Text", "text": "周一", "styles": {"fontSize": 11, "color": "#999999"}},
+                      {"id": "root_c11_c0_c1", "type": "Text", "text": "09:30", "styles": {"fontSize": 14, "fontWeight": "bold", "color": "#181818", "marginTop": 2}}
+                    ]
+                  },
+                  {
+                    "id": "root_c11_c1",
+                    "type": "Column",
+                    "styles": {"marginLeft": 12, "flex": 1},
+                    "children": [
+                      {"id": "root_c11_c1_c0", "type": "Text", "text": "Q3 季度规划评审", "styles": {"fontSize": 14, "fontWeight": "bold", "color": "#181818"}},
+                      {"id": "root_c11_c1_c1", "type": "Text", "text": "8 人参会", "styles": {"fontSize": 12, "color": "#999999", "marginTop": 2}}
+                    ]
+                  },
+                  {
+                    "id": "root_c11_c2",
+                    "type": "Container",
+                    "styles": {"height": 22, "borderRadius": 11, "backgroundColor": "#E8F3FF", "paddingLeft": 8, "paddingRight": 8, "alignItems": "center", "justifyContent": "center"},
+                    "children": [
+                      {"id": "root_c11_c2_c0", "type": "Text", "text": "待开始", "styles": {"fontSize": 11, "color": "#007DFF"}}
+                    ]
+                  }
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 10, "paddingBottom": 10, "alignItems": "center"}
+              },
+              {
+                "id": "root_c12",
+                "type": "Row",
+                "children": [
+                  {
+                    "id": "root_c12_c0",
+                    "type": "Column",
+                    "styles": {"width": 56, "alignItems": "center"},
+                    "children": [
+                      {"id": "root_c12_c0_c0", "type": "Text", "text": "周三", "styles": {"fontSize": 11, "color": "#999999"}},
+                      {"id": "root_c12_c0_c1", "type": "Text", "text": "14:00", "styles": {"fontSize": 14, "fontWeight": "bold", "color": "#181818", "marginTop": 2}}
+                    ]
+                  },
+                  {
+                    "id": "root_c12_c1",
+                    "type": "Column",
+                    "styles": {"marginLeft": 12, "flex": 1},
+                    "children": [
+                      {"id": "root_c12_c1_c0", "type": "Text", "text": "跨团队同步周会", "styles": {"fontSize": 14, "fontWeight": "bold", "color": "#181818"}},
+                      {"id": "root_c12_c1_c1", "type": "Text", "text": "15 人参会", "styles": {"fontSize": 12, "color": "#999999", "marginTop": 2}}
+                    ]
+                  },
+                  {
+                    "id": "root_c12_c2",
+                    "type": "Container",
+                    "styles": {"height": 22, "borderRadius": 11, "backgroundColor": "#FFF3E0", "paddingLeft": 8, "paddingRight": 8, "alignItems": "center", "justifyContent": "center"},
+                    "children": [
+                      {"id": "root_c12_c2_c0", "type": "Text", "text": "进行中", "styles": {"fontSize": 11, "color": "#FF9500"}}
+                    ]
+                  }
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 10, "paddingBottom": 16, "alignItems": "center"}
+              }
+            ]
+          }
+        ],
+        "styles": {"borderRadius": 16, "backgroundColor": "#FFFFFF", "elevation": 2}
+      }
+    ]
+  },
+  {
+    "type": "updateDataModel",
+    "surfaceId": "__SURFACE_ID__",
+    "value": {
+      "view": "today",
+      "weekMeetings": [
+        {"day": "周一", "time": "09:30", "title": "Q3 季度规划评审", "attendees": 8, "status": "待开始"},
+        {"day": "周三", "time": "14:00", "title": "跨团队同步周会", "attendees": 15, "status": "进行中"}
+      ]
+    }
+  }
+]

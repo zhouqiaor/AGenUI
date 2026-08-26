@@ -1,0 +1,594 @@
+
+#pragma once
+
+#include "log/a2ui_capi_log.h"
+#include <arkui/native_type.h>
+#include <cassert>
+#include <native_drawing/drawing_register_font.h>
+#include <native_drawing/drawing_text_typography.h>
+#include <native_drawing/drawing_text_declaration.h>
+#include <native_drawing/drawing_font_collection.h>
+#include "a2ui/third_party/key_define.h"
+#include "a2ui/third_party/Html.h"
+#include "a2ui/utils/hm_font_utils.h"
+#include "a2ui/utils/a2ui_font_weight_utils.h"
+#include "a2ui/utils/a2ui_measure_mode.h"
+#include "a2ui/utils/a2ui_drawing_guard.h"
+
+extern float gFontWeightScale;
+
+namespace a2ui {
+
+inline bool floatEqual(float a, float b) {
+    if (std::isnan(a) || std::isnan(b)) return false;
+    return std::abs(a - b) < std::numeric_limits<float>::epsilon();
+}
+
+
+constexpr std::string_view kstr_line_through = "line-through";
+constexpr std::string_view kstr_underline = "underline";
+
+struct MeasureSize {
+    int lines;
+    float width;
+    float height;
+    std::vector<int> countOfLines;
+};
+
+struct TextMeasureParam {
+    const char* text           = nullptr;
+    int         fontSize       = 24;
+    int         fontWeight     = 0;
+    int         fontStyle      = 0;
+    int         textAlign      = 0;
+    bool        isMultLineHeight = true;
+    float       lineHeight     = 1.0f;
+    int         maxLines       = INT_MAX;
+    bool        isRichtext     = false;
+    int         textOverflow   = 0;
+    long        id             = 0;
+    const char* fontFamily     = "";
+    const char* extras         = "";
+    float       letter_spacing = 0.0f;
+    long        ctx_id         = 0;
+};
+
+enum MeasureMode {
+    MeasureModeUndefined,
+    MeasureModeExactly,
+    MeasureModeAtMost,
+};
+
+enum TextOverflow {
+    TextOverflowUndefined,
+    TextOverflowClip,
+    TextOverflowEllipsis,
+};
+
+namespace css{
+    enum TextOverflow {
+        TextOverflow_undefined = NODE_PROPERTY_TEXT_OVERFLOW_UNDEFINED,      // 
+        TextOverflow_clip      = NODE_PROPERTY_TEXT_OVERFLOW_CLIP,           // clip
+        TextOverflow_ellipsis  = NODE_PROPERTY_TEXT_OVERFLOW_ELLIPSIS,       // ellipsis
+        TextOverflow_middle    = NODE_PROPERTY_TEXT_OVERFLOW_MIDDLE,         // middle
+        TextOverflow_head      = NODE_PROPERTY_TEXT_OVERFLOW_HEAD,           // head
+    };
+}
+
+class TextMeasureUtils {
+private:
+    struct MeasureTextStyle {
+        bool isMultLineHeight;
+        float lineHeight;
+        double fontSize;
+        double letterSpacing;
+
+        int fontWeight = NODE_PROPERTY_FONT_NORMAL;
+        int fontStyle = NODE_PROPERTY_FONT_NORMAL;
+        int textAlign = TEXT_ALIGN_LEFT_V_CENTER;
+        int textOverflow = NODE_PROPERTY_TEXT_OVERFLOW_UNDEFINED;
+
+        OH_Drawing_TextDecoration decoration = TEXT_DECORATION_NONE;
+
+        std::vector<std::string> fontFamilies;
+    };
+
+    struct RichTextSpan {
+        MeasureTextStyle style;
+        std::string text;
+        std::string originText;
+        bool isPlaceHolder = false;
+        bool isALink = false;
+        double phWidth = 0;
+        double phHeight = 0;
+        int start = 0;
+        int end = 0;
+        std::string imgPath = "";
+        std::string href = "";
+        std::string clickId = "";
+        std::map<std::string, std::string> attribute;
+    };
+
+public:
+    
+    static OH_Drawing_TextAlign convertToHMLayoutTextAlign(int textAlign) {
+        OH_Drawing_TextAlign fixTextAlign = TEXT_ALIGN_LEFT;
+        switch (textAlign) {
+        case TEXT_ALIGN_LEFT_TOP:
+        case TEXT_ALIGN_LEFT_V_CENTER:
+        case TEXT_ALIGN_LEFT_BOTTOM:
+            fixTextAlign = TEXT_ALIGN_LEFT;
+            break;
+        case TEXT_ALIGN_TOP_H_CENTER:
+        case TEXT_ALIGN_CENTER:
+        case TEXT_ALIGN_BOTTOM_H_CENTER:
+            fixTextAlign = ::TEXT_ALIGN_CENTER;
+            break;
+        case TEXT_ALIGN_RIGHT_TOP:
+        case TEXT_ALIGN_RIGHT_V_CENTER:
+        case TEXT_ALIGN_RIGHT_BOTTOM:
+            fixTextAlign = TEXT_ALIGN_RIGHT;
+            break;
+        }
+        return fixTextAlign;
+    }
+    
+    static OH_Drawing_FontWeight convertToHMLayoutFontWeight(int fontWeight) {
+        // Flat switch: the keyword enums and 100-900 are disjoint value ranges, so both case sets coexist. 500 -> medium.
+        OH_Drawing_FontWeight fixWeight = FONT_WEIGHT_400;
+        switch (fontWeight) {
+        // Keyword aliases (ascending weight)
+        case NODE_PROPERTY_FONT_NORMAL: fixWeight = FONT_WEIGHT_400; break;
+        case NODE_PROPERTY_FONT_MEDIUM: fixWeight = FONT_WEIGHT_500; break;
+        case NODE_PROPERTY_FONT_BOLD:   fixWeight = FONT_WEIGHT_700; break;
+        // Numeric scale, one case per level
+        case 100: fixWeight = FONT_WEIGHT_100; break;
+        case 200: fixWeight = FONT_WEIGHT_200; break;
+        case 300: fixWeight = FONT_WEIGHT_300; break;
+        case 400: fixWeight = FONT_WEIGHT_400; break;
+        case 500: fixWeight = FONT_WEIGHT_500; break;
+        case 600: fixWeight = FONT_WEIGHT_600; break;
+        case 700: fixWeight = FONT_WEIGHT_700; break;
+        case 800: fixWeight = FONT_WEIGHT_800; break;
+        case 900: fixWeight = FONT_WEIGHT_900; break;
+        default:  fixWeight = FONT_WEIGHT_400; break;
+        }
+        return fixWeight;
+    }
+    
+    static float convertToRealFontWeightValue(OH_Drawing_FontWeight fontWeight) {
+        float fixWeight = 400;
+        switch (fontWeight) {
+        case FONT_WEIGHT_100:
+            fixWeight = 100;
+            break;
+        case FONT_WEIGHT_300:
+            fixWeight = 300;
+            break;
+        case FONT_WEIGHT_400:
+            fixWeight = 400;
+            break;
+        case FONT_WEIGHT_500:
+            fixWeight = 500;
+            break;
+        case FONT_WEIGHT_600:
+            fixWeight = 600;
+            break;
+        case FONT_WEIGHT_700:
+            fixWeight = 700;
+            break;
+        case FONT_WEIGHT_800:
+            fixWeight = 800;
+            break;
+        case FONT_WEIGHT_900:
+            fixWeight = 900;
+            break;
+        default:
+            break;
+        }
+        return fixWeight;
+    }
+    
+    static OH_Drawing_EllipsisModal convertToHMLayoutTextOverflow(int textOverflow) {
+        OH_Drawing_EllipsisModal fixTextOverflow = ELLIPSIS_MODAL_TAIL;
+        if (textOverflow == NODE_PROPERTY_TEXT_OVERFLOW_ELLIPSIS) {
+            fixTextOverflow = ELLIPSIS_MODAL_TAIL;
+        } else if (textOverflow == NODE_PROPERTY_TEXT_OVERFLOW_MIDDLE) {
+            fixTextOverflow = ELLIPSIS_MODAL_MIDDLE;
+        } else if (textOverflow == NODE_PROPERTY_TEXT_OVERFLOW_HEAD) {
+            fixTextOverflow = ELLIPSIS_MODAL_HEAD;
+        } else {
+            HM_LOGW("[measure] convertToHMLayoutTextOverflow: unknown textOverflow=%d, defaulting to TAIL", textOverflow);
+        }
+        return fixTextOverflow;
+    }
+    
+    static OH_Drawing_FontStyle convertToHMLayoutFontStyle(int fontStyle) {
+        OH_Drawing_FontStyle fixStyle = FONT_STYLE_NORMAL;
+        if (fontStyle == NODE_PROPERTY_FONT_ITALIC) {
+            fixStyle = FONT_STYLE_ITALIC;
+        }
+        return fixStyle;
+    }
+    
+    static MeasureSize doMeasure(const TextMeasureParam &param, float width, MeasureMode widthMode, float height,
+                                                      MeasureMode heightMode, float &baseLine, float &ascent, float &descent) {
+        MeasureSize result = {.lines=1, .width=0.0, .height=0.0};
+        if (!param.text || strlen(param.text) == 0) {
+            return result;
+        }
+        if (widthMode != MeasureMode::MeasureModeUndefined && width <= 0.0f) {
+            return result;
+        }
+
+        float maxWidth = 0.0;
+        switch (widthMode) {
+        case MeasureMode::MeasureModeExactly:
+            maxWidth = width;
+            break;
+        case MeasureMode::MeasureModeAtMost:
+            maxWidth = width;
+            break;
+        case MeasureMode::MeasureModeUndefined:
+            maxWidth = a2ui::kUnlimitedWidth;
+            break;
+        default:
+            std::abort();
+        }
+
+        OH_Drawing_TypographyStyle *typoStyle = OH_Drawing_CreateTypographyStyle();
+        TypoStyleGuard typoStyleGuard(typoStyle);
+        OH_Drawing_SetTypographyTextDirection(typoStyle, TEXT_DIRECTION_LTR);
+        OH_Drawing_SetTypographyTextAlign(typoStyle, convertToHMLayoutTextAlign(param.textAlign));
+        int maxLines = width > 0 ? param.maxLines : 1;
+        if (height > 0 && param.fontSize * 2 > height && maxLines == INT32_MAX) {
+            maxLines = 1;
+        }
+
+        OH_Drawing_SetTypographyTextMaxLines(typoStyle, maxLines);
+
+        switch (param.textOverflow) {
+        case css::TextOverflow_head:
+        case css::TextOverflow_middle:
+            if (maxLines == 1) { // Head and middle ellipsis require line-clamp=1 when the control cannot display the full text.
+                OH_Drawing_SetTypographyTextEllipsis(typoStyle, "...");
+            }
+            break;
+        case css::TextOverflow_ellipsis: // Tail ellipsis does not depend on the line count.
+            OH_Drawing_SetTypographyTextEllipsis(typoStyle, "...");
+            break;
+        case css::TextOverflow_clip:
+            OH_Drawing_SetTypographyTextEllipsis(typoStyle, "");
+            break;
+        case css::TextOverflow_undefined:
+            break;
+        }
+        // Use the global font collection so that custom fonts registered via
+        // RegisterFontNative are visible. The global instance must NOT be destroyed.
+        OH_Drawing_FontCollection *fontCollection = OH_Drawing_GetFontCollectionGlobalInstance();
+        OH_Drawing_TypographyCreate *handler = OH_Drawing_CreateTypographyHandler(typoStyle, fontCollection);
+        if (!handler) {
+            HM_LOGE("[measure] OH_Drawing_CreateTypographyHandler returned null");
+            return result;
+        }
+        TypoHandlerGuard handlerGuard(handler);
+        MeasureTextStyle rootTextStyle = convertTextStyle(param);
+        float maxRichTextHeight = 0.0;
+        if (param.isRichtext) {
+            auto spans = BuildRichTextSpans(param.text, param, rootTextStyle, maxRichTextHeight);
+            int index = 0;
+            for (auto &it : spans) {
+                OH_Drawing_TextStyle *txtStyle = createTextStyle(it.style, true);
+                OH_Drawing_TypographyHandlerPushTextStyle(handler, txtStyle);
+                if (it.isPlaceHolder) {
+                    OH_Drawing_PlaceholderSpan holder;
+                    holder.width = it.phWidth;
+                    holder.height = it.phHeight;
+                    OH_Drawing_TypographyHandlerAddPlaceholder(handler, &holder);
+                    HM_LOGD("[measure] span[%d][placeHolder] w:%f h:%f", index, holder.width, holder.height);
+                } else {
+                    OH_Drawing_TypographyHandlerAddText(handler, it.text.c_str());
+                    HM_LOGD("[measure] span[%d][text] a:%d t:%s", index, it.isALink, it.text.c_str());
+                }
+                OH_Drawing_TypographyHandlerPopTextStyle(handler);
+                OH_Drawing_DestroyTextStyle(txtStyle);
+                index++;
+            }
+        } else {
+            OH_Drawing_TextStyle *txtStyle = createTextStyle(rootTextStyle, false);
+            OH_Drawing_TypographyHandlerPushTextStyle(handler, txtStyle);
+            OH_Drawing_TypographyHandlerAddText(handler, param.text);
+            OH_Drawing_TypographyHandlerPopTextStyle(handler);
+            OH_Drawing_DestroyTextStyle(txtStyle);
+        }
+
+        OH_Drawing_Typography *typography = OH_Drawing_CreateTypography(handler);
+        TypographyGuard typographyGuard(typography);
+        OH_Drawing_TypographyLayout(typography, maxWidth);
+
+        baseLine = static_cast<float>(ceil(OH_Drawing_TypographyGetAlphabeticBaseline(typography)));
+
+        // Populate result.countOfLines as cumulative per-line character counts.
+        OH_Drawing_LineMetrics *lineMetrics = OH_Drawing_TypographyGetLineMetrics(typography);
+        LineMetricsGuard lineMetricsGuard(lineMetrics);
+        int vectorMetrics = OH_Drawing_LineMetricsGetSize(lineMetrics);
+        int countOfLines = 0;
+        for (int i = 0; i < vectorMetrics; i++) {
+            OH_Drawing_LineMetrics metrics;
+            OH_Drawing_TypographyGetLineMetricsAt(typography, i, &metrics);
+            countOfLines = static_cast<int>(metrics.endIndex - metrics.startIndex) + countOfLines;
+            result.countOfLines.push_back(countOfLines);
+            if (i == 0) {
+                ascent = metrics.ascender;
+                descent = metrics.descender;
+            }
+        }
+        // Rich text uses GetMaxWidth for more accurate multi-style span measurement, especially with bold text.
+        // Plain text uses GetLongestLine with a 2% buffer.
+        float measuredWidth = 0.0f;
+        if (param.isRichtext) {
+            // Rich text uses GetMaxWidth with a 5% buffer to avoid unintended wrapping.
+            measuredWidth = static_cast<float>(ceil(OH_Drawing_TypographyGetMaxWidth(typography)) * 1.05);
+        } else {
+            // Plain text uses GetLongestLine with a 2% buffer.
+            measuredWidth = static_cast<float>(ceil(OH_Drawing_TypographyGetLongestLine(typography)) * 1.02);
+        }
+        auto measuredHeight = static_cast<float>(ceil(OH_Drawing_TypographyGetHeight(typography)));
+        auto lines = OH_Drawing_TypographyGetLineCount(typography);
+
+        if (param.isRichtext) {
+            // Rich text height should use the maximum span height.
+            measuredHeight = std::max(maxRichTextHeight, measuredHeight);
+        }
+        
+        // Resolve measured text height.
+        switch (heightMode) {
+        case MeasureMode::MeasureModeExactly:
+            result.height = height;
+            break;
+        case MeasureMode::MeasureModeAtMost:
+            result.height = std::min(measuredHeight, height);
+            break;
+        case MeasureMode::MeasureModeUndefined:
+            result.height = measuredHeight;
+            break;
+        default:
+            std::abort();
+        }
+        result.width = widthMode == MeasureMode::MeasureModeExactly ? width : measuredWidth;
+        result.width = (fabs(result.width) <= 1e-6) ? measuredWidth : result.width;
+        result.lines = lines;
+        
+        // Compensate slightly when very long rich text underestimates its measured height.
+        if (param.isRichtext && result.height > 10000) {
+            result.height += 2;
+        }
+
+        return result;
+    }
+
+private:
+    static void SetTextDecoration(const TextMeasureParam &param, MeasureTextStyle &text_style) {
+        if (param.extras == nullptr || strlen(param.extras) == 0)
+            return;
+        if (param.extras == kstr_underline) {
+            text_style.decoration = TEXT_DECORATION_UNDERLINE;
+        } else if (param.extras == kstr_line_through) {
+            text_style.decoration = TEXT_DECORATION_LINE_THROUGH;
+        } else {
+            // Add more styles here as needed.
+        }
+    }
+
+    static std::vector<RichTextSpan> BuildRichTextSpans(const std::string &html, const TextMeasureParam &param, const MeasureTextStyle &rootTextStyle, float &maxHeight) {
+        std::vector<RichTextSpan> span_array;
+        if (html.empty()) {
+            return span_array;
+        }
+        a2ui::Html ho(html);
+        int index = 0;
+        for (size_t i = 0; i < ho.getSpanSize(); i++) {
+            a2ui::Html::Span *span = ho.getSpan(i);
+            auto sub_text = span->_text;
+            RichTextSpan sub_span;
+            sub_span.style = rootTextStyle;
+            SetTextDecoration(param, sub_span.style);
+            sub_span.start = index;
+            sub_span.text = sub_text;
+            sub_span.originText = html;
+
+            for (auto &it : span->_tag_list) {
+                switch (it._tagID) {
+                case a2ui::Html::TagID::text: {
+                } break;
+                case a2ui::Html::TagID::font: {
+                    if (it._attributes.empty()) {
+                        break;
+                    }
+                    HM_LOGD("[measure] span <font> parse start.");
+                    for (auto &attr : it._attributes) {
+                        auto first = attr.first;
+                        auto second = attr.second;
+                        sub_span.attribute[first] = second;
+                        HM_LOGD("[measure] span <font> key:%s, value:%s.", first.c_str(), second.c_str());
+                        if (first == "color" && !second.empty()) {
+
+                        } else if ("face" == first && !second.empty()) {
+                            sub_span.style.fontFamilies.push_back(a2ui::normalizeHarmonyFontFamily(second));
+                        } else if ("size" == first && !second.empty()) {
+                            std::string token_value = second;
+                            if (second.find("@") != std::string::npos) {
+                                HM_LOGE("[measure] span <font> size unsupport @token.");
+                            } else {
+                                std::string size_str = token_value;
+                                size_t pos = size_str.rfind("px");
+                                if (pos != std::string::npos) {
+                                    size_str.replace(pos, 2, "");
+                                }
+                                auto font_size = atof(size_str.c_str());
+                                sub_span.style.fontSize = font_size;
+                            }
+                        } else if ("font-weight" == first && !second.empty()) {
+                            sub_span.style.fontWeight = font_weight::parseStringToMeasureWeight(second);
+                        }
+                    }
+                } break;
+                case a2ui::Html::TagID::a: {
+                    if (it._attributes.empty()) {
+                        break;
+                    }
+                    HM_LOGD("[measure] span <a> parse start.");
+                    sub_span.isALink = true;
+                    sub_span.style.decoration = TEXT_DECORATION_UNDERLINE;
+                    for (auto &attr : it._attributes) {
+                        auto first = attr.first;
+                        auto second = attr.second;
+                        sub_span.attribute[first] = second;
+                        if ("face" == first && "none" == second) {
+                            sub_span.style.decoration = TEXT_DECORATION_NONE;
+                        } else if ("href" == first && !second.empty()) {
+                            sub_span.href = second;
+                        } else if ("id" == first && !second.empty()) {
+                            sub_span.clickId = second;
+                        }
+                    }
+                } break;
+                case a2ui::Html::TagID::br: {
+                    HM_LOGD("[measure] span <br> parse start.");
+                    sub_span.text = "\n";
+                } break;
+                case a2ui::Html::TagID::blockquote: {
+                    HM_LOGD("[measure] span <blockquote> parse start.");
+                    sub_span.text = "\n\n" + sub_text + "\n\n";
+                } break;
+                case a2ui::Html::TagID::i: {
+                    HM_LOGD("[measure] span <i> parse start.");
+                    sub_span.style.fontStyle = NODE_PROPERTY_FONT_ITALIC;
+                } break;
+                case a2ui::Html::TagID::u: {
+                    HM_LOGD("[measure] span <u> parse start.");
+                    sub_span.style.decoration = TEXT_DECORATION_UNDERLINE;
+                } break;
+                case a2ui::Html::TagID::strike: {
+                    HM_LOGD("[measure] span <strike> parse start.");
+                    sub_span.style.decoration = TEXT_DECORATION_LINE_THROUGH;
+                } break;
+                case a2ui::Html::TagID::sub: {
+                    HM_LOGD("[measure] span <sub> parse start.");
+                    // Align with both platforms: sub tag does not support strikethrough by default
+                    sub_span.style.decoration = TEXT_DECORATION_NONE;
+                    sub_span.style.fontSize = sub_span.style.fontSize * 0.5;
+                } break;
+                case a2ui::Html::TagID::sup: {
+                    HM_LOGD("[measure] span <sup> parse start.");
+                    // Align with both platforms: sub tag does not support strikethrough by default
+                    sub_span.style.decoration = TEXT_DECORATION_NONE;
+                    sub_span.style.fontSize = sub_span.style.fontSize * 0.5;
+                } break;
+                case a2ui::Html::TagID::strong: {
+                    HM_LOGD("[measure] span <strong> parse start.");
+                    sub_span.style.fontStyle = NODE_PROPERTY_FONT_NORMAL;
+                    sub_span.style.fontWeight = NODE_PROPERTY_FONT_BOLD;
+                } break;
+                case a2ui::Html::TagID::b: {
+                    HM_LOGD("[measure] span <b> parse start.");
+                    sub_span.style.fontStyle = NODE_PROPERTY_FONT_NORMAL;
+                    sub_span.style.fontWeight = NODE_PROPERTY_FONT_BOLD;
+                } break;
+                case a2ui::Html::TagID::small: {
+                    HM_LOGD("[measure] span <small> parse start.");
+                    if (sub_span.style.fontSize > 2.0f) {
+                        sub_span.style.fontSize -= 2.0f;
+                    }
+                } break;
+                case a2ui::Html::TagID::img: {
+                    HM_LOGD("[measure] span <img> parse start.");
+                    sub_span.isPlaceHolder = true;
+                    index = index + 1;
+                    for (auto &attr : it._attributes) {
+                        auto first = attr.first;
+                        auto second = attr.second;
+                        sub_span.attribute[first] = second;
+                        if (first == "width") {
+                            sub_span.phWidth = atof(second.c_str());
+                        } else if (first == "height") {
+                            sub_span.phHeight = atof(second.c_str());
+                            if (sub_span.phHeight > maxHeight) {
+                                maxHeight = sub_span.phHeight;
+                            }
+                        } else if (first == "id") {
+                            sub_span.clickId = second;
+                        } else if (first == "src") {
+                            sub_span.imgPath = second;
+                        } else if (first == "customEmoji") {
+                            HM_LOGE("[measure] img->customEmoji not support.");
+                        } else if (first == "align") {
+                            HM_LOGE("[measure] img->align not support.");
+                        }
+                    }
+                } break;
+                default:
+                    HM_LOGE("[measure] span tag %d unknown.", it._tagID);
+                }
+            }
+            index = index + static_cast<int>(sub_span.text.size());
+            sub_span.end = index;
+            sub_span.style.isMultLineHeight = param.isMultLineHeight;
+            sub_span.style.lineHeight = param.lineHeight;
+            span_array.push_back(sub_span);
+        }
+        return span_array;
+    }
+
+    static MeasureTextStyle convertTextStyle(const TextMeasureParam &param) {
+        MeasureTextStyle textStyle;
+        textStyle.isMultLineHeight = param.isMultLineHeight;
+        textStyle.lineHeight = param.lineHeight;
+        textStyle.fontSize = param.fontSize;
+        textStyle.fontStyle = param.fontStyle;
+        textStyle.textAlign = param.textAlign;
+        textStyle.textOverflow = param.textOverflow;
+        textStyle.fontWeight = param.fontWeight;
+        if (param.fontFamily && strlen(param.fontFamily) > 0) {
+            textStyle.fontFamilies.push_back(a2ui::normalizeHarmonyFontFamily(param.fontFamily));
+        }
+        if (textStyle.fontFamilies.empty()) {
+            textStyle.fontFamilies.push_back(a2ui::harmonyDefaultFontFamily());
+        }
+        textStyle.letterSpacing = param.letter_spacing;
+        return textStyle;
+    }
+
+    static OH_Drawing_TextStyle *createTextStyle(const MeasureTextStyle &textStyle, bool isRichText) {
+        OH_Drawing_TextStyle *ohTextStyle = OH_Drawing_CreateTextStyle();
+        OH_Drawing_SetTextStyleFontSize(ohTextStyle, textStyle.fontSize);
+        
+        OH_Drawing_FontWeight fontWeight = convertToHMLayoutFontWeight(textStyle.fontWeight);
+        OH_Drawing_SetTextStyleFontWeight(ohTextStyle, fontWeight);
+        OH_Drawing_TextStyleAddFontVariation(ohTextStyle, "wght", convertToRealFontWeightValue(fontWeight) * gFontWeightScale);
+        
+        OH_Drawing_SetTextStyleBaseLine(ohTextStyle, TEXT_BASELINE_ALPHABETIC);
+        if (!textStyle.isMultLineHeight) {
+            // Handle absolute line height by converting it to a font-size multiplier.
+            OH_Drawing_SetTextStyleFontHeight(ohTextStyle, textStyle.lineHeight / textStyle.fontSize);
+        } else if (!floatEqual(textStyle.lineHeight, 1.0f)) {
+            OH_Drawing_SetTextStyleFontHeight(ohTextStyle, textStyle.lineHeight);
+        }
+        OH_Drawing_SetTextStyleLetterSpacing(ohTextStyle, textStyle.letterSpacing);
+
+        OH_Drawing_SetTextStyleDecoration(ohTextStyle, textStyle.decoration);
+        if (textStyle.textOverflow == NODE_PROPERTY_TEXT_OVERFLOW_ELLIPSIS || 
+            textStyle.textOverflow == NODE_PROPERTY_TEXT_OVERFLOW_MIDDLE ||
+            textStyle.textOverflow == NODE_PROPERTY_TEXT_OVERFLOW_HEAD) {
+            OH_Drawing_SetTextStyleEllipsisModal(ohTextStyle, convertToHMLayoutTextOverflow(textStyle.textOverflow));
+        }
+
+        if (textStyle.fontFamilies.size() > 0) {
+            const char *fontFamilies[] = {textStyle.fontFamilies.back().c_str()};
+            OH_Drawing_SetTextStyleFontFamilies(ohTextStyle, 1, fontFamilies);
+        }
+        OH_Drawing_SetTextStyleFontStyle(ohTextStyle, convertToHMLayoutFontStyle(textStyle.fontStyle));
+        return ohTextStyle;
+    }
+};
+}   // a2ui

@@ -1,0 +1,116 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "__SURFACE_ID__",
+      "catalogId": "https://a2ui.org/specification/v0_9/standard_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "__SURFACE_ID__",
+      "components": [
+        {
+          "id": "root",
+          "component": "Card",
+          "child": "col1",
+          "backgroundColor": "#FFFFFF",
+          "borderRadius": 16,
+          "padding": 16
+        },
+        {
+          "id": "col1",
+          "component": "Column",
+          "crossAxisAlignment": "start",
+          "children": ["headerRow", "divider1", "details"]
+        },
+        {
+          "id": "headerRow",
+          "component": "Row",
+          "mainAxisAlignment": "spaceBetween",
+          "crossAxisAlignment": "center",
+          "children": ["cityCol", "weatherIcon"]
+        },
+        {
+          "id": "cityCol",
+          "component": "Column",
+          "crossAxisAlignment": "start",
+          "children": ["city", "temp"]
+        },
+        {
+          "id": "city",
+          "component": "Text",
+          "text": "北京",
+          "variant": "subtitle",
+          "color": "#181818",
+          "fontWeight": "medium"
+        },
+        {
+          "id": "temp",
+          "component": "Text",
+          "text": "23°",
+          "variant": "display",
+          "color": "#007DFF",
+          "fontWeight": "bold"
+        },
+        {
+          "id": "weatherIcon",
+          "component": "Container",
+          "backgroundColor": "#E8F3FF",
+          "borderRadius": 999,
+          "padding": 12,
+          "child": "iconText"
+        },
+        {
+          "id": "iconText",
+          "component": "Text",
+          "text": "☁",
+          "variant": "h3",
+          "color": "#007DFF"
+        },
+        {
+          "id": "divider1",
+          "component": "Container",
+          "height": 1,
+          "backgroundColor": "#E8EAED",
+          "margin": [8, 0, 8, 0]
+        },
+        {
+          "id": "details",
+          "component": "Row",
+          "mainAxisAlignment": "spaceBetween",
+          "children": ["desc", "humidity", "wind"]
+        },
+        {
+          "id": "desc",
+          "component": "Text",
+          "text": "多云转晴",
+          "variant": "body",
+          "color": "#666666"
+        },
+        {
+          "id": "humidity",
+          "component": "Text",
+          "text": "湿度 45%",
+          "variant": "caption",
+          "color": "#999999"
+        },
+        {
+          "id": "wind",
+          "component": "Text",
+          "text": "北风 12km/h",
+          "variant": "caption",
+          "color": "#999999"
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "__SURFACE_ID__",
+      "value": {}
+    }
+  }
+]

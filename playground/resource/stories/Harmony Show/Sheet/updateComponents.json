@@ -1,0 +1,68 @@
+{
+  "version": "v0.9",
+  "updateComponents": {
+    "surfaceId": "harmony_sheet_demo",
+    "components": [
+      {
+        "id": "root",
+        "component": "Column",
+        "children": ["sheet-trigger", "sheet-content"],
+        "align": "stretch",
+        "styles": { "padding": "16px", "gap": "12px", "background-color": "#FFFFFF" }
+      },
+      {
+        "id": "sheet-trigger",
+        "component": "Button",
+        "child": "sheet-trigger-text",
+        "styles": {
+          "width": "auto",
+          "height": "48px",
+          "border-radius": "12px",
+          "background-color": "#007DFF",
+          "padding": "8px 16px"
+        }
+      },
+      {
+        "id": "sheet-trigger-text",
+        "component": "Text",
+        "text": "Show Bottom Sheet",
+        "styles": { "font-size": "16px", "font-weight": "500", "color": "#FFFFFF", "text-align": "center" }
+      },
+      {
+        "id": "sheet-content",
+        "component": "Card",
+        "child": "sheet-inner",
+        "styles": {
+          "border-radius": "16px",
+          "background-color": "#FFFFFF",
+          "filter": "drop-shadow(0px -2px 12px 0px rgba(0, 0, 0, 0.06))"
+        }
+      },
+      {
+        "id": "sheet-inner",
+        "component": "Column",
+        "children": ["sheet-handle", "sheet-title", "sheet-desc"],
+        "align": "center",
+        "styles": { "padding": "16px", "gap": "8px" }
+      },
+      {
+        "id": "sheet-handle",
+        "component": "Text",
+        "text": "",
+        "styles": { "width": "36px", "height": "4px", "border-radius": "2px", "background-color": "#E8EAED" }
+      },
+      {
+        "id": "sheet-title",
+        "component": "Text",
+        "text": "Harmony Bottom Sheet",
+        "styles": { "font-size": "18px", "font-weight": "500", "color": "#181818", "text-align": "center" }
+      },
+      {
+        "id": "sheet-desc",
+        "component": "Text",
+        "text": "16vp top corners, 36x4vp drag indicator, surface background. HarmonyOS Sheet pattern.",
+        "styles": { "font-size": "14px", "color": "#666666", "text-align": "center" }
+      }
+    ]
+  }
+}

@@ -1,0 +1,136 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "__SURFACE_ID__",
+      "catalogId": "https://a2ui.org/specification/v0_9/standard_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "__SURFACE_ID__",
+      "components": [
+        {
+          "id": "root",
+          "component": "Card",
+          "child": "col1",
+          "backgroundColor": "#FFFFFF",
+          "borderRadius": 16,
+          "padding": 16
+        },
+        {
+          "id": "col1",
+          "component": "Column",
+          "crossAxisAlignment": "start",
+          "children": ["title", "divider0", "item1", "divider1", "item2", "divider2", "item3"]
+        },
+        {
+          "id": "title",
+          "component": "Text",
+          "text": "会议议程",
+          "variant": "title",
+          "color": "#181818",
+          "fontWeight": "medium"
+        },
+        {
+          "id": "divider0",
+          "component": "Container",
+          "height": 1,
+          "backgroundColor": "#E8EAED",
+          "margin": [0, 4, 0, 4]
+        },
+        {
+          "id": "item1",
+          "component": "Row",
+          "mainAxisAlignment": "spaceBetween",
+          "crossAxisAlignment": "center",
+          "children": ["item1text", "item1time"],
+          "backgroundColor": "#E8F3FF",
+          "borderRadius": 8,
+          "padding": [8, 12]
+        },
+        {
+          "id": "item1text",
+          "component": "Text",
+          "text": "1. 开场致辞",
+          "variant": "body",
+          "color": "#181818"
+        },
+        {
+          "id": "item1time",
+          "component": "Text",
+          "text": "10:00",
+          "variant": "caption",
+          "color": "#007DFF",
+          "fontWeight": "medium"
+        },
+        {
+          "id": "divider1",
+          "component": "Container",
+          "height": 1,
+          "backgroundColor": "#E8EAED",
+          "margin": [0, 4, 0, 4]
+        },
+        {
+          "id": "item2",
+          "component": "Row",
+          "mainAxisAlignment": "spaceBetween",
+          "crossAxisAlignment": "center",
+          "children": ["item2text", "item2time"],
+          "padding": [8, 12]
+        },
+        {
+          "id": "item2text",
+          "component": "Text",
+          "text": "2. 主题讨论",
+          "variant": "body",
+          "color": "#181818"
+        },
+        {
+          "id": "item2time",
+          "component": "Text",
+          "text": "10:30",
+          "variant": "caption",
+          "color": "#999999"
+        },
+        {
+          "id": "divider2",
+          "component": "Container",
+          "height": 1,
+          "backgroundColor": "#E8EAED",
+          "margin": [0, 4, 0, 4]
+        },
+        {
+          "id": "item3",
+          "component": "Row",
+          "mainAxisAlignment": "spaceBetween",
+          "crossAxisAlignment": "center",
+          "children": ["item3text", "item3time"],
+          "padding": [8, 12]
+        },
+        {
+          "id": "item3text",
+          "component": "Text",
+          "text": "3. 总结与下一步",
+          "variant": "body",
+          "color": "#181818"
+        },
+        {
+          "id": "item3time",
+          "component": "Text",
+          "text": "11:00",
+          "variant": "caption",
+          "color": "#999999"
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "__SURFACE_ID__",
+      "value": {}
+    }
+  }
+]

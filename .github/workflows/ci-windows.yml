@@ -1,0 +1,65 @@
+name: CI - Windows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'core/**'
+      - 'platforms/windows/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/ci-windows.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'core/**'
+      - 'platforms/windows/**'
+      - 'CMakeLists.txt'
+      - '.github/workflows/ci-windows.yml'
+
+concurrency:
+  group: ci-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Windows Build + Test
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure CMake
+        run: cmake -B build -DAGENUI_BUILD_WINDOWS=ON -DAGENUI_BUILD_TESTS=ON -DAGENUI_BUILD_PLAYGROUND=ON
+
+      - name: Build (Release)
+        run: cmake --build build --config Release
+
+      - name: Run Tests
+        run: ctest --test-dir build --build-config Release --output-on-failure
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-test-results-${{ github.sha }}
+          path: build/tests/**/*.png
+          retention-days: 7
+
+      - name: Upload DLL
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-dll-${{ github.sha }}
+          path: build/Release/agenui_windows.dll
+          retention-days: 7
+
+      - name: Upload Playground EXE
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-playground-${{ github.sha }}
+          path: build/playground/Release/agenui_playground.exe
+          retention-days: 7

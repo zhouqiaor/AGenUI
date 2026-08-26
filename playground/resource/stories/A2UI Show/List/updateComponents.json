@@ -1,0 +1,48 @@
+{
+  "version": "v0.9",
+  "updateComponents": {
+    "surfaceId": "list_demo",
+    "components": [
+      {
+        "id": "root",
+        "component": "List",
+        "align":"center",
+        "children": [
+          "item1",
+          "item2",
+          "item3",
+          "welcome-text"
+        ]
+      },
+      {
+        "id": "item1",
+        "component": "Text",
+        "text": "List Item 1",
+        "variant": "body"
+      },
+      {
+        "id": "item2",
+        "component": "Text",
+        "text": "List Item 2",
+        "variant": "body"
+      },
+      {
+        "id": "item3",
+        "component": "Text",
+        "text": "List Item 3",
+        "variant": "body"
+      }, {
+        "id": "welcome-text",
+        "component": "Text",
+        "text": {
+          "call": "formatString",
+          "args": {
+            "value": "Hello! Today is ."
+          },
+          "returnType": "string"
+        },
+        "variant": "h3"
+      }
+    ]
+  }
+}

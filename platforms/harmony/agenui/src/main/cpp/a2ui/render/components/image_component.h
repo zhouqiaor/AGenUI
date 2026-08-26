@@ -1,0 +1,163 @@
+#pragma once
+
+#include "../a2ui_component.h"
+#include <memory>
+
+// ArkUI_AnimatorHandle forward declarations, restored here after removal from a2ui_component.h.
+struct ArkUI_Animator;
+typedef struct ArkUI_Animator* ArkUI_AnimatorHandle;
+
+namespace a2ui {
+
+// Forward declarations for reveal animation payloads (defined in image_component_reveal.cpp)
+struct RevealPayload;
+struct ScalePayload;
+
+constexpr float kImageFadeInStartScale = 0.98f;
+
+/**
+ * Image component backed by ARKUI_NODE_IMAGE.
+ *
+ * Supported properties:
+ *   - url: image URL, including network URLs and DynamicString input
+ *   - fit: contain, cover, fill, none, or scaleDown
+ *   - styles.border-radius: corner radius
+ *   - styles.border-width: numeric or unit-suffixed border width
+ *   - styles.border-color: #RGB / #RRGGBB / #AARRGGBB
+ */
+class ImageComponent final : public A2UIComponent {
+public:
+    ImageComponent(const std::string& id, const nlohmann::json& properties);
+    ~ImageComponent() override;
+
+    /**
+     * Stop shimmer animation and unregister events before the base disposeNode path runs.
+     */
+    void onDestroy() override;
+
+protected:
+    void onUpdateProperties(const nlohmann::json& properties) override;
+
+    /**
+     * Override createView() to participate in the cross-platform lazy-loading
+     * lifecycle.  The base implementation sets m_viewCreated, calls
+     * onCreateView(), recursively creates children, then applies stored
+     * properties via updateProperties() — which triggers applyUrl().
+     *
+     * For components inside a lazy container (e.g. horizontal List), this
+     * method is not called until the adapter binds the component to a
+     * viewport slot, deferring image loading until the component is visible.
+     * Mirrors iOS ImageComponent which overrides createView() to set up
+     * imageView before loadImage() can execute.
+     */
+    void createView() override;
+
+private:
+    /** Apply the image URL. */
+    void applyUrl(const nlohmann::json &properties, float yogaWidth, float yogaHeight);
+
+    /** Prepare fade-in before switching the image source. */
+    void prepareFadeInForUrl(const std::string& url);
+
+    /** Play a fade-in animation after the image finishes loading. */
+    void playFadeInIfNeeded();
+
+    /**
+     * Play the MagicReveal transition after image load completes.
+     * @param durationMs Animation duration in milliseconds
+     */
+    void playMagicReveal(int32_t durationMs, float hintW = 0.0f, float hintH = 0.0f);
+
+    /** Apply the object-fit mode. */
+    void applyFit(const nlohmann::json& properties);
+
+    /** Apply styles such as border radius. */
+    void applyStyles(const nlohmann::json& properties);
+
+    /** Map fit strings to ArkUI ObjectFit values. */
+    static int32_t mapObjectFit(const std::string& fit);
+
+    /** Extract a string value, including DynamicString input. */
+    static std::string extractStringValue(const nlohmann::json& value);
+
+    /** Static image-complete callback. */
+    static void onImageCompleteCallback(ArkUI_NodeEvent* event);
+
+    /** Return the aspect ratio implied by variant. */
+    // removed: getAspectRatioByVariant — aspect-ratio is now fully owned by Yoga
+    // (set via YGNodeStyleSetAspectRatio in CSS style converter).
+    // ImageComponent no longer manually computes or applies aspect ratio.
+
+    /** Stop shimmer and remove its layer. */
+    void stopShimmer();
+
+    /** Start the shimmer animation. */
+    void startShimmer();
+
+    /** Create the shimmer layer once bounds are valid. */
+    void createShimmerLayerIfNeeded();
+
+    /** Apply a left-to-right shimmer gradient to the shimmer node. */
+    void applyShimmerGradient(float offset = 0.0f);
+
+    /** Create and start the shimmer translation animator. */
+    void startShimmerAnimation(float shimmerWidth, float containerWidth);
+
+    /** Whether shimmer is currently visible or animating. */
+    bool isShimmerActive() const { return m_shimmerNode != nullptr || m_shimmerPending; }
+
+private:
+    // Current image source and fade state
+    std::string m_currentUrl;
+
+    // Track last-applied dimension values to detect real changes
+    // (styles is sent in full each time, so key-existence ≠ value change).
+    nlohmann::json m_currentWidth;
+    nlohmann::json m_currentHeight;
+
+    bool m_pendingFadeIn = false;
+
+    // Current external loader request ID. Empty means no external loader is in use.
+    std::string m_currentRequestId;
+
+    // Prevent duplicate animations when onImageCompleteCallback fires more than once.
+    std::string m_lastAnimatedUrl;
+
+    // Shimmer placeholder state
+    ArkUI_NodeHandle m_shimmerNode = nullptr;
+    ArkUI_AnimatorHandle m_shimmerAnimator = nullptr;
+    bool m_shimmerPending = false;
+
+    /**
+     * userData payload for image-load callbacks.
+     * The payload is kept alive with shared_ptr, while m_payloadRef is the heap-owned
+     * shared_ptr copy passed into registerNodeEvent as userData.
+     */
+    struct ImageCallbackPayload {
+        ImageComponent* component = nullptr;
+    };
+
+    // The payload is owned by shared_ptr for the lifetime of the component.
+    std::shared_ptr<ImageCallbackPayload> m_callbackPayload;
+
+    // Heap-owned shared_ptr copy passed as registerNodeEvent userData.
+    std::shared_ptr<ImageCallbackPayload>* m_payloadRef = nullptr;
+
+    // MagicReveal mask node, created during playMagicReveal and cleaned up when the animation ends.
+    ArkUI_NodeHandle m_revealMaskNode = nullptr;
+
+    // Reveal animation state for safe cleanup on component destruction.
+    // Stores animator handles and payload pointers so cancelRevealAnimators()
+    // can cancel them before the ArkUI node is freed, preventing use-after-free
+    // in Animator onFrame callbacks.
+    RevealPayload* m_revealPayload = nullptr;
+    ScalePayload* m_scalePayload = nullptr;
+    ArkUI_AnimatorHandle m_revealMaskAnim = nullptr;
+    ArkUI_AnimatorHandle m_revealGlassAnim = nullptr;
+    ArkUI_AnimatorHandle m_revealScaleAnim = nullptr;
+
+    /** Cancel all running reveal animators. Call from onDestroy/destructor. */
+    void cancelRevealAnimators();
+};
+
+} // namespace a2ui

@@ -1,0 +1,698 @@
+/**
+ * AGenUI SDK v2.0 ArkTS wrapper
+ *
+ * All native calls are routed through bridge layers:
+ * - AGenUI (global entry) -> AGenUIEngineBridge singleton
+ * - SurfaceManager instances -> AGenUIEngineSurfaceManagerBridge instances
+ *
+ * @version 2.0.0
+ */
+
+import { AGenUIEngineBridge } from './bridge/AGenUIEngineBridge';
+import { AGenUIEngineSurfaceManagerBridge } from './bridge/AGenUIEngineSurfaceManagerBridge';
+import { FunctionManager } from './function/FunctionManager';
+import type { IFunctionCall, FunctionCallContext } from './function/IFunctionCall';
+import { FunctionResult, FunctionConfig } from './function/IFunctionCall';
+import { IImageLoader } from './ImageLoader';
+import { IComponentFactory } from './custom/A2UIComponent';
+import { HybridViewManager } from './hybrid/HybridViewManager';
+import { AGenUILogger } from './logger/AGenUILogger';
+import type { IAGenUILogger } from './logger/IAGenUILogger';
+import type { ISurfaceListener } from 'liba2ui-capi.so';
+import { getVersion as nativeGetVersion } from 'liba2ui-capi.so';
+import { common } from '@kit.AbilityKit';
+import { hilog } from '@kit.PerformanceAnalysisKit';
+
+// ==================== Internal types ====================
+
+// ==================== ISurfaceManagerListener ====================
+
+/**
+ * Surface lifecycle listener
+ */
+export interface ISurfaceManagerListener {
+  /**
+   * Called when a surface is created
+   * @param surface Created surface
+   */
+  onCreateSurface?: (surface: Surface) => void;
+
+  /**
+   * Called when a surface is deleted
+   * @param surface Deleted surface
+   */
+  onDeleteSurface?: (surface: Surface) => void;
+
+  /**
+   * Called when a component action event is dispatched
+   * @param event Event data as a JSON string
+   */
+  onReceiveActionEvent?: (event: string) => void;
+
+  /**
+   * Called when the engine rejects a payload. surface is null when the error
+   * cannot be bound to any Surface. Code definitions: agenui_errorcode_define.h.
+   */
+  onError?: (surface: Surface | null, code: number, message: string) => void;
+
+  /**
+   * Called after receiveTextChunk when C++ yoga layout computes a non-zero content height.
+   * Used to break the height-zero deadlock.
+   * @param surfaceId Surface ID
+   * @param width Content width
+   * @param height Content height
+   */
+  onContentSizeChanged?: (surfaceId: string, width: number, height: number) => void;
+
+  /**
+   * Called when the root component's properties are updated.
+   * Use this to extract trackInfo for first-render event gating.
+   * @param surface Surface instance
+   * @param props Root component properties as key-value pairs
+   */
+  onRootComponentUpdate?: (surface: Surface, props: Record<string, string>) => void;
+
+  /**
+   * Called when a component appears in a container (e.g. list item bound to viewport).
+   * @param surface Surface instance
+   * @param parentComponentId ID of the parent component
+   * @param parentType Type of the parent component
+   * @param properties Component properties as key-value pairs
+   */
+  onComponentAppeared?: (surface: Surface, parentComponentId: string, parentType: string, properties: Record<string, Object>) => void;
+}
+
+// ==================== Component ====================
+
+/**
+ * Component
+ *
+ * Represents a component inside a surface and forwards user actions and state updates.
+ */
+export class Component {
+  /** Component identifier */
+  public readonly componentId: string;
+  /** Component type */
+  public readonly componentType: string;
+  /** Associated Surface (weak reference semantics)*/
+  private _surface: Surface;
+
+  constructor(surface: Surface, componentId: string, componentType: string) {
+    this._surface = surface;
+    this.componentId = componentId;
+    this.componentType = componentType;
+  }
+
+  /**
+   * Dispatches a UI action to report user interaction with the component.
+   *
+   * Sends an empty context, which tells the native layer to use this component's own
+   * `action` attribute. Kept identical across iOS / Android / HarmonyOS.
+   */
+  triggerAction(): void {
+    // ArkTS forbids bare object literals (arkts-no-untyped-obj-literals); Record is allowed.
+    const emptyContext: Record<string, Object> = {};
+    this._surface.triggerAction(this.componentId, emptyContext);
+  }
+
+  /**
+   * Dispatches a UI action with a caller-supplied context.
+   *
+   * Use this when the action to execute is not the component's own top-level `action` —
+   * e.g. a custom component whose sub-regions carry their own actions (SpanText).
+   *
+   * The native layer resolves `context.action` as a standard A2UI action definition
+   * (`{"functionCall": ...}` or `{"event": ...}`); if it is absent or unparsable, the
+   * component's own `action` attribute is used instead.
+   *
+   * @param context Context payload. Put the action definition under the `action` key.
+   */
+  triggerActionWithContext(context: object): void {
+    this._surface.triggerAction(this.componentId, context);
+  }
+
+  /**
+   * Synchronizes the component UI state to the data model.
+   * @param change State change payload
+   */
+  syncState(change: object): void {
+    this._surface.syncState(this.componentId, change);
+  }
+}
+
+// ==================== Surface ====================
+
+/**
+ * Surface
+ *
+ * Represents an independent UI canvas created and managed by SurfaceManager.
+ */
+export class Surface {
+  /** Surface identifier */
+  public readonly surfaceId: string;
+  /** Associated instanceId */
+  public readonly instanceId: number;
+  /** Message identifier */
+  public messageId: string = '';
+  /**
+   * Whether component enter animations are enabled
+   */
+  public animationEnabled: boolean = true;
+  /** Original raw protocol content (the full JSON string that was parsed to create this surface) */
+  public rawProtocolContent: string = '';
+  /** Associated SurfaceManager (weak reference semantics)*/
+  public surfaceManager: SurfaceManager | null = null;
+  /** Component tree (componentId -> Component) */
+  private _componentTree: Record<string, Component> = {};
+
+  constructor(instanceId: number, surfaceId: string) {
+    this.instanceId = instanceId;
+    this.surfaceId = surfaceId;
+  }
+
+  /**
+   * Gets or creates a component
+   */
+  getComponent(componentId: string, componentType: string = ''): Component {
+    if (!this._componentTree[componentId]) {
+      this._componentTree[componentId] = new Component(this, componentId, componentType);
+    }
+    return this._componentTree[componentId];
+  }
+
+  /**
+   * Dispatches a UI action to report user interaction with the component.
+   * @param componentId Component ID
+   * @param context Context payload
+   */
+  triggerAction(componentId: string, context: object): void {
+    const contextJson = JSON.stringify(context);
+    this.surfaceManager?.triggerAction(this.surfaceId, componentId, contextJson);
+  }
+
+  /**
+   * Synchronizes the component UI state to the data model.
+   * @param componentId Component ID
+   * @param change State change payload
+   */
+  syncState(componentId: string, change: object): void {
+    const changeJson = JSON.stringify(change);
+    this.surfaceManager?.syncState(this.surfaceId, componentId, changeJson);
+  }
+
+  /**
+   * Starts blank-screen detection on this surface.
+   *
+   * Calling again before the previous detection fires will cancel the previous
+   * schedule and start a new one with the latest parameters.
+   *
+   * @param delayMs Delay in milliseconds before detection runs
+   * @param minComponentCount Threshold; if valid component count is lower, treated as blank
+   */
+  startBlankCheck(delayMs: number, minComponentCount: number): void {
+    this.surfaceManager?.surfaceStartBlankCheck(this.surfaceId, delayMs, minComponentCount);
+  }
+
+  /**
+   * Cancels pending blank-screen detection on this surface.
+   */
+  cancelBlankCheck(): void {
+    this.surfaceManager?.surfaceCancelBlankCheck(this.surfaceId);
+  }
+}
+
+// ==================== NativeSurfaceListenerWrapper ====================
+
+/**
+ * Internal adapter that bridges ISurfaceManagerListener to the native ISurfaceListener interface.
+ */
+class NativeSurfaceListenerWrapper implements ISurfaceListener {
+  onCreateSurface: (surfaceId: string, messageId: string, rawProtocolContent: string) => void;
+  onDeleteSurface: (surfaceId: string) => void;
+  onActionEventRouted?: (content: string) => void;
+  onError?: (code: number, surfaceId: string, message: string) => void;
+  onComponentAppeared?: (surfaceId: string, parentComponentId: string, parentType: string, properties: string) => void;
+  onRootComponentUpdate?: (surfaceId: string, props: string) => void;
+  onContentSizeChanged?: (surfaceId: string, width: number, height: number) => void;
+
+  constructor(
+    onCreate: (surfaceId: string, messageId: string, rawProtocolContent: string) => void,
+    onDelete: (surfaceId: string) => void,
+    onAction?: (content: string) => void,
+    onError?: (code: number, surfaceId: string, message: string) => void,
+    onContentSizeChanged?: (surfaceId: string, width: number, height: number) => void,
+    onComponentAppeared?: (surfaceId: string, parentComponentId: string, parentType: string, properties: string) => void,
+    onRootComponentUpdate?: (surfaceId: string, props: string) => void
+  ) {
+    this.onCreateSurface = onCreate;
+    this.onDeleteSurface = onDelete;
+    this.onActionEventRouted = onAction;
+    this.onError = onError;
+    this.onContentSizeChanged = onContentSizeChanged;
+    this.onComponentAppeared = onComponentAppeared;
+    this.onRootComponentUpdate = onRootComponentUpdate;
+  }
+}
+
+// ==================== SurfaceManager ====================
+
+/**
+ * AGenUI SurfaceManager
+ *
+ * Creates, binds, and destroys surfaces.
+ * - Global initialization is delegated to the AGenUIEngineBridge singleton on first construction.
+ * - Per-instance native operations are routed through AGenUIEngineSurfaceManagerBridge.
+ *
+ * Typical usage:
+ * 1. In aboutToAppear, create SurfaceManager(context).
+ * 2. Register surface lifecycle listeners with addListener().
+ * 3. Drive streaming rendering with beginTextStream(), receiveTextChunk(), and endTextStream().
+ * 4. Call destroy() when the page is disposed.
+ */
+export class SurfaceManager {
+  /**
+   * Per-instance SurfaceManager bridge
+   */
+  private _surfaceBridge: AGenUIEngineSurfaceManagerBridge;
+
+  /** High-level listeners */
+  private _listeners: ISurfaceManagerListener[] = [];
+
+  /** ISurfaceManagerListener -> NativeSurfaceListenerWrapper map (keyed by listener reference) */
+  private _nativeListenerMap: Map<ISurfaceManagerListener, NativeSurfaceListenerWrapper> = new Map();
+
+  /** Surface map (surfaceId -> Surface) */
+  private _surfaces: Map<string, Surface> = new Map();
+
+  /**
+   * Creates a SurfaceManager instance
+   *
+   * Triggers one-time AGenUIEngineBridge initialization on the first instance.
+   * Each constructor call creates an independent C++ ISurfaceManager instance.
+   *
+   * @param context UIAbilityContext
+   */
+  public constructor(context: common.UIAbilityContext) {
+    AGenUIEngineBridge.getInstance().initialize(context);
+    this._surfaceBridge = new AGenUIEngineSurfaceManagerBridge();
+  }
+
+  /**
+   * Returns the native instanceId
+   */
+  public getInstanceId(): number {
+    return this._surfaceBridge.instanceId;
+  }
+
+  // MARK: - Listener Management
+
+  /**
+   * Adds a surface lifecycle listener
+   */
+  public addListener(listener: ISurfaceManagerListener): void {
+    if (this._nativeListenerMap.has(listener)) {
+      // Same listener registered twice; ignore to keep map in sync.
+      return;
+    }
+    this._listeners.push(listener);
+
+    const nativeWrapper = new NativeSurfaceListenerWrapper(
+      (surfaceId: string, messageId: string, rawProtocolContent: string) => {
+        if (!this._surfaces.has(surfaceId)) {
+          const surface = new Surface(this._surfaceBridge.instanceId, surfaceId);
+          surface.messageId = messageId;
+          surface.rawProtocolContent = rawProtocolContent;
+          surface.surfaceManager = this;
+          this._surfaces.set(surfaceId, surface);
+        }
+        const surface = this._surfaces.get(surfaceId);
+        if (!surface) { return; }
+        this._listeners.forEach(l => l.onCreateSurface?.(surface));
+      },
+      (surfaceId: string) => {
+        const surface = this._surfaces.get(surfaceId);
+        this._surfaces.delete(surfaceId);
+        if (surface) {
+          surface.surfaceManager = null;
+          this._listeners.forEach(l => l.onDeleteSurface?.(surface));
+        }
+      },
+      (event: string) => {
+        this._listeners.forEach(l => l.onReceiveActionEvent?.(event));
+      },
+      (code: number, surfaceId: string, message: string) => {
+        const surface = surfaceId ? (this._surfaces.get(surfaceId) ?? null) : null;
+        this._listeners.forEach(l => l.onError?.(surface, code, message));
+      },
+      (surfaceId: string, width: number, height: number) => {
+        this._listeners.forEach(l => l.onContentSizeChanged?.(surfaceId, width, height));
+      },
+      (surfaceId: string, parentComponentId: string, parentType: string, properties: string) => {
+        const surface = this._surfaces.get(surfaceId);
+        if (!surface) { return; }
+        let parsed: Record<string, Object> = {};
+        try {
+          parsed = JSON.parse(properties) as Record<string, Object>;
+        } catch (_e) {
+          // ignore parse failure
+        }
+        this._listeners.forEach(l => l.onComponentAppeared?.(surface, parentComponentId, parentType, parsed));
+      },
+      (surfaceId: string, props: string) => {
+        const surface = this._surfaces.get(surfaceId);
+        if (!surface) { return; }
+        let parsed: Record<string, string> = {};
+        try {
+          parsed = JSON.parse(props) as Record<string, string>;
+        } catch (_e) {
+          // ignore parse failure
+        }
+        this._listeners.forEach(l => l.onRootComponentUpdate?.(surface, parsed));
+      }
+    );
+
+    this._nativeListenerMap.set(listener, nativeWrapper);
+    this._surfaceBridge.addSurfaceListener(nativeWrapper);
+  }
+
+  /**
+   * Removes a surface lifecycle listener
+   */
+  public removeListener(listener: ISurfaceManagerListener): void {
+    const idx = this._listeners.indexOf(listener);
+    if (idx >= 0) {
+      this._listeners.splice(idx, 1);
+    }
+    const nativeWrapper = this._nativeListenerMap.get(listener);
+    if (nativeWrapper) {
+      this._surfaceBridge.removeSurfaceListener(nativeWrapper);
+      this._nativeListenerMap.delete(listener);
+    }
+  }
+
+  /**
+   * Removes all listeners
+   */
+  public removeAllListeners(): void {
+    this._nativeListenerMap.forEach((nativeWrapper) => {
+      this._surfaceBridge.removeSurfaceListener(nativeWrapper);
+    });
+    this._nativeListenerMap.clear();
+    this._listeners = [];
+  }
+
+  // MARK: - Data Exchange
+
+  /**
+   * Begins a streaming data session
+   */
+  public beginTextStream(): void {
+    this._surfaceBridge.beginTextStream();
+  }
+
+  /**
+   * Ends a streaming data session
+   */
+  public endTextStream(): void {
+    this._surfaceBridge.endTextStream();
+  }
+
+  /**
+   * Receives an A2UI protocol chunk
+   */
+  public receiveTextChunk(dataString: string): void {
+    this._surfaceBridge.receiveTextChunk(dataString);
+  }
+
+  /**
+   * Re-runs host-backed function calls for the current instance.
+   */
+  public invalidateFunctionCallValues(): void {
+    this._surfaceBridge.invalidateFunctionCallValues();
+  }
+
+  /**
+   * Starts blank-screen detection on a specific surface.
+   * @param surfaceId Target surface ID
+   * @param delayMs Delay in milliseconds before detection runs
+   * @param minComponentCount Threshold; if valid component count is lower, treated as blank
+   */
+  public surfaceStartBlankCheck(surfaceId: string, delayMs: number, minComponentCount: number): void {
+    this._surfaceBridge.surfaceStartBlankCheck(surfaceId, delayMs, minComponentCount);
+  }
+
+  /**
+   * Cancels pending blank-screen detection on a specific surface.
+   * @param surfaceId Target surface ID
+   */
+  public surfaceCancelBlankCheck(surfaceId: string): void {
+    this._surfaceBridge.surfaceCancelBlankCheck(surfaceId);
+  }
+
+  // MARK: - Surface Lookup
+
+  /**
+   * Dispatches a UI action on behalf of a Surface.
+   * Called by Surface.triggerAction(); not intended for external use.
+   */
+  public triggerAction(surfaceId: string, componentId: string, contextJson: string): void {
+    this._surfaceBridge.triggerAction(surfaceId, componentId, contextJson);
+  }
+
+  /**
+   * Synchronizes component state on behalf of a Surface.
+   * Called by Surface.syncState(); not intended for external use.
+   */
+  public syncState(surfaceId: string, componentId: string, changeJson: string): void {
+    this._surfaceBridge.syncState(surfaceId, componentId, changeJson);
+  }
+
+  /**
+   * Returns the specified surface
+   */
+  public getSurface(surfaceId: string): Surface | null {
+    return this._surfaces.get(surfaceId) ?? null;
+  }
+
+  // MARK: - Lifecycle
+
+  /**
+   * Destroys the SurfaceManager and releases all resources
+   */
+  public destroy(): void {
+    this.removeAllListeners();
+    this._surfaces.forEach(surface => { surface.surfaceManager = null; });
+    this._surfaces.clear();
+    this._surfaceBridge.teardown();
+  }
+}
+
+// ==================== AGenUI Global Entry Point ====================
+
+/**
+ * AGenUI global entry point
+ *
+ * All global configuration is delegated to the AGenUIEngineBridge singleton.
+ */
+export class AGenUI {
+
+  // MARK: - Theme Configuration
+
+  /**
+   * Registers the default theme and design token configuration
+   */
+  static registerDefaultTheme(theme: string, designToken: string): boolean {
+    const themeOk = AGenUIEngineBridge.getInstance().loadThemeConfig(theme);
+    const tokenOk = AGenUIEngineBridge.getInstance().loadDesignTokenConfig(designToken);
+    return themeOk && tokenOk;
+  }
+
+  /**
+   * Sets the day/night mode
+   */
+  static setDayNightMode(mode: string): void {
+    if (mode !== 'light' && mode !== 'dark') {
+      hilog.error(0x0000, 'AGenUI', 'setDayNightMode: invalid mode \'%{public}s\', expected \'light\' or \'dark\'', mode);
+      return;
+    }
+    AGenUIEngineBridge.getInstance().setDayNightMode(mode);
+  }
+
+  /**
+   * Sets whether the host app is a debug build. Defaults to false (release).
+   */
+  static setDebug(isDebug: boolean): void {
+    AGenUIEngineBridge.getInstance().setDebug(isDebug);
+  }
+
+  /**
+   * Gets whether the host app is a debug build, previously set via setDebug.
+   * Returns false if never set.
+   */
+  static isDebug(): boolean {
+    return AGenUIEngineBridge.getInstance().isDebug();
+  }
+
+  // MARK: - Component Registration
+
+  /**
+   * Registers a custom component factory
+   */
+  static registerComponent(type: string, creator: IComponentFactory): void {
+    HybridViewManager.getInstance().registerViewCreator(type, creator);
+  }
+
+  /**
+   * Unregisters a custom component factory
+   */
+  static unRegisterComponent(type: string): void {
+    HybridViewManager.getInstance().unregisterViewCreator(type);
+  }
+
+  /**
+   * Declares a component property as a container of dynamic values.
+   *
+   * By default a property value is parsed but not descended into, so a nested object
+   * or array is stored verbatim and any `{"path":...}` binding or `{"call":...}`
+   * function call inside it never resolves. Registering the property makes the engine
+   * walk its whole subtree, resolving nested dynamic values at any depth — including
+   * bindings inside a function call's arguments, and relative paths inside a List
+   * item template.
+   *
+   * Example — AmapText carries its rich-text runs in a `spans` array:
+   * `AGenUI.registerDeepParseProperty('AmapText', 'spans')`
+   *
+   * Must be called before the first render; a declaration made later has no effect on
+   * components that have already been parsed.
+   *
+   * @param componentType Component type, i.e. the JSON `component` field
+   * @param propertyName Property name
+   * @returns true on success, false when either name is empty
+   */
+  static registerDeepParseProperty(componentType: string, propertyName: string): boolean {
+    return AGenUIEngineBridge.getInstance().registerDeepParseProperty(componentType, propertyName);
+  }
+
+  // MARK: - Image Loader
+
+  /**
+   * Registers a global image loader
+   */
+  static registerImageLoader(loader: IImageLoader): void {
+    AGenUIEngineBridge.getInstance().registerImageLoader(loader);
+  }
+
+  /**
+   * Sets path configuration
+   * @param configJson JSON string, e.g. {"templateDir": "/path/to/templates"}
+   * @returns true if configuration was applied successfully
+   */
+  static setPathConfig(configJson: string): boolean {
+    return AGenUIEngineBridge.getInstance().setPathConfig(configJson);
+  }
+
+  // MARK: - Font Registration
+
+  /**
+   * Register a custom font from a sandbox absolute path.
+   *
+   * The font becomes available immediately for `font-family` CSS property
+   * resolution in Text, RichText and TextField components.
+   *
+   * Internally uses `text.FontCollection.getGlobalInstance().loadFontSync()`,
+   * which is synchronous and does not depend on UIContext. The SDK prepends
+   * `file://` to the path before calling loadFontSync.
+   *
+   * Must be called before `windowStage.loadContent()` — ArkUI's font
+   * registration only takes effect for text nodes created afterwards.
+   *
+   * The host App is responsible for copying rawfile assets to the sandbox
+   * (e.g. via `resourceManager.getRawFileContentSync` + `fs.writeSync`) and
+   * passing the resulting sandbox absolute path here. Rawfile relative paths
+   * (e.g. "fonts/MyFont.ttf") are NOT supported — they cannot be resolved by
+   * the C-side `fopen` or by `loadFontSync`'s string parameter.
+   *
+   * @param familyName - The family name to reference in `font-family`
+   * @param path - Sandbox absolute path (e.g. "/data/.../files/fonts/MyFont.ttf").
+   *               The SDK internally prepends `file://` for loadFontSync.
+   * @returns true if both ArkUI and OH_Drawing registration succeed; false if
+   *          ArkUI registration fails (in which case native registration is
+   *          skipped to keep measurement and rendering consistent)
+   */
+  static registerFont(familyName: string, path: string): boolean {
+    return AGenUIEngineBridge.getInstance().registerFont(familyName, path);
+  }
+
+  /**
+   * Register a custom font directly from a rawfile path without sandbox copy.
+   *
+   * Reads font bytes via ResourceManager#getRawFileContentSync and passes them
+   * directly to OH_Drawing_RegisterFontBuffer. No intermediate file I/O.
+   *
+   * @param familyName - The family name to reference in `font-family`
+   * @param rawfilePath - Relative path under rawfile/, e.g. 'fonts/MyFont.ttf'
+   * @param context - UIAbilityContext providing resourceManager access
+   * @returns true if OH_Drawing buffer registration succeeds
+   */
+  static registerFontFromRawFile(familyName: string, rawfilePath: string, context: common.UIAbilityContext): boolean {
+    return AGenUIEngineBridge.getInstance().registerFontFromRawFile(familyName, rawfilePath, context);
+  }
+
+  // MARK: - Skill / FunctionCall
+  /**
+   * Registers a function backed by IFunctionCall
+   */
+  static registerFunction(func: IFunctionCall): void {
+    FunctionManager.getInstance().registerFunction(func);
+  }
+
+  /**
+   * Unregisters a function
+   */
+  static unregisterFunction(name: string): void {
+    FunctionManager.getInstance().unregisterFunction(name);
+  }
+
+  // MARK: - Custom Logger
+
+  /**
+   * Sets a custom logger to receive log callbacks from the native engine.
+   *
+   * @param logger Custom logger implementation conforming to IAGenUILogger
+   */
+  static setCustomLogger(logger: IAGenUILogger): void {
+    AGenUILogger.getInstance().setCustomLogger(logger);
+  }
+
+  /**
+   * Set the minimum log level. Messages below this threshold are filtered out on
+   * both the ArkTS side and the C++ engine side (via IRuntimeLogger::getMinLevel(),
+   * which is checked by the LOG_LEVEL macro before any vsnprintf), so filtered
+   * levels skip variadic formatting entirely.
+   *
+   * @param level One of AGenUILogger.LEVEL_DEBUG(0) ... LEVEL_PERFORMANCE(5).
+   */
+  static setMinLogLevel(level: number): void {
+    AGenUILogger.getInstance().setMinLogLevel(level);
+  }
+
+  /**
+   * @returns The currently configured minimum log level.
+   */
+  static getMinLogLevel(): number {
+    return AGenUILogger.getInstance().getMinLogLevel();
+  }
+
+  // MARK: - Version Information
+
+  /**
+   * Returns the AGenUI SDK version
+   */
+  static getVersion(): string {
+    return nativeGetVersion();
+  }
+}
+
+// ==================== Function Type Re-export ====================
+export { FunctionResult, FunctionConfig } from './function/IFunctionCall';
+export type { IFunctionCall, FunctionCallContext } from './function/IFunctionCall';

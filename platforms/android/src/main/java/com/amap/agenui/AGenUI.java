@@ -1,0 +1,531 @@
+package com.amap.agenui;
+
+import android.content.Context;
+
+import androidx.annotation.Keep;
+import androidx.annotation.RestrictTo;
+
+import com.amap.agenui.function.IFunction;
+import com.amap.agenui.function.PlatformFunction;
+import com.amap.agenui.render.component.ComponentRegistry;
+import com.amap.agenui.render.component.IComponentFactory;
+import com.amap.agenui.render.font.FontRegistry;
+import com.amap.agenui.render.image.ImageLoader;
+import com.amap.agenui.render.image.ImageLoaderConfig;
+import com.amap.agenui.render.surface.ThemeException;
+import com.amap.agenui.render.utils.AGenUILogger;
+
+@Keep
+public class AGenUI {
+    private static final String TAG = "AGenUI";
+
+    static {
+        System.loadLibrary("amap_AGenUI");
+    }
+
+    private static volatile AGenUI sInstance = null;
+    private static final Object sLock = new Object();
+
+    private volatile long nativePtr = 0;
+    private volatile boolean isInitialized = false;
+    private volatile Context appContext = null;
+
+    /**
+     * Private constructor to prevent direct external instantiation
+     */
+    private AGenUI() {
+    }
+
+    /**
+     * Returns the AGenUI singleton instance
+     *
+     * @return AGenUI singleton instance
+     */
+    public static AGenUI getInstance() {
+        if (sInstance == null) {
+            synchronized (sLock) {
+                if (sInstance == null) {
+                    sInstance = new AGenUI();
+                }
+            }
+        }
+        return sInstance;
+    }
+
+    /**
+     * Initializes the AGenUI Engine
+     *
+     * Performs the following steps:
+     * 1. Loads Native modules
+     * 2. Creates the Engine instance (initAGenUIEngine)
+     * 3. Initializes SkillManager and registers platform Skills
+     *
+     * @throws RuntimeException if initialization fails
+     */
+    public void initialize(Context applicationContext) {
+        synchronized (sLock) {
+            if (isInitialized) {
+                AGenUILogger.w(TAG, "Module already initialized");
+                return;
+            }
+
+            try {
+                appContext = applicationContext.getApplicationContext();
+                nativePtr = nativeInitAGenUIEngine();
+                if (AGenUILogger.isLoggingEnabled()) {
+                    AGenUILogger.i(TAG, "AGenUI Engine created: nativePtr=" + nativePtr);
+                }
+                ComponentRegistry.registerBuiltInComponents();
+
+                isInitialized = true;
+                AGenUILogger.i(TAG, "AGenUI Engine initialized successfully");
+            } catch (Exception e) {
+                AGenUILogger.e(TAG, "Failed to initialize AGenUI Engine", e);
+                throw new RuntimeException("Failed to initialize AGenUI Engine", e);
+            }
+        }
+    }
+    
+    /**
+     * Sets a custom logger delegate to receive log callbacks from the engine.
+     * 
+     * This method should be called BEFORE initialize() to ensure all engine logs
+     * are captured. If called after initialization, only subsequent logs will
+     * use the custom delegate.
+     * 
+     * Example usage:
+     * <pre>
+     * AGenUI.getInstance().setCustomLogger(new IAGenUILogger() {
+     *     {@literal @}Override
+     *     public void onLog(int level, String tag, String func, int line, String message) {
+     *         // Custom logging implementation
+     *         AGenUILogger.d(tag, "[" + func + "@" + line + "] " + message);
+     *     }
+     * });
+     * AGenUI.getInstance().initialize(context);
+     * </pre>
+     * 
+     * @param customLogger Custom logger implementation. Pass null to use default logging.
+     */
+    public void setCustomLogger(IAGenUILogger customLogger) {
+        if (!isInitialized()) {
+            AGenUILogger.w(TAG, "setCustomLogger: Engine not initialized");
+            return;
+        }
+
+        AGenUILogger.getInstance().setCustomLogger(customLogger);
+    }
+
+    /**
+     * Set the minimum log level. Messages with level below this threshold are filtered out
+     * on both the Java path and the C++ engine path (via IRuntimeLogger::getMinLevel()),
+     * so filtered levels skip variadic formatting entirely.
+     *
+     * @param level One of IAGenUILogger LEVEL_DEBUG(0) ... LEVEL_PERFORMANCE(5). Out-of-range
+     *              values fall back to LEVEL_DEBUG (no filtering).
+     */
+    public void setMinLogLevel(int level) {
+        AGenUILogger.getInstance().setMinLogLevel(level);
+    }
+
+    /**
+     * @return The currently configured minimum log level.
+     */
+    public int getMinLogLevel() {
+        return AGenUILogger.getInstance().getMinLogLevel();
+    }
+
+    /**
+     * Checks whether the Engine has been initialized
+     *
+     * @return true if the Engine is initialized
+     */
+    public boolean isInitialized() {
+        return isInitialized && nativePtr != 0;
+    }
+
+    @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+    public Context getApplicationContextForSdk() {
+        return appContext;
+    }
+
+    /**
+     * Creates a SurfaceManager instance
+     *
+     * @return instanceId (instance identifier)
+     * @throws IllegalStateException if the Engine is not initialized or the native layer fails to create one
+     */
+    public int createSurfaceManager() throws IllegalStateException {
+        if (!isInitialized()) {
+            throw new IllegalStateException("createSurfaceManager: AGenUI engine is not initialized");
+        }
+        int instanceId = nativeCreateSurfaceManager();
+        if (instanceId == 0) {
+            throw new IllegalStateException("createSurfaceManager: native call failed");
+        }
+
+        if (AGenUILogger.isLoggingEnabled()) {
+            AGenUILogger.i(TAG, "SurfaceManager created: instanceId=" + instanceId);
+        }
+        return instanceId;
+    }
+
+    /**
+     * Destroys a SurfaceManager instance
+     *
+     * @param instanceId The instanceId of the SurfaceManager to destroy
+     */
+    public void destroySurfaceManager(int instanceId) {
+        if (!isInitialized()) {
+            AGenUILogger.w(TAG, "destroySurfaceManager: Engine not initialized");
+            return;
+        }
+        nativeDestroySurfaceManager(instanceId);
+        if (AGenUILogger.isLoggingEnabled()) {
+            AGenUILogger.i(TAG, "SurfaceManager destroyed: engineId=" + instanceId);
+        }
+    }
+
+
+    private boolean isConfigValid(String methodName, String config) {
+        if (config == null || config.isEmpty()) {
+            if (AGenUILogger.isLoggingEnabled()) {
+                AGenUILogger.w(TAG, methodName + ": config is null or empty");
+            }
+            return false;
+        }
+        if (!isInitialized()) {
+            AGenUILogger.e(TAG, methodName + ": Engine not initialized");
+            return false;
+        }
+        return true;
+    }
+
+    private boolean loadThemeConfig(String themeConfig) {
+        if (!isConfigValid("loadThemeConfig", themeConfig)) {
+            return false;
+        }
+        return nativeLoadThemeConfig(themeConfig);
+    }
+
+    private boolean loadDesignTokenConfig(String designTokenConfig) {
+        if (!isConfigValid("loadDesignTokenConfig", designTokenConfig)) {
+            return false;
+        }
+        return nativeLoadDesignTokenConfig(designTokenConfig);
+    }
+
+    /**
+     * Sets the day/night mode
+     *
+     * @param mode Mode value: "light" or "dark"
+     */
+    public void setDayNightMode(String mode) {
+        if (mode == null || mode.isEmpty()) {
+            AGenUILogger.w(TAG, "setDayNightMode: mode is null or empty");
+            return;
+        }
+        if (!isInitialized()) {
+            AGenUILogger.e(TAG, "setDayNightMode: Engine not initialized");
+            return;
+        }
+        nativeSetDayNightMode(mode);
+    }
+
+    /**
+     * Sets whether the host app is a debug build so the SDK can adjust its internal behavior.
+     *
+     * Should be called right after initialize().
+     *
+     * @param isDebug true for debug builds, false for release.
+     *                Defaults to false if never called.
+     */
+    public void setDebug(boolean isDebug) {
+        if (!isInitialized()) {
+            AGenUILogger.e(TAG, "setDebug: Engine not initialized");
+            return;
+        }
+        nativeSetDebug(isDebug);
+    }
+
+    /**
+     * Gets whether the host app is a debug build, previously set via {@link #setDebug(boolean)}.
+     *
+     * @return true for debug builds. Returns false if never set or engine not initialized.
+     */
+    public boolean isDebug() {
+        if (!isInitialized()) {
+            AGenUILogger.w(TAG, "isDebug: Engine not initialized, returning default");
+            return false;
+        }
+        return nativeIsDebug();
+    }
+
+    /**
+     * Sets path configuration for the engine
+     *
+     * @param configJson Path configuration JSON string
+     *                   Supported keys: "templateDir" - absolute path to the template directory
+     * @return true if configuration was applied successfully, false otherwise
+     */
+    public boolean setPathConfig(String configJson) {
+        if (!isConfigValid("setPathConfig", configJson)) {
+            return false;
+        }
+        return nativeSetPathConfig(configJson);
+    }
+
+    /**
+     * Registers the default theme configuration
+     * <p>
+     * Registers both the theme JSON and DesignToken JSON simultaneously.
+     *
+     * @param theme       Theme configuration JSON string
+     * @param designToken DesignToken configuration JSON string
+     * @throws ThemeException if registration fails
+     */
+    public void registerDefaultTheme(String theme, String designToken) throws ThemeException {
+        boolean themeOk = loadThemeConfig(theme);
+        if (!themeOk) {
+            throw new ThemeException("Failed to register theme config");
+        }
+        boolean tokenOk = loadDesignTokenConfig(designToken);
+        if (!tokenOk) {
+            throw new ThemeException("Failed to register design token config");
+        }
+        AGenUILogger.i(TAG, "✓ Default theme registered successfully");
+    }
+
+
+    public void registerFunction(IFunction function) {
+        nativeRegisterFunction(
+                function.getConfig().getName(),
+                function.getConfig().toJSON(),
+                new PlatformFunction(function));
+    }
+
+    public void unregisterFunction(String name) {
+        nativeUnregisterFunction(name);
+    }
+
+    /**
+     * Declares a component property as a container of dynamic values.
+     * <p>
+     * By default a property value is parsed but not descended into, so a nested object
+     * or array is stored verbatim and any {@code {"path":...}} binding or
+     * {@code {"call":...}} function call inside it never resolves. Registering the
+     * property makes the engine walk its entire subtree instead, resolving nested
+     * dynamic values at any depth — including bindings inside a function call's
+     * arguments, and relative paths inside a List item template.
+     * <p>
+     * Example — {@code AmapText} carries its rich-text runs in a {@code spans} array,
+     * where each run has its own bound text and token-resolved colors:
+     * <pre>{@code
+     * AGenUI.getInstance().registerComponent("AmapText", new AmapA2UITextComponentFactory());
+     * AGenUI.getInstance().registerDeepParseProperty("AmapText", "spans");
+     * }</pre>
+     *
+     * @param componentType Component type, i.e. the JSON {@code component} field
+     *                      (e.g. "AmapText") — applies to every instance of that type
+     * @param propertyName  Property name (e.g. "spans")
+     * @return true on success, false when either name is empty
+     * @implNote Must be called before the first render. A declaration made afterwards
+     *         does not affect components that have already been parsed.
+     */
+    public boolean registerDeepParseProperty(String componentType, String propertyName) {
+        if (!isConfigValid("registerDeepParseProperty", componentType)
+                || !isConfigValid("registerDeepParseProperty", propertyName)) {
+            return false;
+        }
+        return nativeRegisterDeepParseProperty(componentType, propertyName);
+    }
+
+
+
+    /**
+     * Registers a custom component factory
+     * <p>
+     * If the component type already exists, it will be overwritten. Takes effect immediately
+     * after registration and is shared across all Surfaces.
+     *
+     * @param type    Component type (e.g. "MyCustomCard")
+     * @param creator Component factory instance
+     */
+    public void registerComponent(String type, IComponentFactory creator) {
+        if (type == null || type.isEmpty() || creator == null) {
+            AGenUILogger.w(TAG, "registerComponent: invalid parameters");
+            return;
+        }
+        ComponentRegistry.registerComponent(type, creator);
+        if (AGenUILogger.isLoggingEnabled()) {
+            AGenUILogger.i(TAG, "registerComponent: type=" + type);
+        }
+    }
+
+    public void unregisterComponent(String type) {
+        if (type == null || type.isEmpty()) {
+            AGenUILogger.w(TAG, "unregisterComponent: invalid parameters");
+            return;
+        }
+        ComponentRegistry.unregisterComponent(type);
+        if (AGenUILogger.isLoggingEnabled()) {
+            AGenUILogger.i(TAG, "unregisterComponent: type=" + type);
+        }
+    }
+
+
+    /**
+     * Registers a global image loader
+     * <p>
+     * All image components will use this loader to load network images.
+     *
+     * @param loader ImageLoader instance
+     */
+    public void registerImageLoader(ImageLoader loader) {
+        if (loader == null) {
+            AGenUILogger.w(TAG, "registerImageLoader: loader is null");
+            return;
+        }
+        ImageLoaderConfig.getInstance().setLoader(loader);
+        AGenUILogger.i(TAG, "registerImageLoader: success");
+    }
+
+    /**
+     * Registers a custom font from an absolute file path.
+     *
+     * <p>The font becomes available immediately for {@code font-family} CSS
+     * property resolution in Text, RichText and TextField components.
+     *
+     * @param familyName the family name to reference in {@code font-family}
+     * @param filePath   absolute path to a {@code .ttf} or {@code .otf} file
+     * @return true if registration succeeds
+     */
+    public boolean registerFont(String familyName, String filePath) {
+        if (familyName == null || familyName.isEmpty() || filePath == null || filePath.isEmpty()) {
+            AGenUILogger.w(TAG, "registerFont: familyName or filePath is null/empty");
+            return false;
+        }
+        boolean ok = FontRegistry.getInstance().registerFont(familyName, filePath);
+        if (ok) {
+            AGenUILogger.i(TAG, "registerFont: registered '" + familyName + "' from file");
+        } else {
+            AGenUILogger.e(TAG, "registerFont: failed to load font from " + filePath);
+        }
+        return ok;
+    }
+
+    /**
+     * Registers a custom font from the application's assets directory.
+     *
+     * <p>The font becomes available immediately for {@code font-family} CSS
+     * property resolution in Text, RichText and TextField components.
+     *
+     * @param familyName the family name to reference in {@code font-family}
+     * @param assetPath  path relative to the assets directory
+     *                   (e.g. {@code "fonts/MyFont.ttf"})
+     * @return true if registration succeeds
+     */
+    public boolean registerFontFromAsset(String familyName, String assetPath) {
+        if (familyName == null || familyName.isEmpty() || assetPath == null || assetPath.isEmpty()) {
+            AGenUILogger.w(TAG, "registerFontFromAsset: familyName or assetPath is null/empty");
+            return false;
+        }
+        if (appContext == null) {
+            AGenUILogger.e(TAG, "registerFontFromAsset: engine not initialized");
+            return false;
+        }
+        boolean ok = FontRegistry.getInstance().registerFontFromAsset(familyName, assetPath, appContext.getAssets());
+        if (ok) {
+            AGenUILogger.i(TAG, "registerFontFromAsset: registered '" + familyName + "' from assets");
+        } else {
+            AGenUILogger.e(TAG, "registerFontFromAsset: failed to load font from " + assetPath);
+        }
+        return ok;
+    }
+
+
+    /**
+     * Returns the AGenUI SDK version number
+     *
+     * @return SDK version number
+     */
+    public static String getVersion() {
+        return nativeGetVersion();
+    }
+
+
+    /**
+     * Returns the Native Engine pointer
+     *
+     * @return Native Engine pointer
+     * @throws IllegalStateException if the Engine is not initialized
+     */
+    public long getNativePtr() {
+        if (!isInitialized()) {
+            throw new IllegalStateException("Engine not initialized");
+        }
+        return nativePtr;
+    }
+
+    /**
+     * Destroys the Engine and releases all Native resources.
+     * This method should be called when the application exits.
+     */
+    public void destroy() {
+        synchronized (sLock) {
+            if (!isInitialized) {
+                AGenUILogger.w(TAG, "Engine not initialized, nothing to destroy");
+                return;
+            }
+
+            try {
+                if (nativePtr != 0) {
+                    nativeDestroyAGenUIEngine();
+                    AGenUILogger.i(TAG, "Engine destroyed successfully");
+                }
+            } catch (Exception e) {
+                AGenUILogger.e(TAG, "Error destroying engine", e);
+            } finally {
+                nativePtr = 0;
+                isInitialized = false;
+                sInstance = null;
+            }
+        }
+    }
+
+    private native long nativeInitAGenUIEngine();
+    private native void nativeDestroyAGenUIEngine();
+
+    public static native String nativeGetVersion();
+    public static native int nativeCreateSurfaceManager();
+    public static native void nativeDestroySurfaceManager(int instanceId);
+
+    public static native boolean nativeSetPathConfig(String configJson);
+
+    private static native boolean nativeLoadThemeConfig(String themeConfig);
+    private static native boolean nativeLoadDesignTokenConfig(String designTokenConfig);
+    private static native void nativeSetDayNightMode(String mode);
+    private static native void nativeSetDebug(boolean isDebug);
+    private static native boolean nativeIsDebug();
+
+    public static native void nativeRegisterFunction(String name, String config, Object function);
+    public static native void nativeUnregisterFunction(String name);
+    private static native boolean nativeRegisterDeepParseProperty(String componentType, String propertyName);
+    public static native void nativeOnAsyncCallbackResult(long callbackPtr, int status, String data, String error);
+
+    /**
+     * Parses a CSS color value string (solid color or gradient).
+     *
+     * @param cssValue CSS color string, e.g. "red", "#ff0000", "linear-gradient(...)"
+     * @return Parsed ColorValue object, or null if parsing fails
+     */
+    public static native ColorValue nativeParseColor(String cssValue);
+
+    /**
+     * Parses a CSS edge insets shorthand string (margin / padding / inset etc.).
+     *
+     * @param cssValue CSS shorthand string, e.g. "10px", "10px 20%", "10px 20px 30px 40px"
+     * @return Parsed EdgeInsetsValue object, or null if parsing fails
+     */
+    public static native EdgeInsetsValue nativeParseEdgeInsets(String cssValue);
+}

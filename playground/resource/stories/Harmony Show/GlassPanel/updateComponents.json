@@ -1,0 +1,51 @@
+{
+  "version": "v0.9",
+  "updateComponents": {
+    "surfaceId": "harmony_glasspanel_demo",
+    "components": [
+      {
+        "id": "root",
+        "component": "Column",
+        "children": ["glass-card"],
+        "align": "center",
+        "styles": {
+          "padding": "24px 16px",
+          "background-color": "#007DFF"
+        }
+      },
+      {
+        "id": "glass-card",
+        "component": "Card",
+        "child": "glass-content",
+        "styles": {
+          "width": "auto",
+          "border-radius": "16px",
+          "background-color": "#FFFFFFB3",
+          "border-width": "1px",
+          "border-color": "#FFFFFF1A",
+          "padding": "16px",
+          "filter": "drop-shadow(0px 4px 16px 0px rgba(0, 0, 0, 0.12))"
+        }
+      },
+      {
+        "id": "glass-content",
+        "component": "Column",
+        "children": ["glass-title", "glass-desc"],
+        "align": "stretch",
+        "styles": { "gap": "8px" }
+      },
+      {
+        "id": "glass-title",
+        "component": "Text",
+        "text": "Glass Panel",
+        "styles": { "font-size": "18px", "font-weight": "500", "color": "#181818", "text-align": "left" }
+      },
+      {
+        "id": "glass-desc",
+        "component": "Text",
+        "text": "HarmonyOS glassmorphism: 70% surface opacity, 16vp radius, 10% white border. Simulates BlurView backdrop.",
+        "styles": { "font-size": "14px", "line-height": "20px", "color": "#666666", "text-align": "left" }
+      }
+    ]
+  }
+}

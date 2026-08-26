@@ -1,0 +1,385 @@
+<div align="center">
+
+# AGenUI
+
+**AGenUI: 同步支持 iOS、Android 和 HarmonyOS 的高性能 A2UI 渲染引擎**
+
+<img src="docs/images/hero.gif" alt="AGenUI 跨 iOS / Android / HarmonyOS 流式渲染生成式 UI" width="640"/>
+
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android%20%7C%20HarmonyOS-blue)](#)
+[![Android SDK](https://img.shields.io/badge/Android-API%2021%2B-green)](#)
+[![iOS](https://img.shields.io/badge/iOS-13%2B-lightgrey)](#)
+[![HarmonyOS](https://img.shields.io/badge/HarmonyOS%20NEXT-API%2017%2B-red)](#)
+
+[**官网**](https://genui.amap.com) · [**快速上手**](docs/QuickStart.zh-CN.md) · [**API 参考**](docs/API.zh-CN.md) · [**贡献指南**](CONTRIBUTING.md)
+
+[English](README.md) | 中文
+
+</div>
+
+> 本项目正在积极开发与持续演进中，欢迎贡献代码、反馈意见和参与讨论。
+
+---
+
+## v1.4.0 新版本亮点
+
+> 发布于 2026-08-21
+
+- **阴影与圆角渲染重构**：圆角默认开启裁剪；阴影图层独立于组件内容渲染，不再被组件裁剪。组件 `addChild` 逻辑不再依赖 index 计算。
+- **样式默认值拉齐**：统一 Android、iOS、鸿蒙三端的样式默认值（含字体样式与默认文字大小）；Android 文字测量与样式解析与其他端拉齐。重构 styles 解析使其更内聚，为默认值拉齐做准备。
+- **增量更新 `null` 行为统一**：Android 与鸿蒙端组件数据不再保留 `null` 值，所有内置组件的一级属性 `null` 行为拉齐。iOS 端属性值为 `NSNull` 时不再被丢弃，而是作为删除属性处理；渲染层新增 `removeProperties` 接口，styles 内容不再平铺到一级属性。
+- **自定义组件数据绑定深度解析**：自定义组件支持嵌套属性中数据绑定的深度解析。
+- **(iOS) 部署版本**：最低部署版本从 15.0 恢复为 13.0。
+- (Core) `findSurfaceManager` 返回值改为 `shared_ptr`，修复低概率稳定性问题（鸿蒙端用法同步更新）。
+- (iOS) 修复 `display` 样式错误覆盖 `visibility` 样式的问题。修复阴影联动渲染问题。
+- (Android) 修复字符串值 `font-weight` 回退至二值 Typeface 路径的问题。修复 AudioPlayer 与 ChoicePicker 组件问题。移除组件上不必要的点击和焦点设置。
+- (鸿蒙) 修复特殊机型右边框消失问题。复 `Component.triggerAction` 的 ArkTS 编译错误。
+- (全平台) 修复三端默认文字大小不一致问题。
+---
+
+## 什么是 AGenUI？
+
+**AGenUI** 是同步支持 iOS、Android 和 HarmonyOS 三端的 A2UI SDK，它基于并完整实现了 [Google 开源的 A2UI v0.9 协议](https://github.com/google/A2UI)，能够在移动设备上实时渲染 LLM 生成的可交互界面 UI 的流式数据。它底层由一个跨平台的**共享 C++ 核心引擎**驱动，三端渲染引擎则基于核心引擎下发的组件协议，使用系统原生能力完成绘制。
+
+**AGenUI** 采用系统原生 UI 能力绘制**可交互的卡片、表单、列表、图片、媒体播放器等**，提供高性能、流畅的操作体验。
+
+<img src="docs/images/a2ui_rendering_effect.png" alt="A2UI 组件效果展示" height="720">
+
+---
+
+## 核心特性
+
+- **实时流式渲染** — 组件描述的结构化数据由 LLM 生成，流式增量出现并实时更新
+- **高性能** — iOS、Android 和 HarmonyOS 三端的原生渲染能力，页面滚动等核心场景中刷新帧率维持 120 fps
+- **22 个内置组件** — 18 个 A2UI 协议组件 + 4 个 SDK 扩展组件
+- **自定义组件 API** — 支持通过自定义组件 API 注册扩展原生组件，LLM 可通过组件名称生成组件描述数据
+- **Function Call 集成** — 支持注册端侧工具/函数，LLM 可指定执行特定的工具/函数
+- **Design Token 与主题** — 同步支持三端的 Design Token 和主题模式
+- **日 / 夜间模式** — 已配备亮色 / 暗色切换功能
+
+---
+
+## 架构设计
+
+AGenUI 采用**共享 C++ 核心引擎 + 三端组件渲染引擎**的设计。
+C++ 层实现三端通用的流式数据解析、虚拟组件树管理、绘制数据缓存、主题/样式解析、组件变化 diff 识别等能力。C++ 层将解析后的组件协议同步到三端渲染引擎触发绘制。
+
+<div align="center">
+<img src="docs/images/architecture.svg" alt="AGenUI SDK 架构" width="720"/>
+</div>
+
+### 工程目录说明
+| 路径 | 内容 |
+|---|---|
+| `core/` | C++ 核心引擎 — 解析器、差分算法、布局、Function Call 框架 |
+| `core/include/` | 供平台桥接层引用的公共 C++ API |
+| `platforms/ios/` | iOS 组件渲染器 + Objective-C 桥接层 |
+| `platforms/android/` | Android 组件渲染器 + JNI 桥接层 |
+| `platforms/harmony/` | HarmonyOS 组件渲染器 + NAPI 桥接层 |
+| `playground/` | 三端演示应用，用于开发与调试 |
+| `scripts/` | 各平台构建脚本 |
+
+---
+
+## 组件
+
+<div align="center">
+<img src="docs/images/components.svg" alt="AGenUI 内置组件" width="760"/>
+</div>
+
+### A2UI 协议组件
+
+以下 18 个组件实现了 A2UI 协议规范，三端均支持。
+
+| 组件 | 说明 |
+|---|---|
+| `Text` | 样式化文本，支持 h1–h5、body、caption 等变体 |
+| `Image` | 网络图片，支持缩放模式与圆角 |
+| `Icon` | 通过 Unicode / SVG 映射渲染图标 |
+| `Divider` | 水平或垂直分隔线 |
+| `Video` | 原生视频播放器，支持拖拽进度、控件自动隐藏 |
+| `AudioPlayer` | 音频播放器，含进度条 |
+| `Button` | 可点击按钮，触发 Action 事件 |
+| `Row` | 水平弹性容器 |
+| `Column` | 垂直弹性容器 |
+| `Card` | 带阴影的卡片容器 |
+| `List` | 可滚动列表，支持静态子项或模板驱动子项 |
+| `Tabs` | 标签栏，支持可切换面板 |
+| `Modal` | 原生对话框浮层 |
+| `TextField` | 文本输入框，支持可选校验 |
+| `CheckBox` | 布尔开关 |
+| `Slider` | 数值范围输入 |
+| `ChoicePicker` | 单选 / 多选选择器 |
+| `DateTimeInput` | 日期与时间选择器 |
+
+### SDK 内置扩展组件
+
+以下 4 个组件随 SDK 捆绑发布，不属于 A2UI 协议规范。
+
+| 组件 | 说明 |
+|---|---|
+| `Table` | 数据表格，使用 Yoga 子布局 |
+| `Carousel` | 图片 / 内容轮播 |
+| `Web` | 内嵌 WebView |
+| `RichText` | HTML 富文本渲染 |
+
+### Playground 示例组件
+
+以下 3 个组件在 Playground 中完成注册和应用，用于演示如何通过 API 接入自定义组件。
+
+| 组件 | 说明 |
+|---|---|
+| `Chart` | 柱状图、折线图、饼图 |
+| `Markdown` | Markdown 渲染，支持流式输出 |
+| `Lottie` | Lottie 动画播放 |
+
+你可以在运行时使用相同的 API 注册自己的组件，参见[快速上手](#快速上手)章节。
+
+---
+
+## Catalog 文件
+
+仓库根目录提供了 `agenui_catalog.json`，这是一个符合 [A2UI v0.9 规范](https://github.com/google/A2UI/blob/main/docs/concepts/catalogs.md)的**独立（[freestanding](https://github.com/google/A2UI/blob/main/docs/concepts/catalogs.md#freestanding-catalogs)）Catalog JSON Schema 文件**，所有外部 `$ref` 均已内联，无需任何外部依赖即可独立使用。
+
+**覆盖范围：**
+
+- **25 个组件**：18 个 A2UI 协议标准组件 + 4 个 SDK 内置扩展组件（`Table`、`Carousel`、`Web`、`RichText`），以及 3 个 Playground 示例组件（`Chart`、`Markdown`、`Lottie`）
+- **14 个函数**：覆盖校验、格式化、逻辑运算与 URL 跳转
+- **公共类型定义**：包含 A2UI v0.9 标准类型，以及 AGenUI 额外扩展的 `Styles`（通用样式属性）和 `TextStyles`（文本专属样式属性）
+
+**如何使用：**
+
+在对接 LLM Agent 时，将此文件内容或其托管 URL 作为 `catalogId` 写入 [A2UI ClientCapabilities](https://github.com/google/A2UI/blob/main/docs/concepts/catalogs.md#a2ui-catalog-negotiation) 的 `supportedCatalogIds` 字段，Agent 将以此 Schema 为约束生成严格合规的 A2UI JSON 消息，确保渲染器能够正确解析和渲染所有下发的 UI 组件。
+
+---
+
+## A2UI 生成 Skill
+
+仓库 `skills/a2ui-generation/` 目录下附带了一份独立的 **A2UI 协议生成 Skill**，可挂载到任意支持 [Agent Skills](https://www.anthropic.com/engineering/equipping-agents-for-the-real-world-with-agent-skills) 机制的 Agent（如 Claude Code、Cursor、Codex、Gemini CLI、Windsurf、GitHub Copilot 等）中使用，让 LLM 依据 Skill 内置的设计规范与约束，将自然语言 Query 转换为 AGenUI 可直接渲染的 A2UI 协议消息（`updateComponents` / `updateDataModel`）。
+
+### 安装
+
+**一行命令安装（推荐）**
+
+```bash
+npx skills add AGenUI/AGenUI
+```
+
+支持 Claude Code、Cursor、Codex、Gemini CLI、Windsurf、GitHub Copilot 等 55+ AI coding agent runtime。
+
+**手动安装**
+
+```bash
+git clone https://github.com/AGenUI/AGenUI.git
+cp -r AGenUI/skills/a2ui-generation ~/.claude/skills/
+```
+
+> 其他 runtime 请将 `skills/a2ui-generation/` 目录复制到对应的 skills 目录（如 `~/.cursor/skills/`、`~/.codex/skills/`）。
+
+### 使用方式
+
+安装完成后，在 Agent 中通过 Query 描述你想要的界面，Skill 会引导 LLM 产出符合 A2UI v0.9 规范的 JSON 协议。
+
+### 布局与样式
+
+- **默认形态**：以单张**卡片（Card）** 形式生成，聚焦核心信息。
+- **自定义布局与样式**：Query 中可以显式指定其他布局形态（例如整页 Page、列表、表格等）或具体的视觉要求（配色、间距、字号、主题风格等）；当用户指令与 Skill 默认规范冲突时，Skill 会优先遵循用户显式声明的需求。
+
+### 关于 LLM 选型
+
+不同 LLM 生成的 A2UI 结果会有一定差异。建议在实际接入时试用多个模型，选择最贴合你业务场景的那一个。
+
+## AGenUI Studio
+
+AGenUI Studio 是一个本地化、**自带密钥（BYOK）** 的 A2UI 生成工作台：用自然语言描述需求，即可生成可渲染的 A2UI 协议，并提供浏览器界面实现流式生成、实时协议预览、协议校验，以及通过二维码一键推送到真机上的 AGenUI Playground 预览。它基于开源的 [A2UI 生成 Skill](skills/a2ui-generation)（复用其设计规则与校验器），支持 DeepSeek、通义千问、智谱 GLM、OpenAI、Gemini 等多家大模型，且完全在本地运行。
+
+```bash
+npx agenui-studio
+```
+
+👉 完整的安装、配置与架构说明请参阅 [playground/studio/README.md](playground/studio/README.md)。
+
+---
+
+## 快速上手
+
+### 工具链要求
+
+| 平台 | 工具链 |
+|---|---|
+| Android | Android Studio Hedgehog+、NDK 27.3.13750724、API 35 SDK、JDK 11 |
+| iOS | Xcode 15+、CocoaPods、CMake |
+| HarmonyOS | DevEco Studio 4.0+、ohpm |
+
+### 从源码构建
+
+所有构建脚本位于 `scripts/` 目录。`core/` 中的 C++ 引擎会自动编译，无需单独准备。
+
+**Android**
+
+```bash
+# Release AAR（默认）
+./scripts/android/build.sh
+
+# Debug AAR
+./scripts/android/build.sh --debug
+
+# Release AAR + native 符号文件（用于反解，详见下文「Native debug symbols」）
+./scripts/android/build.sh --with-symbols
+
+# 发布到本地 Maven（~/.m2）
+./scripts/android/build.sh --publish-local
+
+# 发布 debug AAR 到本地 Maven
+./scripts/android/build.sh --debug --publish-local
+
+# 发布到远程 Maven（需 MAVEN_URL / MAVEN_USERNAME / MAVEN_PASSWORD 环境变量）
+./scripts/android/build.sh --publish-maven
+
+# 构建前清理
+./scripts/android/build.sh --clean
+```
+
+AAR 输出到 `dist/android/release/`。
+
+**Native debug symbols（Android，opt-in）**
+
+`./scripts/android/build.sh --with-symbols` 会在 release 构建里额外产出 native 符号文件，用于反解线上崩溃栈：
+
+1. 去掉 `-Wl,--strip-all`，让 linker 输出带 DWARF 的 `.so`。
+2. CMake POST_BUILD 用 `objcopy --only-keep-debug` 把 DWARF 拆出来到 `lib<name>.so.debug`，再把原 `.so` strip 掉并用 `.gnu_debuglink` ELF section 关联回去。
+3. 所有 `.so.debug` 打包到 `<rootProject.name>-symbols.aar`，和 release AAR 并排放在 `build/outputs/aar/`。
+
+release AAR 体积不会变 —— AGP 本来就会在打包前 strip 一次。`.so.debug` 后缀是 GNU/LLVM 工具链约定（objcopy 默认的 debug 文件扩展名），**与 Android 的 `debug` buildType 无关**，两个 AAR 都是同一次 release 编译产物。
+
+反解某个崩溃地址，解压 symbols AAR 后直接用标准工具：
+
+```bash
+unzip -j <name>-symbols.aar 'jni/arm64-v8a/*.so.debug' -d ./symbols/
+
+# 单个地址
+$ANDROID_NDK/toolchains/llvm/prebuilt/<host>/bin/llvm-addr2line \
+    -e ./symbols/lib<name>.so.debug -f -C 0xADDR
+
+# 整段 logcat 栈
+$ANDROID_NDK/toolchains/llvm/prebuilt/<host>/bin/ndk-stack \
+    -sym ./symbols/ -dump crash.log
+```
+
+开关默认 OFF —— 开源构建不会受影响，需要时显式开启。
+
+**iOS**
+
+```bash
+# XCFramework（Release，默认）
+./scripts/ios/build.sh
+
+# 单架构 Framework，Debug
+./scripts/ios/build.sh -t framework -c Debug
+
+# 强制 pod install 后构建
+./scripts/ios/build.sh --pod-install
+```
+
+**HarmonyOS**
+
+```bash
+# HAR 包（Release，默认）
+./scripts/harmony/build.sh
+
+# Debug 构建
+./scripts/harmony/build.sh --mode debug
+
+# 自定义输出目录
+./scripts/harmony/build.sh -o /path/to/output
+```
+
+### 使用 Playground 调试
+
+我们在目录 `playground` 中为每个平台建立了独立的 Playground 工程应用，你可以打开并运行 Playground 工程，体验完整的 A2UI 组件渲染效果。Playground 工程直接引用 AGenUI 源码，并支持进行断点调试。
+
+**Android Playground**
+
+- 使用 Android Studio 打开 `playground/android/`
+- 触发 gradle 安装依赖并检索代码文件
+- 可修改 `gradle.properties` 中的配置调整依赖模式：
+
+```
+# 源码模式：修改 c++ engine 和 Android 端渲染引擎代码时立即生效
+agenui.sdk.source=true
+
+# AAR 模式：不再引用源码，而是引用已经打包的 SDK 构建包（推荐仅调试 Playground 时使用）
+agenui.sdk.source=false
+```
+
+**iOS Playground**
+
+- 进入目录 `playground/ios/Playground`
+- 运行 `pod install` 安装依赖并生成 Xcode 工程。执行成功后，将在 `playground/ios/Playground` 目录生成 `Playground.xcworkspace`
+- 打开工程 `Playground.xcworkspace`，选择模拟器，触发代码编译和运行
+
+*Playground.xcworkspace 已经同时包含 AGenUI 源码和 Playground target*
+
+**HarmonyOS Playground**
+
+- 使用 DevEco Studio 打开 `playground/harmony` 目录
+- 触发安装依赖并检索代码文件
+- 选择模拟器，触发代码编译和运行
+
+*项目通过 `srcPath` 引用 `platforms/harmony/agenui/`，因此对 AGenUI 源码的任何修改在下次构建时都会自动生效*
+
+### 接入 AGenUI SDK
+
+关于如何将源码构建为可直接集成的产物（见[从源码构建](#从源码构建)）以及如何接入到应用中的详细介绍，请参考：
+
+> SDK 安装与使用指南：[快速开始](docs/QuickStart.zh-CN.md)
+>
+> 完整 SDK API 参考：[API 参考](docs/API.zh-CN.md)
+
+---
+
+## 贡献指南
+
+欢迎各种形式的贡献——Bug 修复、新组件、平台改进、文档完善和测试覆盖。
+
+提交 Pull Request 前，请阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 了解完整工作流、代码风格规范（C++、Swift、Java 遵循 Google Style Guide，ArkTS 遵循 OpenHarmony 规范）以及 PR 检查清单。
+
+**简要流程：**
+
+1. Fork 仓库，从 `main` 创建分支：`fix/123-my-fix` 或 `feat/my-feature`
+2. 完成修改，在适当位置补充测试
+3. 在受影响的平台上本地构建并测试
+4. 向 `main` 提交 PR，清晰描述*做了什么*以及*为什么*
+5. 至少需要一位维护者审批才能合并
+
+对于较大范围的变更——新平台支持、重大引擎重构、新组件品类——请先提 Issue 对齐方案，再开始编写代码。
+
+---
+
+## 社区与联系
+
+- **GitHub Issues**：[Bug 反馈和功能建议](https://github.com/AGenUI/AGenUI/issues)
+- **GitHub Discussions**：[问答与通用讨论](https://github.com/AGenUI/AGenUI/discussions)
+- **邮箱**：[tengjixiang.ttjx@alibaba-inc.com](mailto:tengjixiang.ttjx@alibaba-inc.com)
+- **钉钉群**：技术交流群
+- **微信群**：技术交流群
+
+<div align="center">
+<table>
+  <tr>
+    <th>钉钉群</th>
+    <th>微信群</th>
+  </tr>
+  <tr>
+    <td align="center"><img src="https://raw.githubusercontent.com/AGenUI/AGenUI/main/docs/images/dingtalk_qrcode.jpg" alt="AGenUI 钉钉群二维码" width="220"></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/AGenUI/AGenUI/main/docs/images/wechat_qrcode.jpg" alt="AGenUI 微信群二维码" width="220"></td>
+  </tr>
+</table>
+</div>
+
+---
+
+## 许可证
+
+AGenUI 基于 [Apache License, Version 2.0](LICENSE) 发布。

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Network permissions - for loading network images -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Notification permission required for Picasso RemoteViewsAction on Android 13+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Microphone for voice input (P2.2) -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- ForegroundService 用于绕过 BAL 限制启动输入面板 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.AGenUIPlayground"
+        android:usesCleartextTraffic="true"
+        tools:targetApi="31">
+        <activity
+            android:name=".A2UIPlaygroundActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AGenUIPlayground.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".PortraitCaptureActivity"
+            android:screenOrientation="portrait"
+            android:stateNotNeeded="true"
+            android:theme="@style/zxing_CaptureTheme" />
+        <activity
+            android:name=".UITestActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AGenUIPlayground.NoActionBar" />
+        <activity
+            android:name=".SettingsPanelActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AGenUIPlayground.NoActionBar" />
+        <activity
+            android:name=".stability.StabilityTestActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AGenUIPlayground.NoActionBar" />
+
+        <!-- A2UI Desktop Widget -->
+        <receiver
+            android:name=".widget.A2UIWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.amap.agenuiplayground.widget.ACTION_REFRESH" />
+                <action android:name="com.amap.agenuiplayground.widget.ACTION_SWITCH_TEMPLATE" />
+                <action android:name="com.amap.agenuiplayground.widget.ACTION_AI_INPUT" />
+                <action android:name="com.amap.agenuiplayground.widget.ACTION_QUICK_JOIN" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/a2ui_widget_info" />
+        </receiver>
+
+        <!-- Transparent Activity for widget rendering (Bitmap bridging) -->
+        <activity
+            android:name=".widget.WidgetRenderActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AGenUIPlayground.Transparent" />
+
+        <!-- AI Input Activity (transparent, for user text input) -->
+        <activity
+            android:name=".widget.WidgetInputActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AGenUIPlayground.Transparent" />
+
+        <!-- Meeting Join Activity (transparent, auto-dismiss after 2s) -->
+        <activity
+            android:name=".widget.MeetingJoinActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AGenUIPlayground.Transparent" />
+
+        <!-- Widget render service (JobIntentService) -->
+        <service
+            android:name=".widget.AGenUIWidgetRenderService"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false" />
+
+        <!-- ForegroundService 中介,绕过 Android 10+ BAL 限制启动 WidgetInputActivity -->
+        <service
+            android:name=".widget.WidgetInputLaunchService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+    </application>
+
+</manifest>

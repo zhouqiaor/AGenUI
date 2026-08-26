@@ -1,0 +1,232 @@
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
+}
+
+// ===== ASan Configuration =====
+// Enable via: ./gradlew assembleDebug -PagenuiEnableAsan=true
+// or set agenui.enable.asan=true in local.properties
+def localPropsForAsan = new Properties()
+def localPropsFileForAsan = rootProject.file('local.properties')
+if (localPropsFileForAsan.exists()) {
+    localPropsForAsan.load(localPropsFileForAsan.newDataInputStream())
+}
+def asanEnabled = (localPropsForAsan.getProperty('agenui.enable.asan') ?:
+    providers.gradleProperty('agenuiEnableAsan').getOrElse('false')).toBoolean()
+if (asanEnabled) {
+    logger.lifecycle("[ASan] AddressSanitizer build ENABLED for playground app")
+}
+
+def playgroundVersionName = System.getenv('ANDROID_PLAYGROUND_VERSION_NAME') ?: '1.0'
+if (playgroundVersionName.trim().isEmpty()) {
+    throw new GradleException('ANDROID_PLAYGROUND_VERSION_NAME must not be empty')
+}
+
+def playgroundVersionCodeValue = System.getenv('ANDROID_PLAYGROUND_VERSION_CODE') ?: '1'
+def playgroundVersionCode
+try {
+    playgroundVersionCode = Integer.parseInt(playgroundVersionCodeValue)
+} catch (NumberFormatException ignored) {
+    throw new GradleException('ANDROID_PLAYGROUND_VERSION_CODE must be a positive integer')
+}
+if (playgroundVersionCode <= 0) {
+    throw new GradleException('ANDROID_PLAYGROUND_VERSION_CODE must be a positive integer')
+}
+
+def signingEnvironment = [
+    keystorePath: System.getenv('ANDROID_PLAYGROUND_KEYSTORE_PATH'),
+    storePassword: System.getenv('ANDROID_PLAYGROUND_KEYSTORE_PASSWORD'),
+    keyAlias: System.getenv('ANDROID_PLAYGROUND_KEY_ALIAS'),
+    keyPassword: System.getenv('ANDROID_PLAYGROUND_KEY_PASSWORD'),
+]
+def requirePlaygroundSigning =
+    (System.getenv('ANDROID_PLAYGROUND_REQUIRE_SIGNING') ?: 'false').toBoolean()
+def configuredSigningValues = signingEnvironment.findAll { _, value ->
+    value != null && !value.isEmpty()
+}
+def playgroundSigningConfigured =
+    configuredSigningValues.size() == signingEnvironment.size()
+
+if ((requirePlaygroundSigning || !configuredSigningValues.isEmpty()) &&
+    !playgroundSigningConfigured) {
+    def missingVariables = signingEnvironment.findAll { _, value ->
+        value == null || value.isEmpty()
+    }.keySet().join(', ')
+    throw new GradleException(
+        "Incomplete Android Playground signing configuration; missing: ${missingVariables}"
+    )
+}
+
+def playgroundKeystoreFile = null
+if (playgroundSigningConfigured) {
+    playgroundKeystoreFile = new File(signingEnvironment.keystorePath)
+    if (!playgroundKeystoreFile.isAbsolute()) {
+        playgroundKeystoreFile = rootProject.file(signingEnvironment.keystorePath)
+    }
+    if (!playgroundKeystoreFile.isFile()) {
+        throw new GradleException(
+            "Android Playground keystore does not exist: ${playgroundKeystoreFile}"
+        )
+    }
+}
+
+android {
+    namespace 'com.amap.agenuiplayground'
+    compileSdk 36
+
+    signingConfigs {
+        if (playgroundSigningConfigured) {
+            playgroundRelease {
+                storeFile playgroundKeystoreFile
+                storePassword signingEnvironment.storePassword
+                keyAlias signingEnvironment.keyAlias
+                keyPassword signingEnvironment.keyPassword
+            }
+        }
+    }
+
+    defaultConfig {
+        applicationId "com.amap.agenuiplayground"
+        minSdk 21
+        targetSdk 35
+        versionCode playgroundVersionCode
+        versionName playgroundVersionName
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        // ASan: pass to CMake if this app has native code
+        if (asanEnabled) {
+            externalNativeBuild {
+                cmake {
+                    arguments "-DAGENUI_ENABLE_ASAN=ON"
+                }
+            }
+        }
+    }
+    
+    // Configure source sets to include assets from multiple sources
+    sourceSets {
+        main {
+            assets {
+                srcDirs = [
+                    'src/main/assets',
+                    file('../../resource').absolutePath,               // stories/
+                    file('../../../tests/integration/fixtures').absolutePath,  // test_fixtures/
+                    file('../../../tests/stability/fixtures').absolutePath,    // stability_fixtures/
+                    file('../../../tokens').absolutePath,                         // design tokens
+                    file('../../../themes').absolutePath,                        // theme config
+                    file('../../../samples/protocols').absolutePath,             // protocol samples
+                ]
+            }
+            // ASan: include wrap.sh and ASan runtime .so from resources/lib/
+            if (asanEnabled) {
+                jniLibs.srcDirs += ['src/main/resources/lib']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (playgroundSigningConfigured) {
+                signingConfig signingConfigs.playgroundRelease
+            }
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+    kotlinOptions {
+        jvmTarget = '11'
+    }
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.5.15'
+    }
+    testOptions {
+        execution 'ANDROIDX_TEST_ORCHESTRATOR'
+    }
+}
+
+// ===== AGenUI SDK Dependency Mode Configuration =====
+// Load local.properties (not read by providers.gradleProperty)
+def localProps = new Properties()
+def localPropsFile = rootProject.file('local.properties')
+if (localPropsFile.exists()) {
+    localProps.load(localPropsFile.newDataInputStream())
+}
+
+def agenuiSdkSource = (localProps.getProperty('agenui.sdk.source') ?: providers.gradleProperty('agenui.sdk.source').getOrElse('false')).toBoolean()
+
+def skipSdkBuild = (localProps.getProperty('agenui.skip.sdk.build') ?: providers.gradleProperty('agenui.skip.sdk.build').getOrElse('false')).toBoolean()
+
+if (!agenuiSdkSource && !skipSdkBuild) {
+    // AAR mode: trigger SDK build + copy to app/libs/ before preBuild
+    afterEvaluate {
+        preBuild.dependsOn rootProject.tasks.named('copySdkAar')
+    }
+}
+
+dependencies {
+    if (agenuiSdkSource) {
+        // Source dependency: include the sibling SDK project directly
+        implementation project(':agenui-sdk')
+    } else {
+        // AAR artifact dependency (auto-updated by the copySdkAar task)
+        implementation files('libs/AGenUI-Client-Android-release.aar')
+    }
+
+    implementation libs.mpandroidchart
+    implementation libs.lottie
+    implementation libs.markwon.core
+    implementation libs.markwon.ext.tables
+    implementation libs.markwon.html
+    implementation libs.picasso
+
+    implementation libs.appcompat
+    implementation libs.material
+    implementation libs.activity
+    implementation libs.constraintlayout
+    implementation libs.gson
+
+    // ZXing QR code scanning library
+    implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
+    implementation 'com.google.zxing:core:3.5.1'
+
+    // PDF text extraction (P2.3 file import)
+    implementation 'com.tom-roush:pdfbox-android:2.0.27.0'
+
+    // Room — SQLite 持久化 widget 历史(Phase 3B)
+    implementation 'androidx.room:room-runtime:2.6.1'
+    annotationProcessor 'androidx.room:room-compiler:2.6.1'
+
+    // Vosk 离线语音识别(Phase 3B,F3)
+    implementation 'com.alphacephei:vosk-android:0.3.70'
+
+    // ===== Jetpack Glance (Phase 4 预研) =====
+    implementation libs.glance.appwidget
+    implementation libs.glance.material
+    implementation platform(libs.compose.bom)
+    implementation libs.compose.runtime
+    implementation libs.compose.ui
+    implementation libs.compose.foundation
+    implementation libs.compose.material3
+    implementation libs.activity.compose
+    implementation libs.datastore.prefs
+    implementation libs.work.runtime
+
+    testImplementation libs.junit
+    androidTestImplementation libs.ext.junit
+    androidTestImplementation libs.espresso.core
+    androidTestImplementation 'androidx.test:rules:1.5.0'
+    androidTestImplementation 'androidx.test:runner:1.5.2'
+    androidTestImplementation 'androidx.test.uiautomator:uiautomator:2.3.0'
+    androidTestUtil libs.test.orchestrator
+}

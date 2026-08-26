@@ -1,0 +1,67 @@
+#include "agenui_function_call_action_data_value.h"
+#include "surface/datamodel/agenui_idata_model.h"
+#include "surface/datamodel/agenui_data_observer.h"
+#include "surface/virtual_dom/agenui_component_snapshot.h"
+#include "surface/agenui_serializable_data_impl.h"
+
+namespace agenui {
+
+FunctionCallActionDataValue::FunctionCallActionDataValue(IDataValueContext* context, std::shared_ptr<FunctionCallDataValue> functionCall) : DataValue(context), _functionCall(functionCall) {
+}
+
+FunctionCallActionDataValue::~FunctionCallActionDataValue() {
+    unbind();
+}
+
+DataType FunctionCallActionDataValue::getDataType() const {
+    return DataType::FunctionCallActionData;
+}
+
+DataBindingStatus FunctionCallActionDataValue::getDataBindingStatus() const {
+    if (!_functionCall) {
+        return DataBindingStatus::NotDependent;
+    }
+    return _functionCall->getDataBindingStatus();
+}
+
+SerializableData FunctionCallActionDataValue::getValueData() const {
+    auto impl = SerializableData::Impl::createObject();
+    return SerializableData(impl);
+}
+
+std::shared_ptr<FunctionCallDataValue> FunctionCallActionDataValue::getFunctionCall() const {
+    return _functionCall;
+}
+
+void FunctionCallActionDataValue::bind(IDataChangedObserver* observer) {
+    if (_functionCall) {
+        _functionCall->bind(observer);
+    }
+}
+
+void FunctionCallActionDataValue::unbind() {
+    if (_functionCall) {
+        _functionCall->unbind();
+    }
+}
+
+std::shared_ptr<DataValue> FunctionCallActionDataValue::cloneAsTemplate(IDataValueContext* context, const std::string& rootDataPath) const {
+    std::shared_ptr<FunctionCallDataValue> clonedFunctionCall = nullptr;
+    
+    if (_functionCall) {
+        auto clonedValue = _functionCall->cloneAsTemplate(context, rootDataPath);
+        clonedFunctionCall = std::static_pointer_cast<FunctionCallDataValue>(clonedValue);
+    }
+    
+    return std::make_shared<FunctionCallActionDataValue>(context, clonedFunctionCall);
+}
+
+SerializableData FunctionCallActionDataValue::execute() const {
+    if (!_functionCall) {
+        return SerializableData();
+    }
+
+    return _functionCall->getValueData();
+}
+
+}  // namespace agenui

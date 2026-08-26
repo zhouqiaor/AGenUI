@@ -1,0 +1,56 @@
+{
+  "color": [
+    {
+      "name": "brand_color",
+      "value": "#3D9BFF"
+    },
+    {
+      "name": "brand_pressed",
+      "value": "#2B82E6"
+    },
+    {
+      "name": "brand_surface",
+      "value": "#123A5C"
+    },
+    {
+      "name": "success",
+      "value": "#4CAF50"
+    },
+    {
+      "name": "warning",
+      "value": "#FFB84D"
+    },
+    {
+      "name": "danger",
+      "value": "#FF6B61"
+    },
+    {
+      "name": "text_primary",
+      "value": "#E6E6E6"
+    },
+    {
+      "name": "text_secondary",
+      "value": "#B0B3B8"
+    },
+    {
+      "name": "text_tertiary",
+      "value": "#8A8D93"
+    },
+    {
+      "name": "text_inverse",
+      "value": "#1A1A1A"
+    },
+    {
+      "name": "surface_primary",
+      "value": "#1F1F22"
+    },
+    {
+      "name": "surface_muted",
+      "value": "#2A2A2E"
+    },
+    {
+      "name": "divider",
+      "value": "#3A3A40"
+    }
+  ]
+}

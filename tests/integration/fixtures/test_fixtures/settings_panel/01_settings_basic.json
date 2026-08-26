@@ -1,0 +1,141 @@
+{
+  "description": "Settings panel basic render: Modal + Card + Column + TitleBar + TwoPane + Footer — verifies component tree structure",
+  "surfaceId": "test-surf-settings-01",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": {
+        "surfaceId": "test-surf-settings-01",
+        "catalogId": "https://a2ui.org/specification/v0_9/basic_catalog.json"
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "test-surf-settings-01",
+        "components": [
+          {
+            "id": "root",
+            "component": "Column",
+            "align": "stretch",
+            "children": ["trigger-btn", "modal-dialog"]
+          },
+          {
+            "id": "trigger-btn",
+            "component": "Button",
+            "child": "trigger-btn-text",
+            "action": {"event": "openSettings"},
+            "styles": {
+              "background-color": "#1976D2",
+              "border-radius": "12px",
+              "padding": "16px 48px 16px 48px"
+            }
+          },
+          {
+            "id": "trigger-btn-text",
+            "component": "Text",
+            "text": "打开设置",
+            "styles": {
+              "font-size": "28px",
+              "font-weight": "bold",
+              "color": "#FFFFFF",
+              "text-align": "center"
+            }
+          },
+          {
+            "id": "modal-dialog",
+            "component": "Modal",
+            "trigger": "trigger-btn",
+            "content": "modal-body"
+          },
+          {
+            "id": "modal-body",
+            "component": "Card",
+            "child": "dialog-body",
+            "styles": {
+              "border-radius": "32px",
+              "overflow": "hidden"
+            }
+          },
+          {
+            "id": "dialog-body",
+            "component": "Column",
+            "align": "stretch",
+            "styles": {
+              "background-color": "#FFFFFF"
+            },
+            "children": ["title-bar", "content-text", "footer-text"]
+          },
+          {
+            "id": "title-bar",
+            "component": "Row",
+            "justify": "spaceBetween",
+            "align": "center",
+            "styles": {
+              "height": "126px",
+              "padding": "0px 48px 0px 48px"
+            },
+            "children": ["title-text", "close-btn"]
+          },
+          {
+            "id": "title-text",
+            "component": "Text",
+            "text": "设置",
+            "variant": "h3",
+            "styles": {
+              "font-size": "42px",
+              "font-weight": "500",
+              "color": "#1A1A1A"
+            }
+          },
+          {
+            "id": "close-btn",
+            "component": "Button",
+            "variant": "borderless",
+            "child": "close-icon",
+            "action": {"event": "closeSettings"}
+          },
+          {
+            "id": "close-icon",
+            "component": "Icon",
+            "name": "close",
+            "styles": {
+              "font-size": "40px",
+              "color": "#666666"
+            }
+          },
+          {
+            "id": "content-text",
+            "component": "Text",
+            "text": "企业服务设置内容",
+            "variant": "h4",
+            "styles": {
+              "font-size": "36px",
+              "color": "#333333",
+              "padding": "32px 40px 32px 40px"
+            }
+          },
+          {
+            "id": "footer-text",
+            "component": "Text",
+            "text": "设备版本：V4.1.0",
+            "variant": "caption",
+            "styles": {
+              "font-size": "24px",
+              "color": "#999999",
+              "text-align": "center",
+              "padding": "20px 0px 20px 0px",
+              "background-color": "#FAFAFA"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "expect": {
+    "componentCount": 12,
+    "componentTypes": ["Column", "Button", "Text", "Modal", "Card", "Column", "Row", "Text", "Button", "Icon", "Text", "Text"],
+    "rootComponentId": "root",
+    "componentIds": ["root", "trigger-btn", "trigger-btn-text", "modal-dialog", "modal-body", "dialog-body", "title-bar", "title-text", "close-btn", "close-icon", "content-text", "footer-text"]
+  }
+}

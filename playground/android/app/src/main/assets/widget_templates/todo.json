@@ -1,0 +1,87 @@
+[
+  {
+    "type": "createSurface",
+    "surfaceId": "__SURFACE_ID__",
+    "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+    "width": 300
+  },
+  {
+    "type": "updateComponents",
+    "surfaceId": "__SURFACE_ID__",
+    "components": [
+      {
+        "id": "root",
+        "type": "Card",
+        "children": [
+          {
+            "id": "root_c0",
+            "type": "Column",
+            "children": [
+              {
+                "id": "root_c0_c0",
+                "type": "Row",
+                "children": [
+                  {"id": "root_c0_c0_c0", "type": "Text", "text": "待办事项", "styles": {"fontSize": 18, "fontWeight": "bold", "color": "#181818"}},
+                  {"id": "root_c0_c0_c1", "type": "Text", "text": "1/3", "styles": {"fontSize": 14, "fontWeight": "bold", "color": "#007DFF", "marginLeft": 8}}
+                ],
+                "styles": {"paddingLeft": 16, "paddingTop": 16, "paddingRight": 16, "paddingBottom": 12, "alignItems": "center"}
+              },
+              {
+                "id": "root_c0_c1",
+                "type": "Row",
+                "children": [
+                  {"id": "root_c0_c1_c0", "type": "CheckBox", "checked": true, "styles": {"color": "#007DFF"}},
+                  {"id": "root_c0_c1_c1", "type": "Text", "text": "完成鸿蒙令牌迁移", "styles": {"fontSize": 14, "color": "#999999", "textDecoration": "line-through"}}
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 4, "paddingBottom": 4, "alignItems": "center"}
+              },
+              {
+                "id": "root_c0_c2",
+                "type": "Divider",
+                "styles": {"backgroundColor": "#E8EAED", "height": 1, "marginLeft": 16, "marginRight": 16}
+              },
+              {
+                "id": "root_c0_c3",
+                "type": "Row",
+                "children": [
+                  {"id": "root_c0_c3_c0", "type": "CheckBox", "checked": false, "styles": {"color": "#007DFF"}},
+                  {"id": "root_c0_c3_c1", "type": "Text", "text": "Playground 控件适配", "styles": {"fontSize": 14, "color": "#181818"}}
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 4, "paddingBottom": 4, "alignItems": "center"}
+              },
+              {
+                "id": "root_c0_c4",
+                "type": "Divider",
+                "styles": {"backgroundColor": "#E8EAED", "height": 1, "marginLeft": 16, "marginRight": 16}
+              },
+              {
+                "id": "root_c0_c5",
+                "type": "Row",
+                "children": [
+                  {"id": "root_c0_c5_c0", "type": "CheckBox", "checked": false, "styles": {"color": "#007DFF"}},
+                  {"id": "root_c0_c5_c1", "type": "Text", "text": "Widget 模板风格化", "styles": {"fontSize": 14, "color": "#181818"}}
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 4, "paddingBottom": 16, "alignItems": "center"}
+              }
+            ]
+          }
+        ],
+        "styles": {"borderRadius": 16, "backgroundColor": "#FFFFFF", "elevation": 2}
+      }
+    ]
+  },
+  {
+    "type": "updateDataModel",
+    "surfaceId": "__SURFACE_ID__",
+    "value": {
+      "title": "待办事项",
+      "progress": "1/3",
+      "view": "pending",
+      "items": [
+        {"text": "完成鸿蒙令牌迁移", "done": true},
+        {"text": "Playground 控件适配", "done": false},
+        {"text": "Widget 模板风格化", "done": false}
+      ]
+    }
+  }
+]

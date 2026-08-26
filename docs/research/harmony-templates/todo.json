@@ -1,0 +1,156 @@
+[
+  {
+    "version": "v0.9",
+    "createSurface": {
+      "surfaceId": "__SURFACE_ID__",
+      "catalogId": "https://a2ui.org/specification/v0_9/standard_catalog.json"
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateComponents": {
+      "surfaceId": "__SURFACE_ID__",
+      "components": [
+        {
+          "id": "root",
+          "component": "Card",
+          "child": "col1",
+          "backgroundColor": "#FFFFFF",
+          "borderRadius": 16,
+          "padding": 16
+        },
+        {
+          "id": "col1",
+          "component": "Column",
+          "crossAxisAlignment": "start",
+          "children": ["title", "divider0", "task1", "divider1", "task2", "divider2", "task3", "divider3", "progress"]
+        },
+        {
+          "id": "title",
+          "component": "Text",
+          "text": "待办事项",
+          "variant": "title",
+          "color": "#181818",
+          "fontWeight": "medium"
+        },
+        {
+          "id": "divider0",
+          "component": "Container",
+          "height": 1,
+          "backgroundColor": "#E8EAED",
+          "margin": [0, 4, 0, 4]
+        },
+        {
+          "id": "task1",
+          "component": "Row",
+          "crossAxisAlignment": "center",
+          "children": ["check1", "task1text"],
+          "padding": [8, 12]
+        },
+        {
+          "id": "check1",
+          "component": "CheckBox",
+          "checked": true,
+          "color": "#007DFF"
+        },
+        {
+          "id": "task1text",
+          "component": "Text",
+          "text": "提交周报",
+          "variant": "body",
+          "color": "#999999",
+          "textDecoration": "lineThrough"
+        },
+        {
+          "id": "divider1",
+          "component": "Container",
+          "height": 1,
+          "backgroundColor": "#E8EAED",
+          "margin": [0, 4, 0, 4]
+        },
+        {
+          "id": "task2",
+          "component": "Row",
+          "crossAxisAlignment": "center",
+          "children": ["check2", "task2text"],
+          "padding": [8, 12]
+        },
+        {
+          "id": "check2",
+          "component": "CheckBox",
+          "checked": false,
+          "color": "#007DFF"
+        },
+        {
+          "id": "task2text",
+          "component": "Text",
+          "text": "审查代码合并请求",
+          "variant": "body",
+          "color": "#181818"
+        },
+        {
+          "id": "divider2",
+          "component": "Container",
+          "height": 1,
+          "backgroundColor": "#E8EAED",
+          "margin": [0, 4, 0, 4]
+        },
+        {
+          "id": "task3",
+          "component": "Row",
+          "crossAxisAlignment": "center",
+          "children": ["check3", "task3text"],
+          "padding": [8, 12]
+        },
+        {
+          "id": "check3",
+          "component": "CheckBox",
+          "checked": false,
+          "color": "#007DFF"
+        },
+        {
+          "id": "task3text",
+          "component": "Text",
+          "text": "更新文档",
+          "variant": "body",
+          "color": "#181818"
+        },
+        {
+          "id": "divider3",
+          "component": "Container",
+          "height": 1,
+          "backgroundColor": "#E8EAED",
+          "margin": [0, 4, 0, 4]
+        },
+        {
+          "id": "progress",
+          "component": "Row",
+          "mainAxisAlignment": "spaceBetween",
+          "children": ["progressText", "progressCount"]
+        },
+        {
+          "id": "progressText",
+          "component": "Text",
+          "text": "完成进度",
+          "variant": "caption",
+          "color": "#999999"
+        },
+        {
+          "id": "progressCount",
+          "component": "Text",
+          "text": "1/3",
+          "variant": "caption",
+          "color": "#007DFF",
+          "fontWeight": "medium"
+        }
+      ]
+    }
+  },
+  {
+    "version": "v0.9",
+    "updateDataModel": {
+      "surfaceId": "__SURFACE_ID__",
+      "value": {}
+    }
+  }
+]

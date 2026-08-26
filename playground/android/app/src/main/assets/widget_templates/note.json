@@ -1,0 +1,119 @@
+[
+  {
+    "type": "createSurface",
+    "surfaceId": "__SURFACE_ID__",
+    "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+    "width": 300
+  },
+  {
+    "type": "updateComponents",
+    "surfaceId": "__SURFACE_ID__",
+    "components": [
+      {
+        "id": "root",
+        "type": "Card",
+        "children": [
+          {
+            "id": "root_c0",
+            "type": "Column",
+            "children": [
+              {
+                "id": "root_c0_c0",
+                "type": "Row",
+                "children": [
+                  {
+                    "id": "root_c0_c0_c0",
+                    "type": "Container",
+                    "styles": {"width": 40, "height": 40, "borderRadius": 999, "backgroundColor": "#FFF3E0", "alignItems": "center", "justifyContent": "center"},
+                    "children": [
+                      {"id": "root_c0_c0_c0_c0", "type": "Text", "text": "\u1f4dd", "styles": {"fontSize": 18}}
+                    ]
+                  },
+                  {
+                    "id": "root_c0_c0_c1",
+                    "type": "Column",
+                    "styles": {"marginLeft": 12, "flex": 1},
+                    "children": [
+                      {"id": "root_c0_c0_c1_c0", "type": "Text", "text": "\u4f1a\u8bae\u7b14\u8bb0", "styles": {"fontSize": 16, "fontWeight": "bold", "color": "#181818"}},
+                      {"id": "root_c0_c0_c1_c1", "type": "Text", "text": "\u7b2c 3 \u6b21\u4f1a\u8bae \u00b7 \u4eca\u5929", "styles": {"fontSize": 12, "color": "#999999"}}
+                    ]
+                  }
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 16, "paddingBottom": 12, "alignItems": "center"}
+              },
+              {
+                "id": "root_c0_c1",
+                "type": "Divider",
+                "styles": {"backgroundColor": "#E8EAED", "height": 1, "marginLeft": 16, "marginRight": 16}
+              },
+              {
+                "id": "root_c0_c2",
+                "type": "Text",
+                "text": "\u91cd\u70b9\u7ed3\u8bba",
+                "styles": {"fontSize": 13, "fontWeight": "bold", "color": "#007DFF", "paddingLeft": 16, "paddingRight": 16, "paddingTop": 12, "paddingBottom": 4}
+              },
+              {
+                "id": "root_c0_c3",
+                "type": "Text",
+                "text": "\u00b7 \u7cfb\u7ed3\u679c\u6784\u786e\u5b9a\u91c7\u7528\u5fae\u670d\u52a1\u67b6\u6784\uff0c\u9996\u671f\u4e0d\u505a\u591a\u533a\u57df\u90e8\u7f72",
+                "styles": {"fontSize": 13, "color": "#333333", "paddingLeft": 16, "paddingRight": 16, "paddingTop": 2, "paddingBottom": 2}
+              },
+              {
+                "id": "root_c0_c4",
+                "type": "Text",
+                "text": "\u00b7 \u6570\u636e\u5c42\u4f7f\u7528 PostgreSQL + Redis\uff0c\u63a5\u5165\u5c42\u7528 Gateway"
+                , "styles": {"fontSize": 13, "color": "#333333", "paddingLeft": 16, "paddingRight": 16, "paddingTop": 2, "paddingBottom": 2}
+              },
+              {
+                "id": "root_c0_c5",
+                "type": "Text",
+                "text": "\u00b7 \u4e0b\u5468\u5b8c\u6210 MVP \u539f\u578b\u5e76\u5f00\u59cb\u5185\u6d4b"
+                , "styles": {"fontSize": 13, "color": "#333333", "paddingLeft": 16, "paddingRight": 16, "paddingTop": 2, "paddingBottom": 12}
+              },
+              {
+                "id": "root_c0_c6",
+                "type": "Divider",
+                "styles": {"backgroundColor": "#E8EAED", "height": 1, "marginLeft": 16, "marginRight": 16}
+              },
+              {
+                "id": "root_c0_c7",
+                "type": "Row",
+                "children": [
+                  {
+                    "id": "root_c0_c7_c0",
+                    "type": "Text",
+                    "text": "\u2713 5 \u9879\u5f85\u529e",
+                    "styles": {"fontSize": 12, "color": "#999999", "flex": 1}
+                  },
+                  {
+                    "id": "root_c0_c7_c1",
+                    "type": "Text",
+                    "text": "\u67e5\u770b\u5168\u90e8 \u203a",
+                    "styles": {"fontSize": 12, "color": "#007DFF", "fontWeight": "bold"}
+                  }
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 10, "paddingBottom": 16, "alignItems": "center"}
+              }
+            ]
+          }
+        ],
+        "styles": {"borderRadius": 16, "backgroundColor": "#FFFFFF", "elevation": 2}
+      }
+    ]
+  },
+  {
+    "type": "updateDataModel",
+    "surfaceId": "__SURFACE_ID__",
+    "value": {
+      "title": "会议笔记",
+      "session": "第 3 次会议 · 今天",
+      "summary": "重点结论",
+      "bullets": [
+        "系统架构确定采用微服务架构，首期不做多区域部署",
+        "数据层使用 PostgreSQL + Redis，接入层用 Gateway",
+        "下周完成 MVP 原型并开始内测"
+      ],
+      "todoCount": 5
+    }
+  }
+]

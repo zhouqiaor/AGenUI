@@ -1,0 +1,108 @@
+{
+  "description": "Settings panel slider list: List with slider item template + data binding — verifies Slider + dynamic list rendering",
+  "surfaceId": "test-surf-settings-03",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": {
+        "surfaceId": "test-surf-settings-03",
+        "catalogId": "https://a2ui.org/specification/v0_9/basic_catalog.json"
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "test-surf-settings-03",
+        "components": [
+          {
+            "id": "root",
+            "component": "Column",
+            "align": "stretch",
+            "styles": {"padding": "40px 40px 40px 40px"},
+            "children": ["content-title", "slider-list"]
+          },
+          {
+            "id": "content-title",
+            "component": "Text",
+            "text": "声音与显示",
+            "variant": "h4",
+            "styles": {"font-size": "36px", "font-weight": "600", "color": "#1A1A1A", "margin": "0px 0px 24px 0px"}
+          },
+          {
+            "id": "slider-list",
+            "component": "List",
+            "direction": "vertical",
+            "align": "stretch",
+            "children": {
+              "path": "/data/sliderItems",
+              "componentId": "slider-item-template"
+            }
+          },
+          {
+            "id": "slider-item-template",
+            "component": "Column",
+            "align": "stretch",
+            "styles": {
+              "padding": "20px 0px 20px 0px",
+              "border-bottom-width": "1px",
+              "border-bottom-color": "#F0F0F0"
+            },
+            "children": ["slider-item-header", "slider-item-control"]
+          },
+          {
+            "id": "slider-item-header",
+            "component": "Row",
+            "align": "center",
+            "children": ["slider-item-icon", "slider-item-title", "slider-item-value"]
+          },
+          {
+            "id": "slider-item-icon",
+            "component": "Icon",
+            "name": {"path": "icon"},
+            "styles": {"font-size": "40px", "color": "#1976D2", "margin": "0px 20px 0px 0px"}
+          },
+          {
+            "id": "slider-item-title",
+            "component": "Text",
+            "text": {"path": "title"},
+            "styles": {"font-size": "28px", "color": "#333333", "flex-grow": "1"}
+          },
+          {
+            "id": "slider-item-value",
+            "component": "Text",
+            "text": {"path": "displayValue"},
+            "styles": {"font-size": "28px", "color": "#1976D2", "font-weight": "bold"}
+          },
+          {
+            "id": "slider-item-control",
+            "component": "Slider",
+            "label": {"path": "title"},
+            "min": 0,
+            "max": {"path": "max"},
+            "value": {"path": "value"},
+            "styles": {"margin": "16px 0px 0px 72px"}
+          }
+        ]
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateDataModel": {
+        "surfaceId": "test-surf-settings-03",
+        "path": "/data",
+        "value": {
+          "sliderItems": [
+            {"icon": "volume_up", "title": "扬声器音量", "value": 60, "max": 100, "displayValue": "60%"},
+            {"icon": "brightness_7", "title": "屏幕亮度", "value": 75, "max": 100, "displayValue": "75%"}
+          ]
+        }
+      }
+    }
+  ],
+  "expect": {
+    "componentCount": 9,
+    "componentTypes": ["Column", "Text", "List", "Column", "Row", "Icon", "Text", "Text", "Slider"],
+    "rootComponentId": "root",
+    "componentIds": ["root", "content-title", "slider-list", "slider-item-template", "slider-item-header", "slider-item-icon", "slider-item-title", "slider-item-value", "slider-item-control"]
+  }
+}

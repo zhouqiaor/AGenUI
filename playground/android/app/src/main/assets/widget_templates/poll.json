@@ -1,0 +1,222 @@
+[
+  {
+    "type": "createSurface",
+    "surfaceId": "__SURFACE_ID__",
+    "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+    "width": 300
+  },
+  {
+    "type": "updateComponents",
+    "surfaceId": "__SURFACE_ID__",
+    "components": [
+      {
+        "id": "root",
+        "type": "Card",
+        "children": [
+          {
+            "id": "root_c0",
+            "type": "Column",
+            "children": [
+              {
+                "id": "root_c0_c0",
+                "type": "Row",
+                "children": [
+                  {
+                    "id": "root_c0_c0_c0",
+                    "type": "Container",
+                    "styles": {"width": 40, "height": 40, "borderRadius": 999, "backgroundColor": "#E8F3FF", "alignItems": "center", "justifyContent": "center"},
+                    "children": [
+                      {"id": "root_c0_c0_c0_c0", "type": "Text", "text": "\u1f4ca", "styles": {"fontSize": 18}}
+                    ]
+                  },
+                  {
+                    "id": "root_c0_c0_c1",
+                    "type": "Column",
+                    "styles": {"marginLeft": 12, "flex": 1},
+                    "children": [
+                      {"id": "root_c0_c0_c1_c0", "type": "Text", "text": "\u6295\u7968", "styles": {"fontSize": 16, "fontWeight": "bold", "color": "#181818"}},
+                      {"id": "root_c0_c0_c1_c1", "type": "Text", "text": "12 \u4eba\u53c2\u4e0e", "styles": {"fontSize": 12, "color": "#999999"}}
+                    ]
+                  }
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 16, "paddingBottom": 12, "alignItems": "center"}
+              },
+              {
+                "id": "root_c0_c1",
+                "type": "Text",
+                "text": "\u4e0b\u5468\u56e2\u5efa\u65f6\u95f4\u9009\u54ea\u5929\uff1f",
+                "styles": {"fontSize": 14, "fontWeight": "bold", "color": "#181818", "paddingLeft": 16, "paddingRight": 16, "paddingBottom": 8}
+              },
+              {
+                "id": "root_c0_c2",
+                "type": "Row",
+                "children": [
+                  {
+                    "id": "root_c0_c2_c0",
+                    "type": "Text",
+                    "text": "\u5468\u4e09",
+                    "styles": {"fontSize": 13, "color": "#181818", "width": 50}
+                  },
+                  {
+                    "id": "root_c0_c2_c1",
+                    "type": "Container",
+                    "styles": {"height": 8, "borderRadius": 4, "backgroundColor": "#E0E0E0", "flex": 1, "marginRight": 8},
+                    "children": [
+                      {
+                        "id": "root_c0_c2_c1_c0",
+                        "type": "Container",
+                        "styles": {"width": "42%", "height": 8, "borderRadius": 4, "backgroundColor": "#007DFF"},
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "root_c0_c2_c2",
+                    "type": "Text",
+                    "text": "5",
+                    "styles": {"fontSize": 12, "color": "#007DFF", "fontWeight": "bold", "width": 20}
+                  }
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 6, "paddingBottom": 6, "alignItems": "center"}
+              },
+              {
+                "id": "root_c0_c3",
+                "type": "Row",
+                "children": [
+                  {
+                    "id": "root_c0_c3_c0",
+                    "type": "Text",
+                    "text": "\u5468\u56db",
+                    "styles": {"fontSize": 13, "color": "#181818", "width": 50}
+                  },
+                  {
+                    "id": "root_c0_c3_c1",
+                    "type": "Container",
+                    "styles": {"height": 8, "borderRadius": 4, "backgroundColor": "#E0E0E0", "flex": 1, "marginRight": 8},
+                    "children": [
+                      {
+                        "id": "root_c0_c3_c1_c0",
+                        "type": "Container",
+                        "styles": {"width": "33%", "height": 8, "borderRadius": 4, "backgroundColor": "#007DFF"},
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "root_c0_c3_c2",
+                    "type": "Text",
+                    "text": "4",
+                    "styles": {"fontSize": 12, "color": "#999999", "fontWeight": "bold", "width": 20}
+                  }
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 6, "paddingBottom": 6, "alignItems": "center"}
+              },
+              {
+                "id": "root_c0_c4",
+                "type": "Row",
+                "children": [
+                  {
+                    "id": "root_c0_c4_c0",
+                    "type": "Text",
+                    "text": "\u5468\u4e94",
+                    "styles": {"fontSize": 13, "color": "#181818", "width": 50}
+                  },
+                  {
+                    "id": "root_c0_c4_c1",
+                    "type": "Container",
+                    "styles": {"height": 8, "borderRadius": 4, "backgroundColor": "#E0E0E0", "flex": 1, "marginRight": 8},
+                    "children": [
+                      {
+                        "id": "root_c0_c4_c1_c0",
+                        "type": "Container",
+                        "styles": {"width": "25%", "height": 8, "borderRadius": 4, "backgroundColor": "#007DFF"},
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": "root_c0_c4_c2",
+                    "type": "Text",
+                    "text": "3",
+                    "styles": {"fontSize": 12, "color": "#999999", "fontWeight": "bold", "width": 20}
+                  }
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 6, "paddingBottom": 12, "alignItems": "center"}
+              }
+            ]
+          },
+          {
+            "id": "root_c4",
+            "type": "Row",
+            "children": [
+              {
+                "id": "root_c4_c0",
+                "type": "Container",
+                "styles": {"height": 28, "borderRadius": 14, "backgroundColor": "#E8F3FF", "alignItems": "center", "justifyContent": "center", "paddingLeft": 10, "paddingRight": 10, "flex": 1, "marginRight": 6},
+                "children": [
+                  {"id": "root_c4_c0_c0", "type": "Text", "text": "已投票: 42人", "styles": {"fontSize": 12, "color": "#007DFF", "fontWeight": "bold"}}
+                ]
+              },
+              {
+                "id": "root_c4_c1",
+                "type": "Container",
+                "styles": {"height": 28, "borderRadius": 14, "backgroundColor": "#FFF3E0", "alignItems": "center", "justifyContent": "center", "paddingLeft": 10, "paddingRight": 10, "flex": 1},
+                "children": [
+                  {"id": "root_c4_c1_c0", "type": "Text", "text": "距结束: 2小时", "styles": {"fontSize": 12, "color": "#FF9500", "fontWeight": "bold"}}
+                ]
+              }
+            ],
+            "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 4, "paddingBottom": 8, "alignItems": "center"}
+          },
+          {
+            "id": "root_c5",
+            "type": "Card",
+            "children": [
+              {
+                "id": "root_c5_c0",
+                "type": "Row",
+                "children": [
+                  {
+                    "id": "root_c5_c0_c0",
+                    "type": "Column",
+                    "styles": {"flex": 1},
+                    "children": [
+                      {"id": "root_c5_c0_c0_c0", "type": "Text", "text": "周三", "styles": {"fontSize": 14, "fontWeight": "bold", "color": "#181818"}},
+                      {"id": "root_c5_c0_c0_c1", "type": "Text", "text": "5票 · 42% 领先", "styles": {"fontSize": 11, "color": "#34C759", "marginTop": 2}}
+                    ]
+                  },
+                  {
+                    "id": "root_c5_c0_c1",
+                    "type": "Container",
+                    "styles": {"height": 22, "borderRadius": 11, "backgroundColor": "#34C759", "alignItems": "center", "justifyContent": "center", "paddingLeft": 8, "paddingRight": 8},
+                    "children": [
+                      {"id": "root_c5_c0_c1_c0", "type": "Text", "text": "领先", "styles": {"fontSize": 11, "color": "#FFFFFF", "fontWeight": "bold"}}
+                    ]
+                  }
+                ],
+                "styles": {"paddingLeft": 12, "paddingRight": 12, "paddingTop": 10, "paddingBottom": 10, "alignItems": "center"}
+              }
+            ],
+            "styles": {"borderRadius": 12, "backgroundColor": "#F0FBF4", "elevation": 0, "marginLeft": 16, "marginRight": 16, "marginBottom": 16, "borderWidth": 1, "borderColor": "#34C759"}
+          }
+        ],
+        "styles": {"borderRadius": 16, "backgroundColor": "#FFFFFF", "elevation": 2}
+      }
+    ]
+  },
+  {
+    "type": "updateDataModel",
+    "surfaceId": "__SURFACE_ID__",
+    "value": {
+      "question": "下周团建时间选哪天？",
+      "options": [
+        {"label": "周三", "votes": 5, "percent": "42%"},
+        {"label": "周四", "votes": 4, "percent": "33%"},
+        {"label": "周五", "votes": 3, "percent": "25%"}
+      ],
+      "totalVotes": 42,
+      "timeRemaining": "2小时",
+      "leadingOption": "周三"
+    }
+  }
+]

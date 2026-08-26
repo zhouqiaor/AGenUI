@@ -1,0 +1,163 @@
+[
+  {
+    "type": "createSurface",
+    "surfaceId": "__SURFACE_ID__",
+    "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+    "width": 300
+  },
+  {
+    "type": "updateComponents",
+    "surfaceId": "__SURFACE_ID__",
+    "components": [
+      {
+        "id": "root",
+        "type": "Card",
+        "children": [
+          {
+            "id": "root_c0",
+            "type": "Column",
+            "children": [
+              {
+                "id": "root_c0_c0",
+                "type": "Row",
+                "children": [
+                  {
+                    "id": "root_c0_c0_c0",
+                    "type": "Container",
+                    "styles": {"width": 40, "height": 40, "borderRadius": 999, "backgroundColor": "rgba(255,255,255,0.15)", "alignItems": "center", "justifyContent": "center"},
+                    "children": [
+                      {"id": "root_c0_c0_c0_c0", "type": "Text", "text": "📖", "styles": {"fontSize": 18, "color": "#FFFFFF"}}
+                    ]
+                  },
+                  {
+                    "id": "root_c0_c0_c1",
+                    "type": "Column",
+                    "styles": {"marginLeft": 12, "flex": 1},
+                    "children": [
+                      {"id": "root_c0_c0_c1_c0", "type": "Text", "text": "高等数学", "styles": {"fontSize": 16, "fontWeight": "bold", "color": "#FFFFFF"}},
+                      {"id": "root_c0_c0_c1_c1", "type": "Text", "text": "第三章 · 2026-08-27 10:30", "styles": {"fontSize": 12, "color": "rgba(255,255,255,0.7)"}}
+                    ]
+                  }
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 16, "paddingBottom": 12, "alignItems": "center"}
+              },
+              {
+                "id": "root_c1",
+                "type": "Column",
+                "children": [
+                  {
+                    "id": "root_c1_c0",
+                    "type": "Row",
+                    "children": [
+                      {"id": "root_c1_c0_c0", "type": "Text", "text": "●", "styles": {"fontSize": 12, "color": "#FFD60A", "marginRight": 8}},
+                      {"id": "root_c1_c0_c1", "type": "Text", "text": "极限的 ε-δ 定义与几何意义", "styles": {"fontSize": 13, "color": "#FFFFFF", "flex": 1}}
+                    ],
+                    "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 4, "paddingBottom": 4, "alignItems": "center"}
+                  },
+                  {
+                    "id": "root_c1_c1",
+                    "type": "Row",
+                    "children": [
+                      {"id": "root_c1_c1_c0", "type": "Text", "text": "●", "styles": {"fontSize": 12, "color": "#FFD60A", "marginRight": 8}},
+                      {"id": "root_c1_c1_c1", "type": "Text", "text": "连续函数的三大性质", "styles": {"fontSize": 13, "color": "#FFFFFF", "flex": 1}}
+                    ],
+                    "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 4, "paddingBottom": 4, "alignItems": "center"}
+                  },
+                  {
+                    "id": "root_c1_c2",
+                    "type": "Row",
+                    "children": [
+                      {"id": "root_c1_c2_c0", "type": "Text", "text": "●", "styles": {"fontSize": 12, "color": "#FFD60A", "marginRight": 8}},
+                      {"id": "root_c1_c2_c1", "type": "Text", "text": "中值定理的推导与应用", "styles": {"fontSize": 13, "color": "#FFFFFF", "flex": 1}}
+                    ],
+                    "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 4, "paddingBottom": 4, "alignItems": "center"}
+                  },
+                  {
+                    "id": "root_c1_c3",
+                    "type": "Row",
+                    "children": [
+                      {"id": "root_c1_c3_c0", "type": "Text", "text": "●", "styles": {"fontSize": 12, "color": "#FFD60A", "marginRight": 8}},
+                      {"id": "root_c1_c3_c1", "type": "Text", "text": "例题：利用夹逼准则求极限", "styles": {"fontSize": 13, "color": "#FFFFFF", "flex": 1}}
+                    ],
+                    "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 4, "paddingBottom": 4, "alignItems": "center"}
+                  }
+                ],
+                "styles": {"paddingLeft": 4, "paddingRight": 4, "paddingTop": 4, "paddingBottom": 8}
+              },
+              {
+                "id": "root_c2",
+                "type": "Row",
+                "children": [
+                  {
+                    "id": "root_c2_c0",
+                    "type": "Container",
+                    "styles": {"height": 26, "borderRadius": 13, "backgroundColor": "rgba(255,255,255,0.15)", "alignItems": "center", "justifyContent": "center", "paddingLeft": 12, "paddingRight": 12, "marginRight": 6},
+                    "children": [
+                      {"id": "root_c2_c0_c0", "type": "Text", "text": "微积分", "styles": {"fontSize": 11, "color": "#FFFFFF"}}
+                    ]
+                  },
+                  {
+                    "id": "root_c2_c1",
+                    "type": "Container",
+                    "styles": {"height": 26, "borderRadius": 13, "backgroundColor": "rgba(255,255,255,0.15)", "alignItems": "center", "justifyContent": "center", "paddingLeft": 12, "paddingRight": 12, "marginRight": 6},
+                    "children": [
+                      {"id": "root_c2_c1_c0", "type": "Text", "text": "极限", "styles": {"fontSize": 11, "color": "#FFFFFF"}}
+                    ]
+                  },
+                  {
+                    "id": "root_c2_c2",
+                    "type": "Container",
+                    "styles": {"height": 26, "borderRadius": 13, "backgroundColor": "rgba(255,255,255,0.15)", "alignItems": "center", "justifyContent": "center", "paddingLeft": 12, "paddingRight": 12},
+                    "children": [
+                      {"id": "root_c2_c2_c0", "type": "Text", "text": "连续", "styles": {"fontSize": 11, "color": "#FFFFFF"}}
+                    ]
+                  }
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 8, "paddingBottom": 8, "alignItems": "center"}
+              },
+              {
+                "id": "root_c3",
+                "type": "Row",
+                "children": [
+                  {
+                    "id": "root_c3_c0",
+                    "type": "Container",
+                    "styles": {"height": 40, "borderRadius": 20, "backgroundColor": "#FFD60A", "alignItems": "center", "justifyContent": "center", "paddingLeft": 16, "paddingRight": 16, "flex": 1},
+                    "children": [
+                      {"id": "root_c3_c0_c0", "type": "Text", "text": "继续记笔记", "styles": {"fontSize": 14, "fontWeight": "bold", "color": "#1a3c34"}}
+                    ]
+                  },
+                  {
+                    "id": "root_c3_c1",
+                    "type": "Container",
+                    "styles": {"height": 40, "borderRadius": 20, "backgroundColor": "rgba(255,255,255,0.15)", "alignItems": "center", "justifyContent": "center", "paddingLeft": 16, "paddingRight": 16, "marginLeft": 8},
+                    "children": [
+                      {"id": "root_c3_c1_c0", "type": "Text", "text": "复习", "styles": {"fontSize": 14, "color": "#FFFFFF"}}
+                    ]
+                  }
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 8, "paddingBottom": 16, "alignItems": "center"}
+              }
+            ]
+          }
+        ],
+        "styles": {"borderRadius": 16, "backgroundColor": "linear-gradient(160deg,#1a3c34 0%,#2d5f4e 55%,#4a8c6f 100%)", "elevation": 4}
+      }
+    ]
+  },
+  {
+    "type": "updateDataModel",
+    "surfaceId": "__SURFACE_ID__",
+    "value": {
+      "courseName": "高等数学",
+      "points": [
+        "极限的 ε-δ 定义与几何意义",
+        "连续函数的三大性质",
+        "中值定理的推导与应用",
+        "例题：利用夹逼准则求极限"
+      ],
+      "tags": ["微积分", "极限", "连续"],
+      "timestamp": "2026-08-27T10:30:00"
+    }
+  }
+]

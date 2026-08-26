@@ -1,0 +1,2358 @@
+package com.amap.agenuiplayground;
+
+import android.Manifest;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.ActionBarDrawerToggle;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import com.amap.agenui.AGenUI;
+import com.amap.agenui.render.surface.ISurfaceManagerListener;
+import com.amap.agenui.render.surface.Surface;
+import com.amap.agenui.render.surface.SurfaceManager;
+import com.amap.agenui.render.surface.SurfaceSize;
+import com.amap.agenuiplayground.adapter.ComponentAdapter;
+import com.amap.agenuiplayground.component.factory.ChartComponentFactory;
+import com.amap.agenuiplayground.component.factory.LottieComponentFactory;
+import com.amap.agenuiplayground.component.factory.MarkdownComponentFactory;
+import com.amap.agenuiplayground.function.ToastFunction;
+import com.amap.agenuiplayground.story.ComponentStory;
+import com.amap.agenuiplayground.story.StoryLoader;
+import com.amap.agenuiplayground.story.SubStory;
+import com.amap.agenuiplayground.widget.AiInputDrawerController;
+import com.amap.agenuiplayground.widget.WidgetLLMClient;
+import com.amap.agenuiplayground.widget.WidgetPromptBuilder;
+import com.amap.agenuiplayground.widget.WidgetProtocolValidator;
+import com.amap.agenuiplayground.widget.WidgetPartialParser;
+import com.amap.agenuiplayground.widget.WidgetHistoryRepository;
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.navigation.NavigationView;
+import com.google.android.material.tabs.TabLayout;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
+import com.journeyapps.barcodescanner.ScanContract;
+import com.journeyapps.barcodescanner.ScanOptions;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/**
+ * A2UI Playground Activity
+ *
+ * Features:
+ * 1. Display A2UI component rendering effects
+ * 2. Support editing Components and DataModel JSON
+ * 3. Real-time preview of rendering results
+ * 4. Display log information
+ *
+ */
+public class A2UIPlaygroundActivity extends AppCompatActivity {
+
+    // UI Components
+    private DrawerLayout drawerLayout;
+    private MaterialToolbar toolbar;
+    private ActionBarDrawerToggle drawerToggle;
+    private NavigationView navigationView;
+    private RecyclerView rvComponentList;
+    private View customComponentMenuItem;
+    private View a2uiShowAllMenuItem;
+    private View galleryLoadAllMenuItem;
+    private FrameLayout renderContainer;
+    private FrameLayout renderContent;
+
+    // Log Area
+    private LinearLayout logsContainer;
+    private View logsHeader;
+    private TextView tvLogsToggle;
+    private ScrollView logsScrollView;
+    private LinearLayout logsContent;
+
+    // Edit Drawer
+    private TabLayout tabLayout;
+    private EditText etJsonEditor;
+    private Button btnFormat;
+    private Button btnValidate;
+    private Button btnCancel;
+    private Button btnSave;
+
+    // AI Input Drawer (小艺风格侧边面板)
+    private View aiDrawerRoot;
+    private View drawerRightContainer;
+    private AiInputDrawerController aiDrawerController;
+    private WidgetPartialParser aiPartialParser;
+    private WidgetLLMClient aiLlmClient;
+    private WidgetHistoryRepository aiHistoryRepository;
+    private com.amap.agenuiplayground.widget.WidgetConversationMemory aiConversationMemory;
+
+    // Data
+    private String currentComponentsJson = "{}";
+    private String currentDataModelJson = "{}";
+    private boolean logsExpanded = false;
+    private EditorType currentEditorType = EditorType.NONE;
+
+    // Story Related
+    private StoryLoader storyLoader;
+    private ComponentAdapter componentAdapter;
+    private List<ComponentStory> componentStories;
+
+    // A2UI Framework
+    private AGenUI aGenUI;
+
+    // Rendering Framework
+    private SurfaceManager surfaceManager;
+    private String currentSurfaceId = null;
+    // Listeners are bound to a SurfaceManager instance and destroy() clears them,
+    // so this single instance is re-attached to every replacement manager.
+    private ISurfaceManagerListener surfaceListener;
+
+    // Mount target reserved per surfaceId by screens that host several surfaces at
+    // once. Surfaces cannot be mounted at send time: NativeEventBridge posts creation
+    // to the main looper, which cannot drain while the sender still holds the thread.
+    private final Map<String, FrameLayout> pendingSurfaceHosts = new HashMap<>();
+
+    // Surface-size pull cache.
+    //
+    // The engine queries ISurfaceManagerListener#surfaceSize SYNCHRONOUSLY on its
+    // worker thread during the first Yoga layout pass — before the host's container
+    // (renderContent → Surface.getContainer()) has been measured and pushed back via
+    // notifySurfaceSizeChanged. Without this, the bootstrap layout uses width=0 and
+    // first paint flashes a collapsed surface.
+    //
+    // We pre-measure renderContent (the parent FrameLayout that hosts every Surface)
+    // on the UI thread via OnLayoutChangeListener and stash the SurfaceSize in a
+    // volatile field. The worker thread reads the volatile reference — no lock,
+    // no main-thread API call from within the callback. SurfaceSize's constructor
+    // takes raw px and normalizes to a2ui units internally, so we don't deal with
+    // vp here.
+    private volatile SurfaceSize cachedRenderContentSize;
+    // Cached source px width; skip allocation when width didn't actually change.
+    // Height isn't tracked here because we always emit 0 on the height axis.
+    private int lastRenderContentWidthPx = -1;
+
+    // Performance Monitor
+    private PerformanceMonitor performanceMonitor;
+    private View performanceOverlay;
+    private TextView tvFps;
+    private TextView tvMemory;
+    private TextView tvAvgFps;
+    private boolean performanceMonitorEnabled = false;
+    
+    // Custom Logger
+    private PlaygroundRuntimeLogger runtimeLogger;
+
+    // Day/Night Mode
+    private boolean isDarkMode = false;
+    private SharedPreferences themePrefs;
+    private static final String PREFS_NAME = "theme_prefs";
+    private static final String KEY_DARK_MODE = "dark_mode";
+
+    // QR code scanning related
+    private ActivityResultLauncher<ScanOptions> barcodeLauncher;
+    private static final int CAMERA_PERMISSION_REQUEST_CODE = 1002;
+    private ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    private static final String TAG = "A2UIPlayground";
+
+    // Streaming mode configuration
+    private static final boolean STREAMING_MODE_ENABLED = true;
+    // Per-chunk character size shared by sync and async streaming paths.
+    private static final int DEFAULT_STREAMING_CHUNK_SIZE = 300;
+    private static final long DEFAULT_STREAMING_DELAY_MS = 80;
+    // updateComponents streaming style: false=sync (tight loop), true=async (postDelayed).
+    private static final boolean COMPONENTS_ASYNC_STREAMING = false;
+    private final Handler streamingHandler = new Handler(Looper.getMainLooper());
+
+    private enum EditorType {
+        NONE,
+        COMPONENTS,
+        DATA_MODEL
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // Preload all widget templates into memory on a background thread so
+        // subsequent widget renders skip the asset-stream I/O path.
+        com.amap.agenuiplayground.widget.WidgetTemplatePreloader.preload(this);
+
+        // Load intent matching configuration from assets (keyword dictionary)
+        com.amap.agenuiplayground.widget.WidgetIntentMatcher.loadConfig(this);
+
+        // Initialize theme preferences
+        themePrefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        isDarkMode = themePrefs.getBoolean(KEY_DARK_MODE, false);
+
+        // Apply saved theme
+        applyTheme(isDarkMode);
+
+        setContentView(R.layout.activity_a2ui_playground);
+
+        initViews();
+        setupToolbar();
+        setupNavigationDrawer();
+        setupLogsArea();
+        setupDrawer();
+
+        // Initialize Story loader
+        initStoryLoader();
+
+        // Initialize QR code scanning
+        initBarcodeLauncher();
+
+        // Initialize A2UI Framework
+        initAGenUI();
+
+        // Automatically show the performance monitor overlay on startup
+        togglePerformanceMonitor();
+
+        // Support --autoGallery intent extra: auto-navigate to Gallery on launch
+        // Usage: adb shell am start -S -n <package>/.A2UIPlaygroundActivity --ez autoGallery true
+        boolean autoGallery = getIntent().getBooleanExtra("autoGallery", false);
+        if (autoGallery) {
+            // Delay to ensure framework is fully initialized, then render Gallery directly
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                renderGalleryFromAsset();
+            }, 500);
+        }
+
+        // Support --ez autoWidgetPreview true: auto-render a widget template on launch
+        // Usage: adb shell am start -n <package>/.A2UIPlaygroundActivity --ez autoWidgetPreview true --es widgetTemplate weather
+        boolean autoWidgetPreview = getIntent().getBooleanExtra("autoWidgetPreview", false);
+        if (autoWidgetPreview) {
+            String template = getIntent().getStringExtra("widgetTemplate");
+            if (template == null) template = "weather";
+            final String finalTemplate = template;
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                showWidgetPreview(finalTemplate);
+            }, 800);
+        }
+    }
+
+    /**
+     * Initialize views
+     */
+    private void initViews() {
+        // Main layout
+        drawerLayout = findViewById(R.id.drawerLayout);
+        toolbar = findViewById(R.id.toolbar);
+        navigationView = findViewById(R.id.navigationView);
+        rvComponentList = navigationView.findViewById(R.id.rvComponentList);
+        customComponentMenuItem = navigationView.findViewById(R.id.customComponentMenuItem);
+        a2uiShowAllMenuItem = navigationView.findViewById(R.id.a2uiShowAllMenuItem);
+        galleryLoadAllMenuItem = navigationView.findViewById(R.id.galleryLoadAllMenuItem);
+        renderContainer = findViewById(R.id.renderContainer);
+        renderContent = findViewById(R.id.renderContent);
+        // Track renderContent's measured size so the engine's surfaceSize pull can
+        // synchronously hand back a sensible bootstrap value before any push from
+        // Surface.getContainer()'s own OnLayoutChangeListener has had a chance to fire.
+        renderContent.addOnLayoutChangeListener(this::onRenderContentLayoutChanged);
+
+        // Log area
+        logsContainer = findViewById(R.id.logsContainer);
+        logsHeader = findViewById(R.id.logsHeader);
+        tvLogsToggle = findViewById(R.id.tvLogsToggle);
+        logsScrollView = findViewById(R.id.logsScrollView);
+        logsContent = findViewById(R.id.logsContent);
+
+        // Edit drawer
+        tabLayout = findViewById(R.id.tabLayout);
+        etJsonEditor = findViewById(R.id.etJsonEditor);
+        btnFormat = findViewById(R.id.btnFormat);
+        btnValidate = findViewById(R.id.btnValidate);
+        btnCancel = findViewById(R.id.btnCancel);
+        btnSave = findViewById(R.id.btnSave);
+
+        // AI Input drawer (小艺风格)
+        drawerRightContainer = findViewById(R.id.drawerRightContainer);
+        aiDrawerRoot = findViewById(R.id.drawerAiInput);
+        if (aiDrawerRoot != null && aiDrawerController == null) {
+            aiDrawerController = new AiInputDrawerController(this, new AiInputDrawerController.Callback() {
+                @Override
+                public void onSend(String text) {
+                    streamLLMToPlayground(text);
+                }
+                @Override
+                public void onClose() {
+                    closeAiDrawer();
+                }
+            });
+            aiDrawerController.bind(aiDrawerRoot);
+        }
+
+        // Performance overlay
+        performanceOverlay = findViewById(R.id.performanceOverlay);
+        tvFps = findViewById(R.id.tvFps);
+        tvMemory = findViewById(R.id.tvMemory);
+        tvAvgFps = findViewById(R.id.tvAvgFps);
+    }
+
+    /**
+     * Setup toolbar
+     */
+    private void setupToolbar() {
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setHomeAsUpIndicator(R.drawable.ic_menu);
+        }
+
+        // Setup ActionBarDrawerToggle
+        drawerToggle = new ActionBarDrawerToggle(
+            this,
+            drawerLayout,
+            toolbar,
+            R.string.drawer_nav_title,
+            R.string.drawer_close
+        );
+        drawerLayout.addDrawerListener(drawerToggle);
+        drawerToggle.syncState();
+    }
+
+    /**
+     * Setup left navigation drawer
+     */
+    private void setupNavigationDrawer() {
+        // Setup RecyclerView
+        rvComponentList.setLayoutManager(new LinearLayoutManager(this));
+
+        // Create adapter
+        componentAdapter = new ComponentAdapter();
+        rvComponentList.setAdapter(componentAdapter);
+
+        // Setup click listener
+        componentAdapter.setOnItemClickListener(new ComponentAdapter.OnItemClickListener() {
+            @Override
+            public void onParentClick(ComponentStory story) {
+                // Close navigation drawer
+                drawerLayout.closeDrawer(GravityCompat.START);
+
+                // Load component Story (compatible with old version without sub-items)
+                loadComponentStory(story);
+            }
+
+            @Override
+            public void onChildClick(SubStory subStory) {
+                // Close navigation drawer
+                drawerLayout.closeDrawer(GravityCompat.START);
+
+                // Load sub Story
+                loadSubStory(subStory);
+            }
+        });
+
+        // Setup custom component menu item click listener
+        customComponentMenuItem.setOnClickListener(v -> {
+            // Close left drawer
+            drawerLayout.closeDrawer(GravityCompat.START);
+
+            // Set default JSON template
+            currentComponentsJson = getDefaultComponentsTemplate();
+            currentDataModelJson = "{}";
+
+            // Open right edit drawer
+            openEditor(EditorType.COMPONENTS);
+
+            addLog("Open custom component editor");
+        });
+
+        // Setup A2UI Show All menu item click listener
+        a2uiShowAllMenuItem.setOnClickListener(v -> {
+            // Close left drawer
+            drawerLayout.closeDrawer(GravityCompat.START);
+
+            // Load all A2UI Show components
+            loadAllA2UIShowComponents();
+        });
+
+        // Setup Gallery Load All menu item click listener
+        galleryLoadAllMenuItem.setOnClickListener(v -> {
+            // Close left drawer
+            drawerLayout.closeDrawer(GravityCompat.START);
+
+            // Load all Gallery components
+            loadAllGalleryComponents();
+        });
+    }
+
+    /**
+     * Initialize Story loader
+     */
+    private void initStoryLoader() {
+        storyLoader = new StoryLoader(this);
+
+        // Load all Stories
+        componentStories = storyLoader.loadAllStories();
+
+        // Update adapter
+        if (componentAdapter != null) {
+            componentAdapter.setStories(componentStories);
+        }
+
+        addLog("Loaded " + componentStories.size() + " components");
+    }
+
+    /**
+     * Load component Story (compatible with old version)
+     */
+    private void loadComponentStory(ComponentStory story) {
+        // Update Components JSON
+        currentComponentsJson = story.getComponentsString();
+
+        // Update DataModel JSON
+        currentDataModelJson = story.getDataModelString();
+
+        // Update title
+        updateToolbarTitle(story.getComponentName());
+
+        // Add log
+        addLog("Loaded component: " + story.getComponentName());
+
+        // If editor is open, update editor content
+        if (currentEditorType == EditorType.COMPONENTS) {
+            etJsonEditor.setText(currentComponentsJson);
+        } else if (currentEditorType == EditorType.DATA_MODEL) {
+            etJsonEditor.setText(currentDataModelJson);
+        }
+
+        // Call A2UI rendering
+        renderComponents();
+    }
+
+    /**
+     * Load sub Story
+     */
+    private void loadSubStory(SubStory subStory) {
+        // Update Components JSON
+        currentComponentsJson = subStory.getComponentsString();
+
+        // Update DataModel JSON
+        currentDataModelJson = subStory.getDataModelString();
+
+        // Update title (format: "Button / default")
+        String title = subStory.getParentName() + " / " + subStory.getDisplayName();
+        updateToolbarTitle(title);
+
+        // Add log
+        addLog("Loaded sub-example: " + subStory.getParentName() + " / " + subStory.getDisplayName());
+
+        // If editor is open, update editor content
+        if (currentEditorType == EditorType.COMPONENTS) {
+            etJsonEditor.setText(currentComponentsJson);
+        } else if (currentEditorType == EditorType.DATA_MODEL) {
+            etJsonEditor.setText(currentDataModelJson);
+        }
+
+        // Call A2UI render
+        renderComponents();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_playground, menu);
+
+        // Setup theme switch
+        MenuItem themeItem = menu.findItem(R.id.action_toggle_theme);
+        if (themeItem != null) {
+            View actionView = themeItem.getActionView();
+            if (actionView != null) {
+                androidx.appcompat.widget.SwitchCompat themeSwitch =
+                    actionView.findViewById(R.id.themeSwitch);
+                if (themeSwitch != null) {
+                    // Set initial state (inverted: checked = day mode, unchecked = night mode)
+                    themeSwitch.setChecked(!isDarkMode);
+
+                    // Set listener
+                    themeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                        // Invert logic: checked (sun side) = day mode, unchecked (moon side) = night mode
+                        isDarkMode = !isChecked;
+
+                        // Save theme preference
+                        themePrefs.edit().putBoolean(KEY_DARK_MODE, isDarkMode).apply();
+
+                        // Update AGenUI theme (renderer handles day/night internally)
+                        String mode = isDarkMode ? "dark" : "light";
+                        if (aGenUI != null) {
+                            aGenUI.setDayNightMode(mode);
+                            addLog("Switching theme mode: " + mode);
+                        }
+
+                        String message = isDarkMode ? "Switched to night mode" : "Switched to day mode";
+                        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+                    });
+                }
+            }
+        }
+
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+
+        if (id == R.id.action_edit) {
+            // Click "Edit" button, open right edit drawer
+            openEditor(EditorType.COMPONENTS);
+            return true;
+        } else if (id == R.id.action_scan) {
+            // Click the "Scan" button to launch QR code scanning
+            startQrCodeScan();
+            return true;
+        } else if (id == R.id.action_widget_preview) {
+            // Widget Preview: render weather template and show bitmap in renderContent
+            showWidgetPreview();
+        } else if (id == R.id.action_ai_input) {
+            // Click "AI Input", open right AI input drawer
+            openAiDrawer();
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
+    /**
+     * Widget Preview: renders the weather template via AGenUIWidgetRenderService
+     * and displays the resulting bitmap directly in renderContent.
+     * Bypasses the need for a desktop Widget binding.
+     */
+    private void showWidgetPreview() {
+        showWidgetPreview("weather");
+    }
+
+    private void showWidgetPreview(String templateName) {
+        android.util.Log.d("A2UIPlayground", "showWidgetPreview: rendering " + templateName + " template");
+
+        // Clear existing surface
+        if (surfaceManager != null) {
+            try {
+                surfaceManager.destroy();
+                surfaceManager = null;
+            } catch (Exception e) {
+                android.util.Log.w("A2UIPlayground", "destroy old SM failed", e);
+            }
+        }
+
+        // Load template and render
+        String surfaceId = "preview_" + System.currentTimeMillis();
+        String templateJson = com.amap.agenuiplayground.widget.WidgetProtocolTemplates
+                .loadTemplate(this, templateName, surfaceId);
+
+        if (templateJson == null) {
+            android.widget.Toast.makeText(this, "Template not found", android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Convert to v0.9 format
+        java.util.List<String> chunks = com.amap.agenuiplayground.widget.WidgetFallbackBuilder
+                .convertToVersionFormat(templateJson, surfaceId);
+
+        if (chunks.isEmpty()) {
+            android.widget.Toast.makeText(this, "Template conversion failed", android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Initialize AGenUI
+        aGenUI = AGenUI.getInstance();
+        aGenUI.initialize(getApplicationContext());
+        aGenUI.setDebug(true);
+
+        // Create SurfaceManager
+        surfaceManager = new SurfaceManager(this);
+        currentSurfaceId = surfaceId;
+
+        final java.util.concurrent.CountDownLatch surfaceReady = new java.util.concurrent.CountDownLatch(1);
+        final java.util.concurrent.atomic.AtomicReference<com.amap.agenui.render.surface.Surface> surfaceRef =
+                new java.util.concurrent.atomic.AtomicReference<>(null);
+
+        surfaceManager.addListener(new com.amap.agenui.render.surface.ISurfaceManagerListener() {
+            @Override
+            public void onCreateSurface(com.amap.agenui.render.surface.Surface surface) {
+                android.util.Log.d("A2UIPlayground", "onCreateSurface: " + surface.getSurfaceId());
+                surfaceRef.set(surface);
+            }
+
+            @Override
+            public void onDeleteSurface(com.amap.agenui.render.surface.Surface surface) {}
+
+            @Override
+            public void onReceiveActionEvent(String event) {}
+
+            @Override
+            public void onRootComponentUpdate(com.amap.agenui.render.surface.Surface surface, Map<String, String> props) {
+                android.util.Log.d("A2UIPlayground", "onRootComponentUpdate: " + surface.getSurfaceId());
+                surfaceRef.set(surface);
+                // Wait 100ms for child views to mount
+                new Handler(Looper.getMainLooper()).postDelayed(surfaceReady::countDown, 100);
+            }
+
+            @Override
+            public void onError(com.amap.agenui.render.surface.Surface surface, int code, String message) {
+                android.util.Log.e("A2UIPlayground", "Surface error: code=" + code + ", msg=" + message);
+                surfaceReady.countDown();
+            }
+
+            @Override
+            public void onBlankCheckResult(com.amap.agenui.render.surface.Surface surface, boolean isBlank) {}
+
+            @Override
+            public void onComponentAppeared(com.amap.agenui.render.surface.Surface surface, String parentComponentId,
+                                             String parentType, Map<String, Object> properties) {}
+
+            @Override
+            public com.amap.agenui.render.surface.SurfaceSize surfaceSize(String sid) {
+                return new com.amap.agenui.render.surface.SurfaceSize(300, 400);
+            }
+        });
+
+        // Stream chunks
+        try {
+            surfaceManager.beginTextStream();
+            for (String chunk : chunks) {
+                surfaceManager.receiveTextChunk(chunk);
+            }
+            surfaceManager.endTextStream();
+        } catch (Exception e) {
+            android.util.Log.e("A2UIPlayground", "Stream failed", e);
+            android.widget.Toast.makeText(this, "Stream failed: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Wait on background, then mount on UI
+        new Thread(() -> {
+            try {
+                boolean ready = surfaceReady.await(5, java.util.concurrent.TimeUnit.SECONDS);
+                if (!ready || surfaceRef.get() == null) {
+                    runOnUiThread(() -> android.widget.Toast.makeText(this,
+                            "Surface timeout", android.widget.Toast.LENGTH_SHORT).show());
+                    return;
+                }
+
+                final com.amap.agenui.render.surface.Surface surface = surfaceRef.get();
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    // Mount the surface container directly into renderContent
+                    renderContent.removeAllViews();
+                    android.view.ViewGroup container = surface.getContainer();
+                    // Force measure + layout
+                    int wSpec = android.view.View.MeasureSpec.makeMeasureSpec(300, android.view.View.MeasureSpec.EXACTLY);
+                    int hSpec = android.view.View.MeasureSpec.makeMeasureSpec(400, android.view.View.MeasureSpec.AT_MOST);
+                    container.measure(wSpec, hSpec);
+                    container.layout(0, 0, container.getMeasuredWidth(),
+                            container.getMeasuredHeight() > 0 ? container.getMeasuredHeight() : 400);
+
+                    renderContent.addView(container);
+                    android.util.Log.d("A2UIPlayground", "Widget preview mounted: "
+                            + container.getMeasuredWidth() + "x" + container.getMeasuredHeight());
+                });
+            } catch (InterruptedException e) {
+                android.util.Log.e("A2UIPlayground", "Wait interrupted", e);
+            }
+        }).start();
+    }
+
+    /**
+     * Setup log area
+     */
+    private void setupLogsArea() {
+        logsHeader.setOnClickListener(v -> toggleLogs());
+    }
+
+    /**
+     * Setup edit drawer
+     */
+    private void setupDrawer() {
+        // Tab switch listener
+        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(TabLayout.Tab tab) {
+                onTabChanged(tab.getPosition());
+            }
+
+            @Override
+            public void onTabUnselected(TabLayout.Tab tab) {
+                // Save current editing content
+                saveCurrentTabContent();
+            }
+
+            @Override
+            public void onTabReselected(TabLayout.Tab tab) {
+                // Do nothing
+            }
+        });
+
+        // Format button
+        btnFormat.setOnClickListener(v -> formatJson());
+
+        // Validate button
+        btnValidate.setOnClickListener(v -> validateJson());
+
+        // Cancel button
+        btnCancel.setOnClickListener(v -> closeDrawer());
+
+        // Save button
+        btnSave.setOnClickListener(v -> saveAndRender());
+    }
+
+    /**
+     * Open editor
+     */
+    private void openEditor(EditorType type) {
+        // 🔧 Fix: Save current content before switching state
+        // This prevents the bug where content gets saved to wrong variable
+        // when tabLayout.selectTab() triggers onTabUnselected callback
+        saveCurrentTabContent();
+
+        // Hide AI drawer if open, show JSON editor
+        if (aiDrawerRoot != null) aiDrawerRoot.setVisibility(View.GONE);
+        View editorView = findViewById(R.id.drawerJsonEditor);
+        if (editorView != null) editorView.setVisibility(View.VISIBLE);
+
+        currentEditorType = type;
+
+        // 🔧 Fix: Set editor content BEFORE selecting tab
+        // This ensures that when onTabUnselected is triggered by selectTab(),
+        // the editor already contains the correct content for the new tab
+        switch (type) {
+            case COMPONENTS:
+                etJsonEditor.setText(currentComponentsJson);  // Set content first
+                tabLayout.selectTab(tabLayout.getTabAt(0));   // Then select tab
+                break;
+            case DATA_MODEL:
+                etJsonEditor.setText(currentDataModelJson);
+                tabLayout.selectTab(tabLayout.getTabAt(1));
+                break;
+        }
+
+        // Open right drawer
+        View drawerView = findViewById(R.id.drawerJsonEditor);
+        if (drawerView != null) {
+            drawerLayout.openDrawer(GravityCompat.END);
+        }
+    }
+
+    /**
+     * Callback when Tab switches
+     */
+    private void onTabChanged(int position) {
+        switch (position) {
+            case 0: // Components
+                currentEditorType = EditorType.COMPONENTS;
+                etJsonEditor.setText(currentComponentsJson);
+                addLog("Switch to Components editing");
+                break;
+            case 1: // DataModel
+                currentEditorType = EditorType.DATA_MODEL;
+                etJsonEditor.setText(currentDataModelJson);
+                addLog("Switch to DataModel editing");
+                break;
+        }
+    }
+
+    /**
+     * Save current Tab content
+     */
+    private void saveCurrentTabContent() {
+        // 🔧 Fix: Only save when currentEditorType is valid
+        // This prevents saving wrong content when editor type is NONE
+        // (e.g., after closeDrawer() sets type to NONE but editor still has old content)
+        if (currentEditorType == EditorType.NONE) {
+            return;
+        }
+
+        String json = etJsonEditor.getText().toString().trim();
+
+        switch (currentEditorType) {
+            case COMPONENTS:
+                currentComponentsJson = json;
+                break;
+            case DATA_MODEL:
+                currentDataModelJson = json;
+                break;
+        }
+    }
+
+    /**
+     * Close drawer
+     */
+    private void closeDrawer() {
+        drawerLayout.closeDrawers();
+        currentEditorType = EditorType.NONE;
+    }
+
+    /**
+     * Open the AI input drawer (小艺风格侧边面板).
+     *
+     * <p>Hides the JSON editor view inside the right drawer container so
+     * only the AI input panel is visible, then slides the drawer in.
+     */
+    private void openAiDrawer() {
+        // Hide JSON editor, show AI input
+        View editorView = findViewById(R.id.drawerJsonEditor);
+        if (editorView != null) editorView.setVisibility(View.GONE);
+        if (aiDrawerRoot != null) aiDrawerRoot.setVisibility(View.VISIBLE);
+        // Reset editor state so reopening it later starts clean
+        currentEditorType = EditorType.NONE;
+        // Open the right drawer
+        drawerLayout.openDrawer(GravityCompat.END);
+        addLog("Opened AI input drawer");
+    }
+
+    /**
+     * Close the AI input drawer and restore the JSON editor view visibility
+     * for the next time the user opens the editor.
+     */
+    private void closeAiDrawer() {
+        drawerLayout.closeDrawer(GravityCompat.END);
+        // Restore editor visibility for next open
+        View editorView = findViewById(R.id.drawerJsonEditor);
+        if (editorView != null) editorView.setVisibility(View.VISIBLE);
+        if (aiDrawerRoot != null) aiDrawerRoot.setVisibility(View.GONE);
+        if (aiDrawerController != null) aiDrawerController.reset();
+    }
+
+    /**
+     * Streams an LLM-generated A2UI protocol directly into the Playground's
+     * current SurfaceManager — no WidgetRenderActivity involved.
+     *
+     * <p>This is the core difference from the widget path: the Playground
+     * already has a live SurfaceManager attached to {@link #renderContent},
+     * so we can feed the LLM stream directly and let the existing
+     * {@code onCreateSurface} callback mount the surface.
+     *
+     * <p>Fallback: LLM failure → keyword template → notecard, same as widget.
+     *
+     * @param userText The user's text input
+     */
+    private void streamLLMToPlayground(String userText) {
+        if (aGenUI == null || surfaceManager == null) {
+            addLog("Error: A2UI Framework not initialized");
+            runOnUiThread(() -> {
+                Toast.makeText(this, "A2UI Framework not initialized", Toast.LENGTH_SHORT).show();
+                if (aiDrawerController != null) {
+                    aiDrawerController.onSendComplete(false, "Framework 未初始化");
+                }
+            });
+            return;
+        }
+
+        // Initialize LLM client + parser + history + memory lazily
+        if (aiLlmClient == null) aiLlmClient = new WidgetLLMClient(this);
+        if (aiPartialParser == null) aiPartialParser = new WidgetPartialParser();
+        if (aiHistoryRepository == null) aiHistoryRepository = new WidgetHistoryRepository(this);
+        if (aiConversationMemory == null)
+            aiConversationMemory = new com.amap.agenuiplayground.widget.WidgetConversationMemory(this);
+
+        // Reset the partial parser for a fresh stream
+        // (WidgetPartialParser doesn't have a reset method, so create a new one)
+        aiPartialParser = new WidgetPartialParser();
+
+        // Generate a new surfaceId for this generation
+        String newSurfaceId = "ai_drawer_" + System.currentTimeMillis();
+        addLog("AI Drawer: starting LLM stream, surfaceId=" + newSurfaceId);
+
+        // Send createSurface first
+        try {
+            JSONObject createSurfaceJson = new JSONObject();
+            createSurfaceJson.put("version", "v0.9");
+            JSONObject createSurfaceData = new JSONObject();
+            createSurfaceData.put("surfaceId", newSurfaceId);
+            createSurfaceData.put("catalogId",
+                    "https://a2ui.org/specification/v0_9/standard_catalog.json");
+            createSurfaceJson.put("createSurface", createSurfaceData);
+            surfaceManager.beginTextStream();
+            surfaceManager.receiveTextChunk(createSurfaceJson.toString());
+            addLog("AI Drawer: sent createSurface");
+        } catch (JSONException e) {
+            addLog("AI Drawer: createSurface failed: " + e.getMessage());
+            runOnUiThread(() -> {
+                if (aiDrawerController != null) {
+                    aiDrawerController.onSendComplete(false, "createSurface 失败");
+                }
+            });
+            return;
+        }
+
+        final String surfaceId = newSurfaceId;
+        final long startTime = System.currentTimeMillis();
+
+        // NLU 实体提取 — 注入 prompt 帮助 LLM 生成更准确的 A2UI
+        com.amap.agenuiplayground.widget.WidgetNLUParser.NLUResult nlu =
+                com.amap.agenuiplayground.widget.WidgetNLUParser.parse(userText);
+        final String systemPrompt =
+                WidgetPromptBuilder.buildSystemPromptWithNLU(nlu);
+        if (nlu.hasAnyEntity()) {
+            addLog("AI Drawer: NLU entities → " + nlu.toPromptHint());
+        }
+
+        // Build messages with few-shot history + conversation memory (multi-turn context)
+        String messagesJson = WidgetPromptBuilder.buildMessagesWithConversationMemory(
+                systemPrompt, userText, aiHistoryRepository,
+                aiConversationMemory);
+
+        // Start LLM stream on background thread
+        executorService.execute(() -> {
+            aiLlmClient.streamChat(systemPrompt, userText,
+                    messagesJson,
+                    new WidgetLLMClient.StreamCallback() {
+                        @Override
+                        public void onChunk(String delta) {
+                            if (delta == null || delta.isEmpty()) return;
+                            try {
+                                // Feed to top-level parser
+                                java.util.List<String> jsonObjects = aiPartialParser.feed(delta);
+                                for (String json : jsonObjects) {
+                                    surfaceManager.receiveTextChunk(json);
+                                }
+                                // Progressive render: extract completed components
+                                String progressive = aiPartialParser.extractCompletedComponents();
+                                if (progressive != null) {
+                                    surfaceManager.receiveTextChunk(progressive);
+                                    addLog("AI Drawer: progressive update pushed");
+                                }
+                            } catch (Exception e) {
+                                Log.w(TAG, "AI Drawer: receiveTextChunk failed", e);
+                            }
+                        }
+
+                        @Override
+                        public void onComplete(String content) {
+                            addLog("AI Drawer: LLM complete, " + content.length() + " chars");
+                            try {
+                                surfaceManager.endTextStream();
+                            } catch (Exception e) {
+                                Log.w(TAG, "AI Drawer: endTextStream failed", e);
+                            }
+                            long latency = System.currentTimeMillis() - startTime;
+
+                            // Validate
+                            String a2uiJson = WidgetProtocolValidator.extractA2UIJson(content);
+                            boolean valid = false;
+                            if (a2uiJson != null) {
+                                WidgetProtocolValidator.ValidationResult result =
+                                        WidgetProtocolValidator.validate(a2uiJson);
+                                valid = result.valid;
+                                if (!valid) {
+                                    String repaired = WidgetProtocolValidator.repair(a2uiJson);
+                                    WidgetProtocolValidator.ValidationResult repairedResult =
+                                            WidgetProtocolValidator.validate(repaired);
+                                    if (repairedResult.valid) valid = true;
+                                }
+                            }
+
+                            // Record to history
+                            if (aiHistoryRepository != null) {
+                                aiHistoryRepository.record(userText,
+                                        content != null ? content : "", latency, valid);
+                            }
+
+                            // Record to conversation memory (multi-turn context)
+                            if (aiConversationMemory != null) {
+                                aiConversationMemory.addEntry(userText, "ai-generated");
+                            }
+
+                            currentSurfaceId = surfaceId;
+                            final boolean fValid = valid;
+                            runOnUiThread(() -> {
+                                if (aiDrawerController != null) {
+                                    String msg = fValid ? "✓ 渲染成功" : "降级渲染";
+                                    aiDrawerController.onSendComplete(true, msg);
+                                }
+                                addLog("AI Drawer: stream complete, valid=" + fValid
+                                        + ", latency=" + latency + "ms");
+                            });
+                        }
+
+                        @Override
+                        public void onError(Exception e) {
+                            Log.e(TAG, "AI Drawer: LLM error", e);
+                            addLog("AI Drawer: LLM error: " + e.getMessage());
+                            long latency = System.currentTimeMillis() - startTime;
+                            if (aiHistoryRepository != null) {
+                                aiHistoryRepository.record(userText, "", latency, false);
+                            }
+                            // Try to end the text stream
+                            try {
+                                surfaceManager.endTextStream();
+                            } catch (Exception ex) {
+                                Log.w(TAG, "AI Drawer: endTextStream on error failed", ex);
+                            }
+                            // 降级链：LLM 错误 → 智能意图匹配模板 → notecard
+                            final boolean recovered = applyLLMErrorFallbackChain(
+                                    userText, surfaceId);
+                            // 记录到对话记忆（template 为降级推荐到的模板，可能为 null）
+                            if (aiConversationMemory != null) {
+                                String fallbackTemplate =
+                                        com.amap.agenuiplayground.widget.WidgetTemplateRecommender
+                                                .recommendTop(userText, aiConversationMemory);
+                                aiConversationMemory.addEntry(userText, fallbackTemplate);
+                            }
+                            runOnUiThread(() -> {
+                                if (aiDrawerController != null) {
+                                    if (recovered) {
+                                        aiDrawerController.onSendComplete(true, "已降级到模板渲染");
+                                    } else {
+                                        aiDrawerController.onSendComplete(false, e.getMessage());
+                                    }
+                                }
+                                if (!recovered) {
+                                    Toast.makeText(A2UIPlaygroundActivity.this,
+                                            "LLM 错误: " + e.getMessage(),
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            });
+                        }
+                    });
+        });
+    }
+
+    /**
+     * LLM 错误降级链 — 参考三级降级策略。
+     *
+     * <p>1. 用 {@link com.amap.agenuiplayground.widget.WidgetTemplateRecommender} 做意图匹配 + 上下文推荐
+     * <p>2. 命中模板：加载模板并推流到当前 SurfaceManager（复用 surfaceId）
+     * <p>3. 未命中：推送 notecard 提示 LLM 错误
+     *
+     * <p>调用方应已结束之前的 text stream（surfaceManager.endTextStream()），
+     * 本方法会开启新的 text stream 推送降级内容。
+     *
+     * @param userText  用户原始输入文本
+     * @param surfaceId 当前 surface id
+     * @return true 表示降级成功（已推送新内容到 surface）；false 表示连 notecard 都失败
+     */
+    private boolean applyLLMErrorFallbackChain(String userText, String surfaceId) {
+        if (surfaceManager == null || surfaceId == null) return false;
+
+        // 第一级：意图置信度 + 上下文推荐
+        String matchedTemplate = com.amap.agenuiplayground.widget.WidgetTemplateRecommender
+                .recommendTop(userText, aiConversationMemory);
+        addLog("AI Drawer: fallback recommend → "
+                + (matchedTemplate != null ? matchedTemplate : "null"));
+
+        if (matchedTemplate != null) {
+            // 加载静态模板
+            String templateJson = com.amap.agenuiplayground.widget.WidgetProtocolTemplates
+                    .loadTemplate(this, matchedTemplate, surfaceId);
+            if (templateJson != null) {
+                // NLU 实体提取 — 用用户文本中的实体丰富模板数据
+                com.amap.agenuiplayground.widget.WidgetNLUParser.NLUResult nlu =
+                        com.amap.agenuiplayground.widget.WidgetNLUParser.parse(userText);
+                if (nlu.hasAnyEntity()) {
+                    templateJson = enrichTemplateWithNLU(templateJson, nlu);
+                    addLog("AI Drawer: NLU enriched template: "
+                            + nlu.toPromptHint());
+                }
+                java.util.List<String> chunks =
+                        com.amap.agenuiplayground.widget.WidgetFallbackBuilder
+                                .convertToVersionFormat(templateJson, surfaceId);
+                if (!chunks.isEmpty()) {
+                    try {
+                        surfaceManager.beginTextStream();
+                        for (String chunk : chunks) {
+                            surfaceManager.receiveTextChunk(chunk);
+                        }
+                        surfaceManager.endTextStream();
+                        addLog("AI Drawer: fallback to template " + matchedTemplate
+                                + " (" + chunks.size() + " chunks)");
+                        return true;
+                    } catch (Exception e) {
+                        Log.e(TAG, "Fallback template stream failed: " + matchedTemplate, e);
+                        // 继续降级到 notecard
+                    }
+                }
+            }
+        }
+
+        // 第二级：notecard 兜底
+        String title = "AI 生成失败";
+        String message = "无法连接 LLM，已为你切换到本地卡片。";
+        if (matchedTemplate != null) {
+            title = "已切换到 " + matchedTemplate + " 模板";
+            message = "LLM 不可用，展示本地模板内容。";
+        }
+        java.util.List<String> notecard = com.amap.agenuiplayground.widget.WidgetFallbackBuilder
+                .buildNoteCard(surfaceId, title, message);
+        try {
+            surfaceManager.beginTextStream();
+            for (String chunk : notecard) {
+                surfaceManager.receiveTextChunk(chunk);
+            }
+            surfaceManager.endTextStream();
+            addLog("AI Drawer: fallback to notecard");
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Notecard fallback failed", e);
+            addLog("AI Drawer: notecard fallback failed: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 用 NLU 提取的实体丰富模板 JSON。
+     *
+     * <p>当前支持：
+     * <ul>
+     *   <li>识别到城市名 → 替换模板中第一个城市名文本（如"北京"→"上海"）</li>
+     *   <li>识别到温度 → 替换模板中温度文本（如"23°"→"5°"）</li>
+     * </ul>
+     *
+     * <p>采用简单字符串替换而非 JSON 解析，因为模板 JSON 结构复杂且
+     * 只需替换少量显示文本，字符串替换更轻量且避免 JSON 解析开销。
+     *
+     * @param templateJson 原始模板 JSON
+     * @param nlu          NLU 解析结果
+     * @return 丰富后的模板 JSON
+     */
+    private String enrichTemplateWithNLU(String templateJson,
+            com.amap.agenuiplayground.widget.WidgetNLUParser.NLUResult nlu) {
+        String result = templateJson;
+
+        // 城市替换：把模板中默认的"北京"替换为用户提到的城市
+        if (nlu.location != null) {
+            // 模板默认城市是"北京"，直接替换第一个出现
+            result = result.replaceFirst("\"北京\"",
+                    "\"" + nlu.location + "\"");
+        }
+
+        // 温度替换：把模板中默认的温度（如"23°"）替换为用户提到的温度
+        if (nlu.entities.containsKey("temperature")) {
+            String temp = nlu.entities.get("temperature");
+            // 匹配 "23°" 或 "23度" 形式的温度文本
+            result = result.replaceAll("\"\\d{1,3}°\"",
+                    "\"" + temp + "°\"");
+        }
+
+        return result;
+    }
+
+    /**
+     * Format JSON
+     */
+    private void formatJson() {
+        String json = etJsonEditor.getText().toString().trim();
+        if (json.isEmpty()) {
+            Toast.makeText(this, "JSON is empty", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            // Use Gson to format JSON
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            Object jsonObject = JsonParser.parseString(json);
+            String formattedJson = gson.toJson(jsonObject);
+
+            // Update editor content
+            etJsonEditor.setText(formattedJson);
+
+            Toast.makeText(this, "Format successful", Toast.LENGTH_SHORT).show();
+            addLog("JSON format successful");
+        } catch (JsonSyntaxException e) {
+            Toast.makeText(this, "JSON format error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            addLog("JSON format failed: " + e.getMessage());
+        } catch (Exception e) {
+            Toast.makeText(this, "Format failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            addLog("Format failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Validate JSON
+     */
+    private void validateJson() {
+        String json = etJsonEditor.getText().toString().trim();
+        if (json.isEmpty()) {
+            Toast.makeText(this, "JSON is empty", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            // Use Gson to validate JSON
+            JsonParser.parseString(json);
+            Toast.makeText(this, "JSON format is correct", Toast.LENGTH_SHORT).show();
+            addLog("JSON validation passed");
+        } catch (JsonSyntaxException e) {
+            Toast.makeText(this, "JSON format error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            addLog("JSON validation failed: " + e.getMessage());
+        } catch (Exception e) {
+            Toast.makeText(this, "JSON format error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            addLog("JSON validation failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Save and render
+     */
+    private void saveAndRender() {
+        // First save current Tab content
+        saveCurrentTabContent();
+
+        // Add log
+        switch (currentEditorType) {
+            case COMPONENTS:
+                addLog("Components updated");
+                break;
+            case DATA_MODEL:
+                addLog("DataModel updated");
+                break;
+        }
+
+        closeDrawer();
+
+        renderComponents();
+    }
+
+    /**
+     * Initialize A2UI Framework
+     */
+    private void initAGenUI() {
+        // 1. Initialize AGenUI engine (idempotent)
+        aGenUI = AGenUI.getInstance();
+        aGenUI.initialize(getApplicationContext());
+        addLog("AGenUI initialized");
+
+        // 2. Create custom logger
+        runtimeLogger = new PlaygroundRuntimeLogger(getApplicationContext());
+        aGenUI.setCustomLogger(runtimeLogger);
+        addLog("Custom RuntimeLogger initialized");
+
+        // 3. Create SurfaceManager
+        surfaceManager = new SurfaceManager(this);
+        addLog("SurfaceManager created: " + surfaceManager);
+
+        // 4. Register Surface listener
+        attachSurfaceListener();
+
+        // 5. Register Components and Functions
+        AGenUI.getInstance().registerFunction(new ToastFunction(this));
+
+        AGenUI.getInstance().registerComponent("Markdown", new MarkdownComponentFactory());
+        AGenUI.getInstance().registerComponent("Lottie", new LottieComponentFactory());
+        AGenUI.getInstance().registerComponent("Chart", new ChartComponentFactory());
+
+        // 6. Register custom fonts from assets
+        AGenUI.getInstance().registerFontFromAsset("Nunito", "fonts/Nunito-Regular.ttf");
+        AGenUI.getInstance().registerFontFromAsset("PlayfairDisplay", "fonts/PlayfairDisplay-Regular.ttf");
+        AGenUI.getInstance().registerFontFromAsset("FiraCode", "fonts/FiraCode-Regular.ttf");
+        addLog("Custom fonts registered: Nunito, PlayfairDisplay, FiraCode");
+
+        addLog("A2UI Framework initialized successfully");
+    }
+
+    /**
+     * Attaches {@link #surfaceListener} to the current {@link #surfaceManager}.
+     *
+     * <p>Must run again after every {@link #resetSurfaceManager()}: listeners live on
+     * the SurfaceManager instance, so a replacement manager starts with none and the
+     * host silently loses both {@code onCreateSurface} (nothing ever reaches the view
+     * tree) and the {@code surfaceSize} pull (engine falls back to a zero width).
+     */
+    private void attachSurfaceListener() {
+        if (surfaceListener == null) {
+            surfaceListener = new ISurfaceManagerListener() {
+                @Override
+                public void onCreateSurface(Surface surface) {
+                    runOnUiThread(() -> {
+                        String surfaceId = surface.getSurfaceId();
+                        currentSurfaceId = surfaceId;
+                        addLog("✓ Surface created: " + surfaceId);
+
+                        FrameLayout host = pendingSurfaceHosts.remove(surfaceId);
+                        if (host != null) {
+                            // Multi-surface screen: mount into the slot the caller reserved.
+                            host.addView(surface.getContainer());
+                        } else {
+                            // Single-surface screen: the surface owns renderContent.
+                            renderContent.removeAllViews();
+                            renderContent.addView(surface.getContainer());
+                        }
+                        addLog("✓ Surface container added to ViewTree");
+                    });
+                }
+
+                @Override
+                public void onDeleteSurface(Surface surface) {
+                    runOnUiThread(() -> {
+                        addLog("Surface deleted: " + surface.getSurfaceId());
+                    });
+                }
+
+                @Override
+                public void onReceiveActionEvent(String event) {
+                }
+
+                @Override
+                public void onRootComponentUpdate(Surface surface, Map<String, String> props) {
+                }
+
+                @Override
+                public void onError(Surface surface, int code, String message) {
+                }
+
+                @Override
+                public void onBlankCheckResult(Surface surface, boolean isBlank) {
+                }
+
+                @Override
+                public void onComponentAppeared(Surface surface, String parentComponentId, String parentType, Map<String, Object> properties) {
+                }
+
+                // ⚠ Worker thread — see ISurfaceManagerListener#surfaceSize javadoc.
+                // Just read the volatile cache that the UI thread keeps up-to-date; no
+                // View / Activity / Resources access here.
+                @Override
+                public SurfaceSize surfaceSize(@NonNull String surfaceId) {
+                    return cachedRenderContentSize;
+                }
+            };
+        }
+        surfaceManager.addListener(surfaceListener);
+    }
+
+    /**
+     * Tears down the current {@link #surfaceManager} and installs a fresh one, so a
+     * new screen starts without the previous screen's surfaces.
+     */
+    private void resetSurfaceManager() {
+        surfaceManager.destroy();
+        surfaceManager = new SurfaceManager(this);
+        attachSurfaceListener();
+        pendingSurfaceHosts.clear();
+        currentSurfaceId = null;
+    }
+
+    /**
+     * Refreshes the surface-size pull cache whenever {@link #renderContent}'s
+     * measured bounds change. Runs on the UI thread (Android layout pipeline);
+     * the worker thread reads {@link #cachedRenderContentSize} via volatile.
+     *
+     * <p>Width is bounded by the host container. Height is intentionally left at
+     * 0 (the engine's "no constraint on this axis" signal) so the surface
+     * decides its own height — renderContent is wrap_content under a ScrollView,
+     * so feeding back the measured height would create a "constraint = last
+     * frame's content height" feedback loop. Mirrors the iOS playground which
+     * returns CGSize(width: w, height: .infinity), where .infinity gets
+     * sanitized to 0 at the bridge boundary.
+     */
+    private void onRenderContentLayoutChanged(View v,
+                                              int left, int top, int right, int bottom,
+                                              int oldLeft, int oldTop, int oldRight, int oldBottom) {
+        int widthPx = right - left;
+        if (widthPx == lastRenderContentWidthPx) {
+            return;
+        }
+        lastRenderContentWidthPx = widthPx;
+
+        if (widthPx <= 0) {
+            // Not laid out yet — null tells the engine "not measurable",
+            // matching the SurfaceSize javadoc contract.
+            cachedRenderContentSize = null;
+            return;
+        }
+        // SurfaceSize's constructor takes raw px and converts to a2ui units
+        // internally — same conversion the SDK uses on the push channel.
+        cachedRenderContentSize = new SurfaceSize(widthPx, 0);
+    }
+
+    /**
+     * Render components
+     */
+    private void renderComponents() {
+        if (aGenUI == null) {
+            addLog("Error: A2UI Framework not initialized");
+            Toast.makeText(this, "A2UI Framework not initialized", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            addLog("Start rendering...");
+
+            // Cancel any ongoing streaming to avoid conflicts
+            streamingHandler.removeCallbacksAndMessages(null);
+
+            // 🔧 Key fix: Generate unique surfaceId
+            String newSurfaceId = "surface_" + System.currentTimeMillis();
+            addLog("Generated new Surface ID: " + newSurfaceId);
+
+            // 🔧 Key fix: Replace surfaceId in JSON
+            String updatedComponentsJson = replaceSurfaceIdInJson(currentComponentsJson, newSurfaceId);
+            String updatedDataModelJson = replaceSurfaceIdInJson(currentDataModelJson, newSurfaceId);
+
+            addLog("Surface ID replaced");
+
+            // 1. Send createSurface
+            JSONObject createSurfaceJson = new JSONObject();
+            createSurfaceJson.put("version", "v0.9");
+
+            JSONObject createSurfaceData = new JSONObject();
+            createSurfaceData.put("surfaceId", newSurfaceId);
+            createSurfaceData.put("catalogId", "https://a2ui.org/specification/v0_9/standard_catalog.json");
+
+            createSurfaceJson.put("createSurface", createSurfaceData);
+
+            surfaceManager.receiveTextChunk(createSurfaceJson.toString());
+            addLog("1/3 Sent createSurface");
+
+            if (STREAMING_MODE_ENABLED) {
+                addLog("Streaming mode: " + (COMPONENTS_ASYNC_STREAMING ? "async" : "sync"));
+
+                // Shared step 3 continuation, run after step 2 finishes on either path.
+                Runnable streamDataModelAndFinish = () -> {
+                    if (!updatedDataModelJson.equals("{}")) {
+                        sendChunksStreaming(updatedDataModelJson, DEFAULT_STREAMING_CHUNK_SIZE, DEFAULT_STREAMING_DELAY_MS, () -> {
+                            currentSurfaceId = newSurfaceId;
+                            addLog("Rendering complete");
+                            Toast.makeText(this, "Render successful (streaming)", Toast.LENGTH_SHORT).show();
+                        });
+                    } else {
+                        currentSurfaceId = newSurfaceId;
+                        addLog("Rendering complete (no dataModel)");
+                        Toast.makeText(this, "Render successful (streaming)", Toast.LENGTH_SHORT).show();
+                    }
+                };
+
+                if (COMPONENTS_ASYNC_STREAMING) {
+                    sendChunksStreaming(updatedComponentsJson, DEFAULT_STREAMING_CHUNK_SIZE, DEFAULT_STREAMING_DELAY_MS, streamDataModelAndFinish);
+                } else {
+                    sendInChunks(updatedComponentsJson, DEFAULT_STREAMING_CHUNK_SIZE);
+                    streamDataModelAndFinish.run();
+                }
+            } else {
+                // Normal mode: send all at once
+                // 2. Send updateComponents
+                surfaceManager.receiveTextChunk(updatedComponentsJson);
+                addLog("2/3 Sent updateComponents");
+
+                // 3. Send updateDataModel (if not empty)
+                if (!updatedDataModelJson.equals("{}")) {
+                    surfaceManager.receiveTextChunk(updatedDataModelJson);
+                    addLog("3/3 Sent updateDataModel");
+                } else {
+                    addLog("3/3 updateDataModel is empty, skipped");
+                }
+
+                // Update current surfaceId
+                currentSurfaceId = newSurfaceId;
+
+                addLog("Rendering complete!");
+                Toast.makeText(this, "Render successful", Toast.LENGTH_SHORT).show();
+            }
+
+        } catch (JSONException e) {
+            addLog("JSON parse error: " + e.getMessage());
+            Toast.makeText(this, "JSON format error", Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "Failed to parse JSON", e);
+        } catch (Exception e) {
+            addLog("Render failed: " + e.getMessage());
+            Toast.makeText(this, "Render failed", Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "Failed to render", e);
+        }
+    }
+
+    /**
+     * Replace surfaceId in JSON
+     *
+     * @param json         Original JSON string
+     * @param newSurfaceId New surfaceId
+     * @return Replaced JSON string
+     */
+    private String replaceSurfaceIdInJson(String json, String newSurfaceId) {
+        try {
+            JSONObject jsonObj = new JSONObject(json);
+
+            // Check if updateComponents exists
+            if (jsonObj.has("updateComponents")) {
+                JSONObject updateComponents = jsonObj.getJSONObject("updateComponents");
+                updateComponents.put("surfaceId", newSurfaceId);
+            }
+
+            // Check if updateDataModel exists
+            if (jsonObj.has("updateDataModel")) {
+                JSONObject updateDataModel = jsonObj.getJSONObject("updateDataModel");
+                updateDataModel.put("surfaceId", newSurfaceId);
+            }
+
+            return jsonObj.toString();
+        } catch (JSONException e) {
+            Log.e(TAG, "Failed to replace surfaceId in JSON", e);
+            return json;  // If replacement fails, return original JSON
+        }
+    }
+
+    /**
+     * Synchronous counterpart of {@link #sendChunksStreaming}: splits {@code json}
+     * into fixed-size chunks of {@code chunkSize} characters and delivers them in
+     * a tight loop without {@code Handler} delay.
+     */
+    private void sendInChunks(String json, int chunkSize) {
+        int totalLength = json.length();
+        int safeChunkSize = Math.max(1, chunkSize);
+        int offset = 0;
+        while (offset < totalLength) {
+            int end = Math.min(offset + safeChunkSize, totalLength);
+            surfaceManager.receiveTextChunk(json.substring(offset, end));
+            offset = end;
+        }
+    }
+
+    /**
+     * Send JSON string in chunks to simulate streaming effect.
+     * Each chunk is delivered via surfaceManager.receiveTextChunk().
+     *
+     * @param json       The full JSON string to send
+     * @param chunkSize  Number of characters per chunk
+     * @param delayMs    Delay in milliseconds between each chunk
+     * @param onComplete Callback when all chunks are sent (nullable)
+     */
+    private void sendChunksStreaming(String json, int chunkSize, long delayMs, Runnable onComplete) {
+        int totalLength = json.length();
+        int totalChunks = (int) Math.ceil((double) totalLength / chunkSize);
+        addLog("Streaming: " + totalChunks + " chunks, " + chunkSize + " chars/chunk, " + delayMs + "ms delay");
+        sendChunkAtIndex(json, 0, chunkSize, delayMs, totalChunks, onComplete);
+    }
+
+    private void sendChunkAtIndex(String json, int index, int chunkSize, long delayMs, int totalChunks, Runnable onComplete) {
+        int start = index * chunkSize;
+        if (start >= json.length()) {
+            addLog("Streaming complete: " + totalChunks + " chunks sent");
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return;
+        }
+
+        int end = Math.min(start + chunkSize, json.length());
+        String chunk = json.substring(start, end);
+
+        surfaceManager.receiveTextChunk(chunk);
+        addLog("Chunk " + (index + 1) + "/" + totalChunks + " sent (" + chunk.length() + " chars)");
+
+        streamingHandler.postDelayed(() ->
+            sendChunkAtIndex(json, index + 1, chunkSize, delayMs, totalChunks, onComplete),
+            delayMs
+        );
+    }
+
+    /**
+     * Toggle performance monitor
+     */
+    private void togglePerformanceMonitor() {
+        performanceMonitorEnabled = !performanceMonitorEnabled;
+
+        if (performanceMonitorEnabled) {
+            // Initialize and start performance monitor
+            if (performanceMonitor == null) {
+                performanceMonitor = new PerformanceMonitor(new PerformanceMonitor.PerformanceCallback() {
+                    @Override
+                    public void onPerformanceUpdate(int fps, float memoryMB, int avgFps) {
+                        runOnUiThread(() -> {
+                            // Update UI
+                            tvFps.setText(String.format("FPS: %d", fps));
+                            tvMemory.setText(String.format("MEM: %.1f MB", memoryMB));
+                            tvAvgFps.setText(String.format("AVG: %d", avgFps));
+
+                            // Set FPS color based on value
+                            if (fps >= 55) {
+                                tvFps.setTextColor(0xFF4CAF50); // Green
+                            } else if (fps >= 30) {
+                                tvFps.setTextColor(0xFFFF9800); // Orange
+                            } else {
+                                tvFps.setTextColor(0xFFF44336); // Red
+                            }
+                        });
+                    }
+                });
+            }
+
+            performanceMonitor.start();
+            performanceOverlay.setVisibility(View.GONE);
+            addLog("Performance monitor enabled");
+            Toast.makeText(this, "Performance monitor enabled", Toast.LENGTH_SHORT).show();
+        } else {
+            // Stop performance monitor
+            if (performanceMonitor != null) {
+                performanceMonitor.stop();
+            }
+            performanceOverlay.setVisibility(View.GONE);
+            addLog("Performance monitor disabled");
+            Toast.makeText(this, "Performance monitor disabled", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Initialize barcode scanning
+     */
+    private void initBarcodeLauncher() {
+        barcodeLauncher = registerForActivityResult(new ScanContract(), result -> {
+            if (result.getContents() != null) {
+                String qrCodeUrl = result.getContents();
+                Log.d(TAG, "Scan result: " + qrCodeUrl);
+                addLog("Scan result: " + qrCodeUrl);
+                // Download and process the file corresponding to the QR code
+                downloadAndProcessQrCodeFile(qrCodeUrl);
+            } else {
+                Toast.makeText(A2UIPlaygroundActivity.this, "Scan cancelled", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    /**
+     * Launch QR code scanning
+     */
+    private void startQrCodeScan() {
+        // Check camera permission
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                != PackageManager.PERMISSION_GRANTED) {
+            // Request camera permission
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.CAMERA},
+                    CAMERA_PERMISSION_REQUEST_CODE);
+        } else {
+            // Permission already granted; launch scanner
+            launchQrCodeScanner();
+        }
+    }
+
+    /**
+     * Launch the QR code scanner
+     */
+    private void launchQrCodeScanner() {
+        ScanOptions options = new ScanOptions();
+        options.setPrompt("Scan QR code");
+        options.setBeepEnabled(true);
+        options.setBarcodeImageEnabled(true);
+        options.setOrientationLocked(true);
+        // Use the custom portrait-mode CaptureActivity
+        options.setCaptureActivity(PortraitCaptureActivity.class);
+        barcodeLauncher.launch(options);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == CAMERA_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted; launch scanner
+                launchQrCodeScanner();
+            } else {
+                Toast.makeText(this, "Camera permission is required to scan QR codes", Toast.LENGTH_SHORT).show();
+            }
+        }
+        // Forward to AI drawer controller for mic permission
+        if (aiDrawerController != null) {
+            aiDrawerController.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        // Forward to AI drawer controller for file picker
+        if (aiDrawerController != null) {
+            aiDrawerController.onActivityResult(requestCode, resultCode, data);
+        }
+    }
+
+    /**
+     * Download and process the file corresponding to the QR code
+     */
+    private void downloadAndProcessQrCodeFile(String fileUrl) {
+        executorService.execute(() -> {
+            try {
+                Log.d(TAG, "Starting file download: " + fileUrl);
+                addLog("Starting file download: " + fileUrl);
+
+                URL url = new URL(fileUrl);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(10000);
+                connection.setReadTimeout(10000);
+
+                int responseCode = connection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    InputStream inputStream = connection.getInputStream();
+                    BufferedReader reader = new BufferedReader(
+                            new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+
+                    String jsonArrayStr = reader.readLine();
+
+                    reader.close();
+                    inputStream.close();
+                    connection.disconnect();
+                    // Parse as JsonArray
+                    try {
+                        JsonArray jsonArray = JsonParser.parseString(jsonArrayStr).getAsJsonArray();
+                        Gson gson = new GsonBuilder().create();
+
+                        String createSurfaceJson = gson.toJson(jsonArray.get(0));
+                        String updateComponentsJson = gson.toJson(jsonArray.get(1));
+                        String updateDataModelJson = gson.toJson(jsonArray.get(2));
+
+                        Log.d(TAG, "File download successful");
+                        addLog("File download successful");
+                        Log.d(TAG, "createSurface: " + createSurfaceJson);
+                        Log.d(TAG, "updateComponents: " + updateComponentsJson);
+                        Log.d(TAG, "updateDataModel: " + updateDataModelJson);
+
+                        // Process rendering on the main thread
+                        mainHandler.post(() -> {
+                            processQrCodeJsonData(createSurfaceJson, updateComponentsJson, updateDataModelJson);
+                        });
+                    } catch (Exception e) {
+                        Log.e(TAG, "JSON parse error", e);
+                        addLog("JSON parse error: " + e.getMessage());
+                        mainHandler.post(() -> {
+                            Toast.makeText(this, "Parse failed, invalid format", Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                } else {
+                    Log.e(TAG, "Download failed, response code: " + responseCode);
+                    addLog("Download failed, response code: " + responseCode);
+                    mainHandler.post(() -> {
+                        Toast.makeText(this, "Download failed: " + responseCode, Toast.LENGTH_SHORT).show();
+                    });
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to download or process file", e);
+                addLog("Failed to download or process file: " + e.getMessage());
+                mainHandler.post(() -> {
+                    Toast.makeText(this, "Processing failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    /**
+     * Process QR code JSON data and render
+     */
+    private void processQrCodeJsonData(String createSurfaceJson,
+                                       String updateComponentsJson,
+                                       String updateDataModelJson) {
+        try {
+            addLog("Starting to process QR code data...");
+
+            // Extract the scanned surfaceId up front so we can clear any
+            // surface that would collide with it before issuing createSurface.
+            String scannedSurfaceId = extractSurfaceIdFromCreateSurface(createSurfaceJson);
+
+            surfaceManager.beginTextStream();
+
+            // The engine (both the C++ SurfaceCoordinator and the platform
+            // SurfaceManager) rejects a createSurface whose surfaceId already
+            // exists and does NOT dispatch the creation event, so the scanned
+            // page would silently fail to render. That happens whenever a
+            // surface carrying the same surfaceId is still alive — e.g. the
+            // same QR was scanned before and then another page (a menu pick or
+            // a different QR) was rendered on top without disposing it.
+            // Mirroring the HarmonyOS playground, tear down stale surfaces
+            // first so the scanned createSurface always starts clean.
+
+            // 1) Dispose the currently displayed surface when it differs from
+            //    the scanned one (avoids leaking the previous page).
+            if (currentSurfaceId != null && !currentSurfaceId.isEmpty()
+                    && !currentSurfaceId.equals(scannedSurfaceId)) {
+                sendDeleteSurface(currentSurfaceId);
+            }
+
+            // 2) Always clear any leftover surface that already carries the
+            //    scanned surfaceId (covers re-scanning the same QR after
+            //    another page was rendered on top).
+            if (scannedSurfaceId != null) {
+                sendDeleteSurface(scannedSurfaceId);
+            }
+
+            // Process following the same logic as renderComponents
+            if (createSurfaceJson != null && !createSurfaceJson.trim().isEmpty()) {
+                surfaceManager.receiveTextChunk(createSurfaceJson);
+
+                addLog("1/3 Sent createSurface");
+
+                // Track the scanned surfaceId so the next render can dispose it.
+                if (scannedSurfaceId != null) {
+                    currentSurfaceId = scannedSurfaceId;
+                }
+            }
+
+            if (updateComponentsJson != null && !updateComponentsJson.trim().isEmpty()) {
+                surfaceManager.receiveTextChunk(updateComponentsJson);
+                addLog("2/3 Sent updateComponents");
+
+                // Save to current editor variable
+                currentComponentsJson = updateComponentsJson;
+            }
+
+            if (updateDataModelJson != null && !updateDataModelJson.trim().isEmpty()) {
+                surfaceManager.receiveTextChunk(updateDataModelJson);
+                addLog("3/3 Sent updateDataModel");
+
+                // Save to current editor variable
+                currentDataModelJson = updateDataModelJson;
+            } else {
+                addLog("3/3 updateDataModel is empty, skipped");
+            }
+
+            surfaceManager.endTextStream();
+
+            Toast.makeText(this, "QR code content rendered successfully", Toast.LENGTH_SHORT).show();
+            addLog("✓ QR code content rendering complete");
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to process QR code JSON data", e);
+            addLog("❌ Render failed: " + e.getMessage());
+            Toast.makeText(this, "Render failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Extract surfaceId from a createSurface JSON payload.
+     *
+     * @param createSurfaceJson createSurface JSON string
+     * @return surfaceId, or null when the payload is malformed or the field is missing
+     */
+    private String extractSurfaceIdFromCreateSurface(String createSurfaceJson) {
+        if (createSurfaceJson == null || createSurfaceJson.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            JSONObject obj = new JSONObject(createSurfaceJson);
+            JSONObject createSurface = obj.optJSONObject("createSurface");
+            if (createSurface != null) {
+                String surfaceId = createSurface.optString("surfaceId", "");
+                return surfaceId.isEmpty() ? null : surfaceId;
+            }
+        } catch (JSONException e) {
+            Log.e(TAG, "Failed to extract surfaceId from createSurface", e);
+        }
+        return null;
+    }
+
+    /**
+     * Send a deleteSurface chunk for the given surfaceId. Deleting a surfaceId
+     * that does not exist is a safe no-op at the engine layer.
+     *
+     * @param surfaceId surfaceId to delete
+     */
+    private void sendDeleteSurface(String surfaceId) {
+        try {
+            JSONObject deleteSurfaceJson = new JSONObject();
+            deleteSurfaceJson.put("version", "v0.9");
+            JSONObject deleteSurfaceData = new JSONObject();
+            deleteSurfaceData.put("surfaceId", surfaceId);
+            deleteSurfaceJson.put("deleteSurface", deleteSurfaceData);
+            surfaceManager.receiveTextChunk(deleteSurfaceJson.toString());
+            addLog("Sent deleteSurface: " + surfaceId);
+        } catch (JSONException e) {
+            Log.e(TAG, "Failed to build deleteSurface JSON", e);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Shutdown the thread pool
+        if (executorService != null) {
+            executorService.shutdown();
+        }
+
+        // Cancel any ongoing streaming
+        streamingHandler.removeCallbacksAndMessages(null);
+
+        // Stop performance monitor
+        if (performanceMonitor != null) {
+            performanceMonitor.stop();
+            performanceMonitor = null;
+        }
+
+        // Clean up SurfaceManager resources
+        if (surfaceManager != null) {
+            try {
+                surfaceManager.destroy();
+                surfaceManager = null;
+                currentSurfaceId = null;
+                addLog("SurfaceManager destroyed");
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to destroy SurfaceManager", e);
+            }
+        }
+
+        // Clean up AI drawer resources
+        if (aiDrawerController != null) {
+            aiDrawerController.destroy();
+            aiDrawerController = null;
+        }
+    }
+
+    /**
+     * Toggle log display
+     */
+    private void toggleLogs() {
+        logsExpanded = !logsExpanded;
+
+        if (logsExpanded) {
+            logsScrollView.setVisibility(View.VISIBLE);
+            tvLogsToggle.setText("▲");
+        } else {
+            logsScrollView.setVisibility(View.GONE);
+            tvLogsToggle.setText("▼");
+        }
+    }
+
+    /**
+     * Get default Components JSON template
+     */
+    private String getDefaultComponentsTemplate() {
+        return "{\n" +
+               "  \"version\": \"v0.9\",\n" +
+               "  \"updateComponents\": {\n" +
+               "    \"surfaceId\": \"custom_surface\",\n" +
+               "    \"components\": [\n" +
+               "      {\n" +
+               "        \"id\": \"root\",\n" +
+               "        \"component\": \"Card\",\n" +
+               "        \"child\": \"text1\"\n" +
+               "      },\n" +
+               "      {\n" +
+               "        \"id\": \"text1\",\n" +
+               "        \"component\": \"Text\",\n" +
+               "        \"text\": \"Hello, A2UI!\",\n" +
+               "        \"variant\": \"h2\"\n" +
+               "      }\n" +
+               "    ]\n" +
+               "  }\n" +
+               "}";
+    }
+
+    /**
+     * Render Gallery directly from asset file: stories/A2UI Show/Gallery/updateComponents.json.
+     * Used by autoGallery intent extra to bypass StoryLoader.
+     */
+    private void renderGalleryFromAsset() {
+        if (aGenUI == null || surfaceManager == null) {
+            addLog("Error: A2UI Framework not initialized");
+            return;
+        }
+
+        try {
+            addLog("Loading Gallery from asset...");
+
+            // Read updateComponents.json directly from assets
+            String assetPath = "stories/A2UI Show/Gallery/updateComponents.json";
+            java.io.InputStream is = getAssets().open(assetPath);
+            java.io.BufferedReader reader = new java.io.BufferedReader(
+                new java.io.InputStreamReader(is, "UTF-8"));
+            StringBuilder sb = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+            }
+            reader.close();
+            String componentsJson = sb.toString();
+
+            // Update title
+            updateToolbarTitle("Gallery");
+
+            // Clear current content and reset surface
+            renderContent.removeAllViews();
+            if (currentSurfaceId != null) {
+                resetSurfaceManager();
+            }
+
+            // Generate unique surfaceId and replace in JSON
+            String newSurfaceId = "surface_" + System.currentTimeMillis();
+            String updatedJson = replaceSurfaceIdInJson(componentsJson, newSurfaceId);
+
+            // Send createSurface
+            JSONObject createSurfaceJson = new JSONObject();
+            createSurfaceJson.put("version", "v0.9");
+            JSONObject createSurfaceData = new JSONObject();
+            createSurfaceData.put("surfaceId", newSurfaceId);
+            createSurfaceData.put("catalogId", "https://a2ui.org/specification/v0_9/standard_catalog.json");
+            createSurfaceJson.put("createSurface", createSurfaceData);
+            surfaceManager.receiveTextChunk(createSurfaceJson.toString());
+
+            // Send updateComponents
+            surfaceManager.receiveTextChunk(updatedJson);
+
+            currentSurfaceId = newSurfaceId;
+            addLog("Gallery loaded from asset: " + assetPath);
+
+        } catch (Exception e) {
+            addLog("Failed to load Gallery from asset: " + e.getMessage());
+            Log.e(TAG, "Failed to render Gallery from asset", e);
+        }
+    }
+
+    /**
+     * Load all A2UI Show components and render them in a list
+     */
+    private void loadAllA2UIShowComponents() {
+        if (aGenUI == null || surfaceManager == null) {
+            addLog("Error: A2UI Framework not initialized");
+            Toast.makeText(this, "A2UI Framework not initialized", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            addLog("Loading all A2UI Show components...");
+
+            // Update title
+            updateToolbarTitle("A2UI Show - All Components");
+
+            // Load all A2UI Show stories
+            List<SubStory> a2uiStories = storyLoader.loadA2UIShowStories();
+
+            if (a2uiStories.isEmpty()) {
+                addLog("No A2UI Show components found");
+                Toast.makeText(this, "No components found", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            addLog("Found " + a2uiStories.size() + " components");
+
+            // Clear current content
+            renderContent.removeAllViews();
+
+            // Destroy old surface if exists
+            if (currentSurfaceId != null) {
+                resetSurfaceManager();
+            }
+
+            // Create a scrollable container
+            ScrollView scrollView = new ScrollView(this);
+            scrollView.setLayoutParams(new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            ));
+
+            LinearLayout container = new LinearLayout(this);
+            container.setOrientation(LinearLayout.VERTICAL);
+            container.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ));
+            container.setPadding(16, 16, 16, 16);
+
+            // Render each component
+            for (int i = 0; i < a2uiStories.size(); i++) {
+                SubStory story = a2uiStories.get(i);
+
+                // Add component title
+                TextView titleView = new TextView(this);
+                titleView.setText((i + 1) + ". " + story.getDisplayName());
+                titleView.setTextSize(18);
+                titleView.setTextColor(getResources().getColor(R.color.purple_500, null));
+                LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                );
+                titleParams.setMargins(0, i == 0 ? 0 : 32, 0, 16);
+                titleView.setLayoutParams(titleParams);
+                container.addView(titleView);
+
+                // Create container for this component
+                FrameLayout componentContainer = new FrameLayout(this);
+                LinearLayout.LayoutParams containerParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                );
+                componentContainer.setLayoutParams(containerParams);
+                componentContainer.setMinimumHeight(200);
+                container.addView(componentContainer);
+
+                // Render component in this container
+                renderComponentInContainer(story, componentContainer, i);
+
+                // Add divider (except for last item)
+                if (i < a2uiStories.size() - 1) {
+                    View divider = new View(this);
+                    divider.setBackgroundColor(getResources().getColor(R.color.divider));
+                    LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        2
+                    );
+                    dividerParams.setMargins(0, 24, 0, 0);
+                    divider.setLayoutParams(dividerParams);
+                    container.addView(divider);
+                }
+            }
+
+            scrollView.addView(container);
+            renderContent.addView(scrollView);
+
+            addLog("All components loaded successfully!");
+            Toast.makeText(this, "Loaded " + a2uiStories.size() + " components", Toast.LENGTH_SHORT).show();
+
+        } catch (Exception e) {
+            addLog("Failed to load A2UI Show components: " + e.getMessage());
+            Toast.makeText(this, "Load failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "Failed to load A2UI Show components", e);
+        }
+    }
+
+    /**
+     * Render a single component into the specified container.
+     *
+     * <p>The container is reserved in {@link #pendingSurfaceHosts} before the protocol
+     * chunks go out, because the Surface is not reachable via
+     * {@link SurfaceManager#getSurface(String)} while this method runs — creation is
+     * posted to the main looper, which cannot drain until the caller returns.
+     */
+    private void renderComponentInContainer(SubStory story, FrameLayout container, int index) {
+        try {
+            // Generate unique surfaceId for this component
+            String surfaceId = "a2ui_show_" + index + "_" + System.currentTimeMillis();
+
+            // Get JSON strings
+            String componentsJson = story.getComponentsString();
+            String dataModelJson = story.getDataModelString();
+
+            // Replace surfaceId in JSON
+            String updatedComponentsJson = replaceSurfaceIdInJson(componentsJson, surfaceId);
+            String updatedDataModelJson = replaceSurfaceIdInJson(dataModelJson, surfaceId);
+
+            // Create surface
+            JSONObject createSurfaceJson = new JSONObject();
+            createSurfaceJson.put("version", "v0.9");
+
+            JSONObject createSurfaceData = new JSONObject();
+            createSurfaceData.put("surfaceId", surfaceId);
+            createSurfaceData.put("catalogId", "https://a2ui.org/specification/v0_9/standard_catalog.json");
+
+            createSurfaceJson.put("createSurface", createSurfaceData);
+
+            // Reserve the mount target before the engine can call back
+            pendingSurfaceHosts.put(surfaceId, container);
+
+            // Send messages
+            surfaceManager.receiveTextChunk(createSurfaceJson.toString());
+            surfaceManager.receiveTextChunk(updatedComponentsJson);
+
+            if (!updatedDataModelJson.equals("{}")) {
+                surfaceManager.receiveTextChunk(updatedDataModelJson);
+            }
+
+            addLog("Dispatched: " + story.getDisplayName());
+
+        } catch (Exception e) {
+            addLog("Failed to render " + story.getDisplayName() + ": " + e.getMessage());
+            Log.e(TAG, "Failed to render component", e);
+        }
+    }
+
+    /**
+     * Load all Gallery components and render them in a list
+     */
+    private void loadAllGalleryComponents() {
+        if (aGenUI == null || surfaceManager == null) {
+            addLog("Error: A2UI Framework not initialized");
+            Toast.makeText(this, "A2UI Framework not initialized", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            addLog("Loading all Gallery components...");
+
+            // Update title
+            updateToolbarTitle("Gallery - All Components");
+
+            // Load all Gallery stories
+            List<SubStory> galleryStories = storyLoader.loadGalleryStories();
+
+            if (galleryStories.isEmpty()) {
+                addLog("No Gallery components found");
+                Toast.makeText(this, "No components found", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            addLog("Found " + galleryStories.size() + " components");
+
+            // Clear current content
+            renderContent.removeAllViews();
+
+            // Destroy old surface if exists
+            if (currentSurfaceId != null) {
+                resetSurfaceManager();
+            }
+
+            // Create a scrollable container
+            ScrollView scrollView = new ScrollView(this);
+            scrollView.setLayoutParams(new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            ));
+
+            LinearLayout container = new LinearLayout(this);
+            container.setOrientation(LinearLayout.VERTICAL);
+            container.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ));
+            container.setPadding(16, 16, 16, 16);
+
+            // Render each component
+            for (int i = 0; i < galleryStories.size(); i++) {
+                SubStory story = galleryStories.get(i);
+
+                // Add component title (using UUID as display name)
+                TextView titleView = new TextView(this);
+                titleView.setText((i + 1) + ". " + story.getDisplayName());
+                titleView.setTextSize(18);
+                titleView.setTextColor(getResources().getColor(R.color.purple_500, null));
+                LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                );
+                titleParams.setMargins(0, i == 0 ? 0 : 32, 0, 16);
+                titleView.setLayoutParams(titleParams);
+                container.addView(titleView);
+
+                // Create container for this component
+                FrameLayout componentContainer = new FrameLayout(this);
+                LinearLayout.LayoutParams containerParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                );
+                componentContainer.setLayoutParams(containerParams);
+                componentContainer.setMinimumHeight(200);
+                container.addView(componentContainer);
+
+                // Render component in this container
+                renderComponentInContainer(story, componentContainer, i);
+
+                // Add divider (except for last item)
+                if (i < galleryStories.size() - 1) {
+                    View divider = new View(this);
+                    divider.setBackgroundColor(getResources().getColor(R.color.divider));
+                    LinearLayout.LayoutParams dividerParams = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        2
+                    );
+                    dividerParams.setMargins(0, 24, 0, 0);
+                    divider.setLayoutParams(dividerParams);
+                    container.addView(divider);
+                }
+            }
+
+            scrollView.addView(container);
+            renderContent.addView(scrollView);
+
+            addLog("All Gallery components loaded successfully!");
+            Toast.makeText(this, "Loaded " + galleryStories.size() + " components", Toast.LENGTH_SHORT).show();
+
+        } catch (Exception e) {
+            addLog("Failed to load Gallery components: " + e.getMessage());
+            Toast.makeText(this, "Load failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "Failed to load Gallery components", e);
+        }
+    }
+
+    /**
+     * Update Toolbar title
+     */
+    private void updateToolbarTitle(String title) {
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setTitle(title);
+        }
+    }
+
+    /**
+     * Apply theme (Day/Night mode)
+     */
+    private void applyTheme(boolean isDarkMode) {
+        if (isDarkMode) {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
+        } else {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+        }
+
+        // Update status bar color based on theme
+        if (getWindow() != null) {
+            int statusBarColor = ContextCompat.getColor(this, R.color.purple_500);
+            getWindow().setStatusBarColor(statusBarColor);
+
+            // Set status bar icons color (light icons for dark theme, dark icons for light theme)
+            View decorView = getWindow().getDecorView();
+            int systemUiVisibility = decorView.getSystemUiVisibility();
+            if (isDarkMode) {
+                // Dark mode: use light icons
+                systemUiVisibility &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            } else {
+                // Light mode: use dark icons
+                systemUiVisibility |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            }
+            decorView.setSystemUiVisibility(systemUiVisibility);
+        }
+    }
+
+    /**
+     * Add log
+     */
+    private void addLog(String message) {
+        // Also output to Android console
+        Log.d(TAG, message);
+
+        String timestamp = new java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+            .format(new java.util.Date());
+        String logEntry = "[" + timestamp + "] " + message;
+
+        TextView logView = new TextView(this);
+        logView.setText(logEntry);
+        logView.setTextSize(12);
+        logView.setTextColor(getResources().getColor(R.color.text_secondary));
+        logView.setPadding(8, 8, 8, 8);
+
+        // Remove "No logs yet" hint
+        if (logsContent.getChildCount() == 1) {
+            TextView firstChild = (TextView) logsContent.getChildAt(0);
+            if (firstChild.getText().toString().equals(getString(R.string.hint_no_logs))) {
+                logsContent.removeAllViews();
+            }
+        }
+
+        logsContent.addView(logView, 0);
+
+        // Limit log count to 10
+        while (logsContent.getChildCount() > 10) {
+            logsContent.removeViewAt(logsContent.getChildCount() - 1);
+        }
+    }
+}

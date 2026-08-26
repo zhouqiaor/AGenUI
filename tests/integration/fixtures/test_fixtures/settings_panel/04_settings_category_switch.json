@@ -1,0 +1,108 @@
+{
+  "description": "Settings panel category switch: selectCategory event triggers DataModel update, right pane content changes",
+  "surfaceId": "test-surf-settings-04",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": {
+        "surfaceId": "test-surf-settings-04",
+        "catalogId": "https://a2ui.org/specification/v0_9/basic_catalog.json"
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "test-surf-settings-04",
+        "components": [
+          {
+            "id": "root",
+            "component": "Column",
+            "align": "stretch",
+            "children": ["left-nav", "right-content"]
+          },
+          {
+            "id": "left-nav",
+            "component": "Column",
+            "width": "300px",
+            "styles": { "background-color": "#F5F5F5" },
+            "children": ["cat-enterprise", "cat-sound"]
+          },
+          {
+            "id": "cat-enterprise",
+            "component": "Button",
+            "child": "cat-enterprise-text",
+            "action": { "event": "selectCategory", "args": { "categoryId": "enterprise" } }
+          },
+          {
+            "id": "cat-enterprise-text",
+            "component": "Text",
+            "text": "企业服务",
+            "styles": { "font-size": "28px", "color": "#1976D2", "font-weight": "bold" }
+          },
+          {
+            "id": "cat-sound",
+            "component": "Button",
+            "child": "cat-sound-text",
+            "action": { "event": "selectCategory", "args": { "categoryId": "sound" } }
+          },
+          {
+            "id": "cat-sound-text",
+            "component": "Text",
+            "text": "声音与显示",
+            "styles": { "font-size": "28px", "color": "#333333" }
+          },
+          {
+            "id": "right-content",
+            "component": "Column",
+            "flex-grow": 1,
+            "children": ["content-title"]
+          },
+          {
+            "id": "content-title",
+            "component": "Text",
+            "text": "企业服务",
+            "styles": { "font-size": "42px", "font-weight": "500" }
+          }
+        ]
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateDataModel": {
+        "surfaceId": "test-surf-settings-04",
+        "path": "/data",
+        "value": {
+          "currentCategoryTitle": "企业服务",
+          "categories": [
+            { "id": "enterprise", "title": "企业服务", "activeBg": "#E3F2FD", "activeColor": "#1976D2", "activeWeight": "bold" },
+            { "id": "sound", "title": "声音与显示", "activeBg": "transparent", "activeColor": "#333333", "activeWeight": "normal" }
+          ],
+          "switchItems": [
+            { "icon": "login", "title": "自动登录", "enabled": true }
+          ]
+        }
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateDataModel": {
+        "surfaceId": "test-surf-settings-04",
+        "path": "/data",
+        "value": {
+          "currentCategoryTitle": "声音与显示",
+          "categories": [
+            { "id": "enterprise", "title": "企业服务", "activeBg": "transparent", "activeColor": "#333333", "activeWeight": "normal" },
+            { "id": "sound", "title": "声音与显示", "activeBg": "#E3F2FD", "activeColor": "#1976D2", "activeWeight": "bold" }
+          ],
+          "switchItems": [
+            { "icon": "volume_up", "title": "静音模式", "enabled": false }
+          ]
+        }
+      }
+    }
+  ],
+  "expect": {
+    "componentCount": 8,
+    "componentIds": ["root", "left-nav", "cat-enterprise", "cat-enterprise-text", "cat-sound", "cat-sound-text", "right-content", "content-title"]
+  }
+}

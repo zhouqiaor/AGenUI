@@ -1,0 +1,132 @@
+//
+//  AGenUIEngineBridge.h
+//  AGenUI
+//
+// Created on 2026/3/18.
+//
+
+#import <Foundation/Foundation.h>
+
+NS_ASSUME_NONNULL_BEGIN
+
+// MARK: - FunctionCall Callback Type Definitions
+
+/// FunctionCall execution callback
+/// @param instanceId Instance unique identifier
+/// @param surfaceId Surface unique identifier
+/// @param args JSON string of arguments
+/// @return JSON string of execution result
+typedef NSString* _Nullable (^AGenUIFunctionCallCallback)(int instanceId, NSString *surfaceId, NSString *args);
+
+/// AGenUI Engine Bridge (Singleton)
+///
+/// Manages the global IAGenUIEngine lifecycle and all engine-level configurations:
+/// theme, DesignToken, day/night mode, Skill registration, working directory, etc.
+///
+/// Use AGenUIEngineSurfaceManagerBridge for per-instance data transmission.
+@interface AGenUIEngineBridge : NSObject
+
+// MARK: - Singleton
+
+/// Shared singleton instance
++ (instancetype)sharedInstance;
+
+// MARK: - Version
+
+/// Get AGenUI SDK version (does not require engine initialization)
++ (NSString *)sdkVersion;
+
+// MARK: - Theme Configuration
+
+/// Load theme configuration
+/// @param themeConfigJson Theme configuration JSON string
+/// @return Whether loading succeeded
+- (BOOL)loadThemeConfig:(NSString *)themeConfigJson;
+
+// MARK: - Component Parse Declarations
+
+/// Declare a component property as a container of dynamic values.
+///
+/// By default a property value is parsed but not descended into, so a nested object or
+/// array is stored verbatim and any {"path":...} binding or {"call":...} function call
+/// inside it never resolves. Registering the property makes the engine walk its whole
+/// subtree, resolving nested dynamic values at any depth.
+///
+/// Must be called before the first render; a declaration made later has no effect on
+/// components that have already been parsed.
+///
+/// @param componentType Component type, i.e. the JSON "component" field (e.g. AmapText)
+/// @param propertyName Property name (e.g. spans)
+/// @return Whether the declaration was recorded
+- (BOOL)registerDeepParsePropertyForComponentType:(NSString *)componentType
+                                     propertyName:(NSString *)propertyName;
+
+// MARK: - Path Configuration
+
+/// Set path configuration
+/// @param configJson Path configuration JSON string, e.g. {"templateDir": "/path/to/templates"}
+/// @return Whether configuration was applied successfully
+- (BOOL)setPathConfig:(NSString *)configJson;
+
+// MARK: - DesignToken Configuration
+
+/// Load DesignToken configuration
+/// @param designTokenConfigJson DesignToken configuration JSON string
+/// @return Whether loading succeeded
+- (BOOL)loadDesignTokenConfig:(NSString *)designTokenConfigJson;
+
+// MARK: - Theme Mode Management
+
+/// Set day/night mode
+/// @param mode Mode configuration, "light" or "dark"
+- (void)setDayNightMode:(NSString *)mode;
+
+/// Set whether the host app is a debug build
+/// @param isDebug YES for debug builds, NO for release. Defaults to NO.
+- (void)setDebug:(BOOL)isDebug;
+
+/// Get whether the host app is a debug build, previously set via setDebug
+/// @return YES for debug builds. Returns NO if never set.
+- (BOOL)isDebug;
+
+// MARK: - FunctionCall / Skill Management
+
+/// Register FunctionCall (Skill)
+/// @param functionCallName FunctionCall name
+/// @param configJson FunctionCall configuration JSON string
+/// @param callback FunctionCall execution callback block
+/// @return Whether registration succeeded
+- (BOOL)registerFunction:(NSString *)functionCallName
+                      config:(NSString *)configJson
+                    callback:(nullable AGenUIFunctionCallCallback)callback;
+
+/// Get registered FunctionCall callback (for internal use by FuncInvoker)
+/// @param functionCallName FunctionCall name
+/// @return FunctionCall callback, returns nil if not found
+- (nullable AGenUIFunctionCallCallback)getFunctionCallCallback:(NSString *)functionCallName;
+
+/// Unregister a previously registered FunctionCall
+/// @param functionCallName FunctionCall name to unregister
+/// @note Must be called before the associated callback is deallocated to prevent dangling pointers
+- (void)unregisterFunction:(NSString *)functionCallName;
+
+// MARK: - C++ SurfaceManager Factory (Internal Use)
+
+/// Create a new C++ ISurfaceManager instance
+/// Called by AGenUIEngineSurfaceManagerBridge on init
+/// @return Opaque pointer to ISurfaceManager (caller must destroy via destroyCXXSurfaceManager:)
+- (void *)createSurfaceManager;
+
+/// Destroy a C++ ISurfaceManager instance
+/// @param surfaceManager Opaque pointer returned by createCXXSurfaceManager
+- (void)destroySurfaceManager:(void *)surfaceManager;
+
+// MARK: - Logger
+
+/// Set logger for C++ modules
+/// @param enabled Whether to enable logging observer
+- (void)setRuntimeLogEnabled:(BOOL)enabled;
+
+@end
+
+NS_ASSUME_NONNULL_END

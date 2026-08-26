@@ -1,0 +1,77 @@
+{
+  "score_threshold": 0.3,
+  "fuzzy_score": 0.35,
+  "intents": {
+    "weather": {
+      "keywords": [
+        "天气", "weather", "气温", "温度", "下雨", "雨", "晴", "阴", "风",
+        "雨雪", "雷阵雨", "雾霾", "湿度", "风速", "aqi", "空气质量",
+        "预报", "celsius"
+      ],
+      "fuzzy": ["tianqi", "tian qi", "qianqi"]
+    },
+    "poll": {
+      "keywords": [
+        "投票", "poll", "选举", "选择", "方案", "表决", "选项",
+        "调研", "问卷", "questionnaire", "vote", "ballot", "survey"
+      ],
+      "fuzzy": ["toupiao", "tou piao"]
+    },
+    "todo": {
+      "keywords": [
+        "待办", "todo", "任务", "提醒", "清单", "事项", "to-do",
+        "task", "checklist", "remind", "reminder", "做事", "干活"
+      ],
+      "fuzzy": ["daiban", "dai ban", "renwu", "ren wu"]
+    },
+    "agenda": {
+      "keywords": [
+        "日程", "agenda", "会议", "安排", "行程", "约会",
+        "meeting", "schedule", "appointment", "时间表", "排期"
+      ],
+      "fuzzy": ["richeng", "ri cheng", "huiyi", "hui yi"]
+    },
+    "note": {
+      "keywords": [
+        "笔记", "note", "记录", "备忘", "摘抄", "备忘录",
+        "memo", "notes", "日记", "手记", "纪要"
+      ],
+      "fuzzy": ["biji", "bi ji", "beiwang", "bei wang"]
+    },
+    "calendar": {
+      "keywords": [
+        "日历", "calendar", "日期", "星期", "节假日", "放假",
+        "date", "day", "month", "holiday", "月历", "万年历"
+      ],
+      "fuzzy": ["rili", "ri li", "jiejiari"]
+    },
+    "meeting": {
+      "keywords": [
+        "会议", "开会", "入会", "加入会议", "meeting", "join", "zoom",
+        "腾讯会议", "钉钉会议", "飞书会议", "视频会议", "通话"
+      ],
+      "fuzzy": ["huiyi", "hui yi", "kaihui", "kai hui"]
+    },
+    "classroom": {
+      "keywords": [
+        "课堂", "上课", "课程", "教学", "知识点", "学习", "classroom",
+        "class", "lesson", "course", "lecture", "笔记"
+      ],
+      "fuzzy": ["ketang", "ke tang", "shangke", "shang ke"]
+    },
+    "flashcard": {
+      "keywords": [
+        "闪卡", "记忆卡", "背单词", "复习卡", "flashcard", "flash card",
+        "memorize", "单词卡", "知识卡"
+      ],
+      "fuzzy": ["shanka", "shan ka", "beidanci"]
+    },
+    "notecard": {
+      "keywords": [
+        "卡片笔记", "知识卡", "notecard", "note card", "index card",
+        "要点卡", "总结卡"
+      ],
+      "fuzzy": ["kapian", "ka pian"]
+    }
+  }
+}

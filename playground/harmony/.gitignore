@@ -1,0 +1,32 @@
+# Build outputs
+build/
+**/build/
+output/
+*.hap
+*.har
+*.tgz
+
+# Auto-generated build profile (overwritten by hvigor on every build)
+**/BuildProfile.ets
+
+# Dependencies
+oh_modules/
+node_modules/
+
+# IDE & tooling
+.idea/
+.preview/
+.cxx/
+.hvigor/
+
+# OS
+.DS_Store
+
+# Lock files
+oh-package-lock.json5
+
+# Local config
+local.properties
+
+# Synced by tests/integration/platforms/harmony/harmony.sh before test runs
+entry/src/main/resources/rawfile/test_fixtures/

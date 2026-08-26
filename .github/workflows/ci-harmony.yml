@@ -1,0 +1,106 @@
+name: CI - HarmonyOS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'core/**'
+      - 'platforms/harmony/**'
+      - 'scripts/harmony/**'
+      - 'scripts/common/**'
+      - '.github/workflows/ci-harmony.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'core/**'
+      - 'platforms/harmony/**'
+      - 'scripts/harmony/**'
+      - 'scripts/common/**'
+      - '.github/workflows/ci-harmony.yml'
+  workflow_dispatch:
+    inputs:
+      build_mode:
+        description: 'Build mode'
+        required: false
+        default: 'release'
+        type: choice
+        options:
+          - release
+          - debug
+
+concurrency:
+  group: ci-harmony-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # HarmonyOS Command Line Tools version (from HuggingFace mirror)
+  # See: https://huggingface.co/csukuangfj/harmonyos-commandline-tools
+  # Must match project's hvigor modelVersion (6.0.0 requires CLT 6.x)
+  CLT_VERSION: "6.0.1.251"
+  CLT_FILENAME: "commandline-tools-linux-x64-6.0.1.251.zip"
+
+jobs:
+  build:
+    name: HarmonyOS Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+
+      - name: Cache HarmonyOS Command Line Tools
+        id: cache-clt
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.CLT_FILENAME }}
+          key: harmonyos-clt-${{ env.CLT_FILENAME }}
+
+      - name: Download HarmonyOS Command Line Tools
+        if: steps.cache-clt.outputs.cache-hit != 'true'
+        run: |
+          curl -SL -O "https://huggingface.co/csukuangfj/harmonyos-commandline-tools/resolve/main/${CLT_FILENAME}"
+
+      - name: Extract Command Line Tools
+        run: |
+          unzip -q "${CLT_FILENAME}" -d .
+          echo "Command Line Tools extracted"
+
+      - name: Configure build environment
+        run: |
+          CLT_ROOT="$(pwd)/command-line-tools"
+          echo "DEVECO_HOME=${CLT_ROOT}" >> $GITHUB_ENV
+          echo "DEVECO_SDK_HOME=${CLT_ROOT}/sdk" >> $GITHUB_ENV
+          echo "HOS_SDK_HOME=${CLT_ROOT}/sdk" >> $GITHUB_ENV
+
+          # Add tool binaries to PATH
+          echo "${CLT_ROOT}/bin" >> $GITHUB_PATH
+          echo "${CLT_ROOT}/hvigor/bin" >> $GITHUB_PATH
+          echo "${CLT_ROOT}/ohpm/bin" >> $GITHUB_PATH
+          echo "${CLT_ROOT}/tool/node/bin" >> $GITHUB_PATH
+
+      - name: Verify toolchain
+        run: |
+          echo "DEVECO_HOME=${DEVECO_HOME}"
+          ls "${DEVECO_HOME}/" || true
+          which hvigorw || find "${DEVECO_HOME}" -name "hvigorw" 2>/dev/null || true
+          which ohpm || find "${DEVECO_HOME}" -name "ohpm" 2>/dev/null || true
+          which node || find "${DEVECO_HOME}" -name "node" -type f 2>/dev/null | head -5 || true
+
+      - name: Build HarmonyOS HAR
+        run: ./scripts/harmony/build.sh --mode ${{ inputs.build_mode || 'release' }}
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: harmony-har-${{ github.sha }}
+          path: dist/harmony/
+          retention-days: 7

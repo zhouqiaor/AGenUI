@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- HarmonyOS brand colors (dark variant, replacing Material purple) -->
+    <color name="purple_200">#FF3395FF</color>
+    <color name="purple_500">#FF3D9BFF</color>
+    <color name="purple_700">#FF0069D6</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- Night mode specific colors -->
+    <color name="render_background">#121212</color>
+    <color name="component_row_background">#1E1E1E</color>
+    <color name="divider">#2C2C2C</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#E0E0E0</color>
+    <color name="text_hint">#B0B0B0</color>
+    <color name="logs_background">#1E1E1E</color>
+    <color name="drawer_background">#1E1E1E</color>
+    
+    <!-- Additional night mode colors -->
+    <color name="surface_background">#1E1E1E</color>
+    <color name="card_background">#2C2C2C</color>
+    <color name="editor_background">#1E1E1E</color>
+    <color name="editor_text">#E0E0E0</color>
+
+    <!-- ============================================================
+         Widget colors (referenced by RemoteViews, dark theme)
+         ============================================================ -->
+    <color name="widget_bg">#FF1C1C1E</color>
+    <color name="widget_title_text">#FFFFFFFF</color>
+    <color name="widget_template_active">#FF0A84FF</color>
+    <color name="widget_template_inactive">#FF8E8E93</color>
+    <color name="widget_empty_text">#FF8E8E93</color>
+    <color name="widget_error_text">#FFFF453A</color>
+    <color name="widget_quick_join">#FF30D158</color>
+</resources>

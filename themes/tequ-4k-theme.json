@@ -1,0 +1,65 @@
+{
+  "_meta": {
+    "name": "tequ-4k-theme",
+    "description": "TEQU 4K theme overlay — scales up typography, spacing, and radius for 4K large-screen rendering",
+    "base": "harmony-tokens.json",
+    "overrides": "tokens/tequ-4k-tokens.json",
+    "version": "1.0.0"
+  },
+  "colors": {
+    "brand": { "light": "#007DFF", "dark": "#3D9BFF" },
+    "brand_pressed": { "light": "#0069D6", "dark": "#2B82E6" },
+    "brand_surface": { "light": "#E8F3FF", "dark": "#123A5C" },
+    "success": { "light": "#2E7D32", "dark": "#4CAF50" },
+    "warning": { "light": "#F5A623", "dark": "#FFB84D" },
+    "danger": { "light": "#FF3B30", "dark": "#FF6B61" },
+    "text_primary": { "light": "#181818", "dark": "#E6E6E6" },
+    "text_secondary": { "light": "#666666", "dark": "#B0B3B8" },
+    "text_tertiary": { "light": "#999999", "dark": "#8A8D93" },
+    "text_inverse": { "light": "#FFFFFF", "dark": "#1A1A1A" },
+    "surface_primary": { "light": "#FFFFFF", "dark": "#1F1F22" },
+    "surface_muted": { "light": "#F5F6F7", "dark": "#2A2A2E" },
+    "divider": { "light": "#E8EAED", "dark": "#3A3A40" }
+  },
+  "typography": {
+    "display": { "size_fp": 42, "weight": "Bold" },
+    "title": { "size_fp": 30, "weight": "Medium" },
+    "subtitle": { "size_fp": 26, "weight": "Medium" },
+    "body": { "size_fp": 22, "weight": "Regular" },
+    "caption": { "size_fp": 20, "weight": "Regular" },
+    "overline": { "size_fp": 18, "weight": "Regular" },
+    "line_height_factor": 1.5
+  },
+  "spacing": {
+    "2xs_vp": 6,
+    "xs_vp": 12,
+    "sm_vp": 18,
+    "md_vp": 24,
+    "lg_vp": 36,
+    "xl_vp": 48
+  },
+  "radius": {
+    "sm_vp": 12,
+    "md_vp": 18,
+    "lg_vp": 24,
+    "full_vp": 999
+  },
+  "shadow": {
+    "card": { "offset_y_vp": 4, "blur_radius_vp": 16, "color": "#20000000" },
+    "elevated": { "offset_y_vp": 10, "blur_radius_vp": 28, "color": "#28000000", "layers": 2 }
+  },
+  "breakpoints": {
+    "xs_vp": 0,
+    "sm_vp": 320,
+    "md_vp": 520,
+    "lg_vp": 840,
+    "4k_vp": 3840
+  },
+  "motion": {
+    "tap_ms": 100,
+    "list_ms": 250,
+    "page_ms": 300,
+    "expand_ms": 250,
+    "press_scale": 0.95
+  }
+}

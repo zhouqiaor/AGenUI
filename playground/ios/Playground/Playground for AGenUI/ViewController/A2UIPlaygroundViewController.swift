@@ -1,0 +1,909 @@
+//
+//  A2UIPlaygroundViewController.swift
+//  Playground
+//
+// Created on 2026/2/27.
+//
+
+import UIKit
+import AGenUI
+import AVFoundation
+
+class A2UIPlaygroundViewController: UIViewController, SurfaceManagerListener, AVCaptureMetadataOutputObjectsDelegate {
+    
+    // MARK: - Properties
+    
+    /// Surface Manager instance
+    private let surfaceManager = SurfaceManager()
+    
+    /// Theme Manager instance
+    private let themeManager = ThemeManager()
+    
+    /// Performance display view
+    private let performanceDisplayView = PerformanceDisplayView()
+    
+    /// Scroll view
+    private let scrollView = UIScrollView()
+    private let surfaceId: String? = nil
+
+    /// Store current JSON data
+    private var currentComponentsJSON: String?
+    private var currentDataModelJSON: String?
+    
+    /// Store previous surfaceId for deletion
+    private var previousSurfaceId: String?
+    
+    /// Edit button reference
+    private var editBarButtonItem: UIBarButtonItem!
+    
+    /// Registered functions (strong references to prevent deallocation)
+    private let toastFunction = ToastFunction()
+
+    // MARK: - Streaming mode configuration
+    private static let streamingModeEnabled = true
+    private static let defaultStreamingChunkCount = 30
+    private static let streamingMinBytes = 10000
+
+    // MARK: - QR Code Scanner properties
+    private var captureSession: AVCaptureSession?
+    private var previewLayer: AVCaptureVideoPreviewLayer?
+    private var qrCodeFrameView: UIView?
+    private var windowQRCodeFrameView: UIView?
+
+    // MARK: - Surface size cache (read on engine worker thread)
+    //
+    // The C++ engine queries `surfaceSize(for:)` synchronously on a worker thread, so
+    // it cannot touch UIKit (`view.bounds`) directly. We refresh this cached width on
+    // the main thread inside `viewDidLayoutSubviews()` and serve the value through a
+    // simple lock to keep cross-thread reads safe.
+    private let surfaceSizeLock = NSLock()
+    private var cachedSurfaceWidth: CGFloat = 0
+
+
+    // MARK: - Lifecycle
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        setupUI()
+        setupNavigationBar()
+        setupPerformanceMonitor()
+
+        // Register as Surface lifecycle listener
+        surfaceManager.addListener(self)
+        
+        // Assign surfaceManager to ThemeManager to ensure the same instance is used
+        themeManager.surfaceManager = surfaceManager
+        
+        registerDecoupledComponents()
+    }
+    
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let w = view.bounds.size.width
+        surfaceSizeLock.lock()
+        cachedSurfaceWidth = w
+        surfaceSizeLock.unlock()
+    }
+    
+    /// Auto-load Gallery template from Bundle (used by --gallery launch argument).
+    func autoLoadGalleryTemplate() {
+        guard let templatesPath = Bundle.main.path(forResource: "Templates", ofType: nil) else {
+            print("⚠️ [AutoGallery] Templates folder not found in Bundle")
+            return
+        }
+        
+        let fileManager = FileManager.default
+        // Look for Gallery under "A2UI Show" folder
+        let galleryPath = templatesPath + "/A2UI Show/Gallery"
+        guard fileManager.fileExists(atPath: galleryPath) else {
+            print("⚠️ [AutoGallery] Gallery folder not found at: \(galleryPath)")
+            return
+        }
+        
+        var componentsJSON: String?
+        var dataModelJSON: String?
+        
+        let componentsFile = galleryPath + "/updateComponents.json"
+        let dataModelFile = galleryPath + "/updateDataModel.json"
+        
+        if fileManager.fileExists(atPath: componentsFile) {
+            componentsJSON = try? String(contentsOfFile: componentsFile, encoding: .utf8)
+        }
+        if fileManager.fileExists(atPath: dataModelFile) {
+            dataModelJSON = try? String(contentsOfFile: dataModelFile, encoding: .utf8)
+        }
+        
+        if componentsJSON != nil || dataModelJSON != nil {
+            currentComponentsJSON = componentsJSON
+            currentDataModelJSON = dataModelJSON
+            sendJSONData(componentsJSON: componentsJSON, dataModelJSON: dataModelJSON)
+            print("✅ [AutoGallery] Gallery template loaded successfully")
+        } else {
+            print("⚠️ [AutoGallery] No JSON files found in Gallery folder")
+        }
+    }
+    
+    /// Register components that have been decoupled from the SDK.
+    /// These components (Lottie, Chart, Markdown) are no longer auto-registered by the SDK
+    /// and must be registered by the host application.
+    private func registerDecoupledComponents() {
+        // Lottie component
+        AGenUISDK.registerComponent("Lottie") { id, properties in
+            return LottieComponent(componentId: id, properties: properties)
+        }
+        
+        // Chart component
+        AGenUISDK.registerComponent("Chart") { id, properties in
+            return ChartComponent(componentId: id, properties: properties)
+        }
+        
+        // Markdown component
+        AGenUISDK.registerComponent("Markdown") { id, properties in
+            return MarkdownComponent(componentId: id, properties: properties)
+        }
+        
+        // Toast function
+        AGenUISDK.registerFunction(toastFunction)
+    }
+    
+    private func setupUI() {
+        view.backgroundColor = .systemBackground
+        
+        // Add ScrollView
+        view.addSubview(scrollView)
+        scrollView.backgroundColor = .systemGray6
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        
+        // ScrollView constraints - fixed to view's four edges
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
+    }
+    
+    private func setupNavigationBar() {
+        // Set title
+        title = "A2UI Playground"
+        
+        // Create left menu button
+        let menuButton = UIBarButtonItem(
+            image: UIImage(systemName: "line.3.horizontal"),
+            style: .plain,
+            target: self,
+            action: #selector(menuButtonTapped)
+        )
+        navigationItem.leftBarButtonItem = menuButton
+        
+        // Create right button group
+        let editButton = UIBarButtonItem(
+            image: UIImage(systemName: "square.and.pencil"),
+            style: .plain,
+            target: self,
+            action: #selector(editButtonTapped)
+        )
+        // Keep the Edit button enabled from the start so the user can open the
+        // editor (in "Custom Input" mode) even before any page is rendered,
+        // matching the Android/HarmonyOS playgrounds.
+        editBarButtonItem = editButton  // Save reference
+
+        // Create theme button (tapping opens the theme picker directly)
+        let themeButton = createThemeButton()
+
+        // Create scan QR button (promoted to a top-level bar item for
+        // cross-platform consistency with Android/HarmonyOS).
+        let scanButton = UIBarButtonItem(
+            image: UIImage(systemName: "qrcode.viewfinder"),
+            style: .plain,
+            target: self,
+            action: #selector(scanQRCodeButtonTapped)
+        )
+        scanButton.accessibilityLabel = "Scan QR"
+
+        // Visual order (left -> right): Scan | Theme | Edit. Since
+        // rightBarButtonItems index 0 is the rightmost item, the array is
+        // declared in reverse of the visual order. Negative-width fixed
+        // spaces tighten the gaps so the centered performance display gets
+        // more horizontal room.
+        let compactSpace1 = UIBarButtonItem(barButtonSystemItem: .fixedSpace, target: nil, action: nil)
+        compactSpace1.width = -8
+        let compactSpace2 = UIBarButtonItem(barButtonSystemItem: .fixedSpace, target: nil, action: nil)
+        compactSpace2.width = -8
+        navigationItem.rightBarButtonItems = [editButton, compactSpace1, themeButton, compactSpace2, scanButton]
+        
+        // Configure navigation bar appearance
+        navigationController?.navigationBar.prefersLargeTitles = true
+        
+        // Add performance display view to navigation bar
+        setupPerformanceDisplayInNavigationBar()
+    }
+    
+    private func setupPerformanceDisplayInNavigationBar() {
+        // Create a container view for the performance display
+        let containerView = UIView()
+        containerView.translatesAutoresizingMaskIntoConstraints = false
+        
+        // Add performance display view
+        containerView.addSubview(performanceDisplayView)
+        performanceDisplayView.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            performanceDisplayView.topAnchor.constraint(equalTo: containerView.topAnchor),
+            performanceDisplayView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            performanceDisplayView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            performanceDisplayView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+            performanceDisplayView.heightAnchor.constraint(equalToConstant: 40)
+        ])
+        
+        // Set as title view
+        navigationItem.titleView = containerView
+    }
+    
+    private func setupPerformanceMonitor() {
+        // Start monitoring
+        PerformanceMonitor.shared.startMonitoring()
+        
+        // Set update callback
+        PerformanceMonitor.shared.onPerformanceUpdate = { [weak self] fps, cpu, memory in
+            self?.performanceDisplayView.updatePerformance(fps: fps, cpu: cpu, memory: memory)
+        }
+    }
+    
+    // MARK: - SurfaceManagerListener
+        
+    /// Surface creation completed callback
+    ///
+    /// - Parameter surface: Surface object
+    func onCreateSurface(_ surface: Surface) {
+
+        scrollView.subviews.forEach { $0.removeFromSuperview() }
+
+        print("[Playground] 🎨 Surface created: \(surface.surfaceId)")
+        
+        scrollView.addSubview(surface.view)
+        weak var weakSurface = surface
+        surface.onLayoutChanged = { [weak self] in
+            guard let weakSurface = weakSurface else {
+                return
+            }
+            guard let self = self else {
+                print("[Playground] ⚠️ Layout changed but self is nil for: \(weakSurface.surfaceId)")
+                return
+            }
+            
+            // Use surface.view height (view size is determined by Surface's width/height)
+            let height = weakSurface.view.frame.size.height
+            self.scrollView.contentSize = CGSize(width: scrollView.frame.size.width, height: height)
+        }
+        
+        print("[Playground] ✅ Surface rootView added to container: \(surface.surfaceId)")
+    }
+    
+    /// Provide the current surface size synchronously to the engine.
+    ///
+    /// Width follows the view's current width; height is unbounded — matches the
+    /// previous `surface.updateSize(width:height:)` semantics. The engine may invoke
+    /// this on a non-main worker thread, so the value is served from a main-thread
+    /// updated cache guarded by a lock.
+    ///
+    /// - Parameter surfaceId: Surface identifier assigned by the engine.
+    /// - Returns: Current surface size in points; `.zero` if not measurable yet.
+    func surfaceSize(for surfaceId: String) -> CGSize {
+        surfaceSizeLock.lock()
+        let width = cachedSurfaceWidth
+        surfaceSizeLock.unlock()
+        guard width > 0 else { return .zero }
+        return CGSize(width: width, height: .infinity)
+    }
+    
+    /// Surface deletion completed callback
+    ///
+    /// - Parameter surface: Surface
+    func onDeleteSurface(_ surface: Surface) {
+        print("[Playground] Surface deleted: \(surface.surfaceId)")
+
+        // Remove all subviews from scrollView
+        scrollView.subviews.forEach { $0.removeFromSuperview() }
+    }
+    
+    // MARK: - Actions
+    
+    @objc private func menuButtonTapped() {
+        let menuVC = A2UIPlaygroundMenuViewController()
+        menuVC.modalPresentationStyle = .fullScreen
+        
+        // Set data callback closure
+        menuVC.onDataSelected = { [weak self] componentsJSON, dataModelJSON in
+            self?.currentComponentsJSON = componentsJSON
+            self?.currentDataModelJSON = dataModelJSON
+            // Send data uniformly
+            self?.sendJSONData(componentsJSON: componentsJSON, dataModelJSON: dataModelJSON)
+            // Enable edit button
+            self?.editBarButtonItem.isEnabled = true
+        }
+        
+        present(menuVC, animated: true)
+    }
+    
+    @objc private func themeButtonTapped() {
+        themeManager.showThemeSelector(from: self)
+    }
+    
+    @objc private func editButtonTapped() {
+        let editVC = A2UIPlaygroundEditViewController()
+        editVC.initialComponentsJSON = currentComponentsJSON
+        editVC.initialDataModelJSON = currentDataModelJSON
+
+        // Set data submission callback
+        editVC.onDataSubmitted = { [weak self] componentsJSON, dataModelJSON in
+            self?.currentComponentsJSON = componentsJSON
+            self?.currentDataModelJSON = dataModelJSON
+            // Send data uniformly
+            self?.sendJSONData(componentsJSON: componentsJSON, dataModelJSON: dataModelJSON)
+        }
+
+        editVC.modalPresentationStyle = .fullScreen
+        present(editVC, animated: true)
+    }
+
+    // MARK: - Menu and Actions
+
+    private func createThemeButton() -> UIBarButtonItem {
+        // Tapping the button opens the theme picker directly (no intermediate menu).
+        let themeButton = UIBarButtonItem(
+            image: UIImage(systemName: "paintbrush.fill"),
+            style: .plain,
+            target: self,
+            action: #selector(themeButtonTapped)
+        )
+        themeButton.accessibilityLabel = "Theme"
+        return themeButton
+    }
+
+    @objc private func scanQRCodeButtonTapped() {
+        // Check camera permission
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        switch status {
+        case .authorized:
+            // Already authorized, start scanning
+            startQRCodeScanner()
+        case .notDetermined:
+            // Request permission
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    if granted {
+                        self.startQRCodeScanner()
+                    } else {
+                        self.showPermissionDeniedAlert()
+                    }
+                }
+            }
+        case .denied, .restricted:
+            showPermissionDeniedAlert()
+        @unknown default:
+            showPermissionDeniedAlert()
+        }
+    }
+
+    private func startQRCodeScanner() {
+        // Create capture session
+        captureSession = AVCaptureSession()
+
+        guard let captureSession = captureSession else { return }
+
+        // Set session preset
+        captureSession.sessionPreset = .medium
+
+        // Get the device
+        guard let videoCaptureDevice = AVCaptureDevice.default(for: .video) else { return }
+
+        // Create input
+        let videoInput: AVCaptureDeviceInput
+        do {
+            videoInput = try AVCaptureDeviceInput(device: videoCaptureDevice)
+        } catch {
+            return
+        }
+
+        // Add input to session
+        if captureSession.canAddInput(videoInput) {
+            captureSession.addInput(videoInput)
+        } else {
+            return
+        }
+
+        // Create metadata output
+        let metadataOutput = AVCaptureMetadataOutput()
+
+        if captureSession.canAddOutput(metadataOutput) {
+            captureSession.addOutput(metadataOutput)
+
+            metadataOutput.setMetadataObjectsDelegate(self, queue: DispatchQueue.main)
+            metadataOutput.metadataObjectTypes = [.qr]
+        } else {
+            return
+        }
+
+        // Create preview layer
+        previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
+        previewLayer?.frame = view.layer.bounds
+        previewLayer?.videoGravity = .resizeAspectFill
+
+        // Create frame view for QR code on window to ensure it's always on top
+        windowQRCodeFrameView = UIView()
+        if let windowQRCodeFrameView = windowQRCodeFrameView {
+            windowQRCodeFrameView.frame = view.bounds
+            windowQRCodeFrameView.layer.insertSublayer(previewLayer!, at: 0)
+            windowQRCodeFrameView.layer.borderColor = UIColor.green.cgColor
+            windowQRCodeFrameView.layer.borderWidth = 2
+
+            // Close (X) button to exit the scanner without scanning,
+            // matching the system scanner behavior on HarmonyOS.
+            let closeButton = UIButton(type: .system)
+            closeButton.setImage(UIImage(systemName: "xmark.circle.fill"), for: .normal)
+            closeButton.tintColor = .white
+            closeButton.translatesAutoresizingMaskIntoConstraints = false
+            closeButton.addTarget(self, action: #selector(closeQRCodeScannerTapped), for: .touchUpInside)
+            closeButton.accessibilityLabel = "Close scanner"
+            windowQRCodeFrameView.addSubview(closeButton)
+            NSLayoutConstraint.activate([
+                closeButton.topAnchor.constraint(equalTo: windowQRCodeFrameView.safeAreaLayoutGuide.topAnchor, constant: 16),
+                closeButton.leadingAnchor.constraint(equalTo: windowQRCodeFrameView.leadingAnchor, constant: 16),
+                closeButton.widthAnchor.constraint(equalToConstant: 36),
+                closeButton.heightAnchor.constraint(equalToConstant: 36)
+            ])
+
+            // Add to window's key window to ensure it's always on top
+            if #available(iOS 13.0, *) {
+                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                   let window = windowScene.windows.first {
+                    window.addSubview(windowQRCodeFrameView)
+                    window.bringSubviewToFront(windowQRCodeFrameView)
+                }
+            } else {
+                // Fallback for iOS 12 and earlier
+                if let window = UIApplication.shared.keyWindow {
+                    window.addSubview(windowQRCodeFrameView)
+                    window.bringSubviewToFront(windowQRCodeFrameView)
+                } else if let window = UIApplication.shared.windows.first {
+                    window.addSubview(windowQRCodeFrameView)
+                    window.bringSubviewToFront(windowQRCodeFrameView)
+                }
+            }
+        }
+
+        // Start capture on a background queue to prevent UI blocking
+        DispatchQueue.global(qos: .userInitiated).async {
+            captureSession.startRunning()
+        }
+    }
+
+    private func stopQRCodeScanner() {
+        captureSession?.stopRunning()
+
+        previewLayer?.removeFromSuperlayer()
+        previewLayer = nil
+
+        windowQRCodeFrameView?.removeFromSuperview()
+        windowQRCodeFrameView = nil
+
+        captureSession = nil
+    }
+
+    @objc private func closeQRCodeScannerTapped() {
+        // Exit the scanner without scanning (X button).
+        stopQRCodeScanner()
+    }
+
+    private func showPermissionDeniedAlert() {
+        // Ensure on main thread and VC is visible
+        guard isViewLoaded, view.window != nil else { return }
+        
+        let alert = UIAlertController(
+            title: NSLocalizedString("camera_permission_required", comment: "Camera permission required alert title"),
+            message: NSLocalizedString("camera_permission_message", comment: "Camera permission required alert message"),
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: NSLocalizedString("cancel", comment: "Cancel button"), style: .cancel) { [weak self] _ in
+            self?.dismiss(animated: true)
+        })
+
+        alert.addAction(UIAlertAction(title: NSLocalizedString("go_to_settings", comment: "Go to settings button"), style: .default) { [weak self] _ in
+            guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+            UIApplication.shared.open(settingsURL)
+        })
+
+        present(alert, animated: true)
+    }
+
+    private func processQRCodeResult(_ qrCode: String) {
+        stopQRCodeScanner()
+
+        // Show the scanned result
+        let alert = UIAlertController(
+            title: "Scan result",
+            message: qrCode,
+            preferredStyle: .alert
+        )
+
+        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+
+        alert.addAction(UIAlertAction(title: "Process", style: .default) { _ in
+            // Download and process the QR code content
+            self.downloadAndProcessQRCodeFile(qrCode)
+        })
+
+        present(alert, animated: true)
+    }
+
+    func downloadAndProcessQRCodeFile(_ fileUrl: String) {
+        guard let url = URL(string: fileUrl) else {
+            showAlert(title: "Error", message: "Invalid URL")
+            return
+        }
+
+        // Create URLSession configuration with timeout settings
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30.0
+        config.timeoutIntervalForResource = 60.0
+        let session = URLSession(configuration: config)
+
+        let task = session.dataTask(with: url) { [weak self] data, response, error in
+            guard let self = self else { return }
+
+            if let error = error {
+                DispatchQueue.main.async {
+                    self.showAlert(title: "Download Failed", message: "Network request error: \(error.localizedDescription)")
+                }
+                print("❌ [QR Code] Network error: \(error)")
+                return
+            }
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode) else {
+                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+                DispatchQueue.main.async {
+                    self.showAlert(title: "Download Failed", message: "HTTP status code error: \(statusCode)")
+                }
+                print("❌ [QR Code] HTTP error: Status code \(statusCode)")
+                return
+            }
+
+            guard let data = data, !data.isEmpty else {
+                DispatchQueue.main.async {
+                    self.showAlert(title: "Parse Failed", message: "Server returned empty data")
+                }
+                print("❌ [QR Code] Empty response data")
+                return
+            }
+
+            // Check if data is valid UTF8 string
+            guard let jsonString = String(data: data, encoding: .utf8) else {
+                DispatchQueue.main.async {
+                    self.showAlert(title: "Parse Failed", message: "Data encoding error")
+                }
+                print("❌ [QR Code] Invalid UTF8 encoding")
+                return
+            }
+
+            do {
+                // Parse JSON data
+                guard let jsonData = jsonString.data(using: .utf8) else {
+                    DispatchQueue.main.async {
+                        self.showAlert(title: "Parse Failed", message: "Cannot convert data encoding")
+                    }
+                    return
+                }
+                
+                let jsonObject = try JSONSerialization.jsonObject(with: jsonData, options: [])
+                
+                // Validate if array
+                guard let jsonArray = jsonObject as? [Any] else {
+                    DispatchQueue.main.async {
+                        self.showAlert(title: "Parse Failed", message: "Response is not a valid JSON array")
+                    }
+                    print("❌ [QR Code] Response is not a valid JSON array")
+                    return
+                }
+                
+                // Check array length
+                if jsonArray.count < 3 {
+                    DispatchQueue.main.async {
+                        self.showAlert(title: "Parse Failed", message: "JSON array length insufficient, expected at least 3 , actual \(jsonArray.count)")
+                    }
+                    print("❌ [QR Code] JSON array length insufficient: \(jsonArray.count), expected at least 3")
+                    return
+                }
+                
+                var processedCount = 0
+                var createSurfaceJson: String?
+                var updateComponentsJson: String?
+                var updateDataModelJson: String?
+
+                // Process JSON array, extract data more safely
+                for (index, item) in jsonArray.enumerated() {
+                    // Convert each element back to JSON string
+                    if JSONSerialization.isValidJSONObject(item) {
+                        if let itemData = try? JSONSerialization.data(withJSONObject: item, options: .sortedKeys),
+                           let itemString = String(data: itemData, encoding: .utf8) {
+                            
+                            switch index {
+                            case 0:
+                                createSurfaceJson = itemString
+                                processedCount += 1
+                            case 1:
+                                updateComponentsJson = itemString
+                                processedCount += 1
+                            case 2:
+                                updateDataModelJson = itemString
+                                processedCount += 1
+                            default:
+                                break
+                            }
+                        } else {
+                            print("⚠️ [QR Code] Could not convert item at index \(index) back to JSON string")
+                        }
+                    } else {
+                        print("⚠️ [QR Code] Item at index \(index) is not a valid JSON object")
+                    }
+                }
+
+                DispatchQueue.main.async {
+                    self.processQRCodeJsonData(
+                        createSurfaceJson: createSurfaceJson,
+                        updateComponentsJson: updateComponentsJson,
+                        updateDataModelJson: updateDataModelJson
+                    )
+                }
+                
+                print("✅ [QR Code] Successfully processed \(processedCount) JSON ")
+                
+            } catch let jsonError as NSError {
+                DispatchQueue.main.async {
+                    self.showAlert(title: "Parse Failed", message: "JSON parsing error: \(jsonError.localizedDescription)")
+                }
+                print("❌ [QR Code] JSON parsing error: \(jsonError)")
+                
+                // Output first 200 chars of raw data for debugging
+                let debugData = String(data: data.prefix(200), encoding: .utf8) ?? "Could not decode"
+                print("📋 [QR Code] First 200 chars of response: \(debugData)")
+            }
+        }
+        
+        task.resume()
+    }
+
+    private func processQRCodeJsonData(createSurfaceJson: String?, updateComponentsJson: String?, updateDataModelJson: String?) {
+        // Extract the scanned surfaceId up front so we can clear any surface
+        // that would collide with it before issuing createSurface.
+        let scannedSurfaceId = createSurfaceJson.flatMap { Self.extractSurfaceId(fromCreateSurface: $0) }
+
+        surfaceManager.beginTextStream()
+
+        // The engine (both the C++ SurfaceCoordinator and the Swift
+        // SurfaceManager) rejects a createSurface whose surfaceId already
+        // exists and does NOT dispatch the creation event, so the scanned
+        // page would silently fail to render. That happens whenever a surface
+        // carrying the same surfaceId is still alive — e.g. the same QR was
+        // scanned before and then another page (a menu pick or a different
+        // QR) was rendered on top without disposing it. Mirroring the
+        // Android/HarmonyOS playgrounds, tear down stale surfaces first so
+        // the scanned createSurface always starts from a clean state.
+
+        // 1) Dispose the currently displayed surface when it differs from the
+        //    scanned one (avoids leaking the previous page).
+        if let previousSurfaceId = previousSurfaceId, previousSurfaceId != scannedSurfaceId {
+            sendDeleteSurface(previousSurfaceId)
+        }
+
+        // 2) Always clear any leftover surface that already carries the
+        //    scanned surfaceId (covers re-scanning the same QR after another
+        //    page was rendered on top).
+        if let scannedSurfaceId = scannedSurfaceId {
+            sendDeleteSurface(scannedSurfaceId)
+        }
+
+        // Process createSurface JSON
+        if let createSurfaceJson = createSurfaceJson {
+            surfaceManager.receiveTextChunk(createSurfaceJson)
+            print("✅ [QR Code] Sent createSurface")
+
+            // Track the scanned surfaceId so the next render can dispose it.
+            if let scannedSurfaceId = scannedSurfaceId {
+                self.previousSurfaceId = scannedSurfaceId
+            }
+        }
+
+        // Process updateComponents JSON
+        if let updateComponentsJson = updateComponentsJson {
+            surfaceManager.receiveTextChunk(updateComponentsJson)
+            print("✅ [QR Code] Sent updateComponents")
+
+            // Save to current variables
+            self.currentComponentsJSON = updateComponentsJson
+        }
+
+        // Process updateDataModel JSON
+        if let updateDataModelJson = updateDataModelJson {
+            surfaceManager.receiveTextChunk(updateDataModelJson)
+            print("✅ [QR Code] Sent updateDataModel")
+
+            // Save to current variables
+            self.currentDataModelJSON = updateDataModelJson
+        } else {
+            print("✅ [QR Code] updateDataModel is empty, skipping")
+        }
+
+        surfaceManager.endTextStream()
+
+        // Enable the Edit button so the scanned protocol can be edited,
+        // matching the menu-selection flow which enables it on data selection.
+        editBarButtonItem.isEnabled = true
+    }
+
+    /// Send a `deleteSurface` chunk for the given surfaceId. Deleting a
+    /// surfaceId that does not exist is a safe no-op at the engine layer.
+    private func sendDeleteSurface(_ surfaceId: String) {
+        let deleteSurfaceJSON: [String: Any] = [
+            "version": "v0.9",
+            "deleteSurface": [
+                "surfaceId": surfaceId
+            ]
+        ]
+        if let deleteSurfaceData = try? JSONSerialization.data(withJSONObject: deleteSurfaceJSON, options: []),
+           let deleteSurfaceString = String(data: deleteSurfaceData, encoding: .utf8) {
+            surfaceManager.receiveTextChunk(deleteSurfaceString)
+            print("✅ [QR Code] Sent deleteSurface: surfaceId = \(surfaceId)")
+        }
+    }
+    
+    /// Extract surfaceId from a `createSurface` JSON payload.
+    /// Returns nil when the payload is malformed or the field is missing.
+    private static func extractSurfaceId(fromCreateSurface json: String) -> String? {
+        guard let data = json.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let createSurface = obj["createSurface"] as? [String: Any],
+              let sid = createSurface["surfaceId"] as? String,
+              !sid.isEmpty else {
+            return nil
+        }
+        return sid
+    }
+
+    private func showAlert(title: String, message: String) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
+    }
+    
+    
+   // MARK: - Examples.
+    
+    /// Mock send JSON data part to renderer.
+    ///
+    /// - Parameters:
+    ///   - componentsJSON: Components JSON string
+    ///   - dataModelJSON: DataModel JSON string
+    private func sendJSONData(componentsJSON: String?, dataModelJSON: String?) {
+        surfaceManager.beginTextStream()
+
+        if let componentsJSON = componentsJSON {
+            if let data = componentsJSON.data(using: .utf8),
+               let jsonObject = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let updateComponents = jsonObject["updateComponents"] as? [String: Any],
+               let surfaceId = updateComponents["surfaceId"] as? String {
+                
+                if let previousSurfaceId = previousSurfaceId {
+                    let deleteSurfaceJSON: [String: Any] = [
+                        "version": "v0.9",
+                        "deleteSurface": [
+                            "surfaceId": previousSurfaceId
+                        ]
+                    ]
+                    
+                    if let deleteSurfaceData = try? JSONSerialization.data(withJSONObject: deleteSurfaceJSON, options: []),
+                       let deleteSurfaceString = String(data: deleteSurfaceData, encoding: .utf8) {
+                        surfaceManager.receiveTextChunk(deleteSurfaceString)
+                        print("[Main Page] Sent deleteSurface: surfaceId = \(previousSurfaceId)")
+                    }
+                }
+                
+                let createSurfaceJSON: [String: Any] = [
+                    "version": "v0.9",
+                    "createSurface": [
+                        "surfaceId": surfaceId,
+                        "catalogId": "https://a2ui.org/specification/v0_9/basic_catalog.json",
+                        "theme": [
+                            "primaryColor": "#00BFFF"
+                        ],
+                        "sendDataModel": true
+                    ]
+                ]
+                
+                if let createSurfaceData = try? JSONSerialization.data(withJSONObject: createSurfaceJSON, options: []),
+                   let createSurfaceString = String(data: createSurfaceData, encoding: .utf8) {
+                    surfaceManager.receiveTextChunk(createSurfaceString)
+                    print("[Main Page] Sent createSurface: surfaceId = \(surfaceId)")
+                }
+
+                self.previousSurfaceId = surfaceId
+            }
+            
+            if Self.streamingModeEnabled && componentsJSON.utf8.count > Self.streamingMinBytes {
+                sendInChunks(componentsJSON, chunkCount: Self.defaultStreamingChunkCount)
+            } else {
+                surfaceManager.receiveTextChunk(componentsJSON)
+            }
+            print("[Main Page] Sent Components data")
+        }
+        
+        if let dataModelJSON = dataModelJSON {
+            surfaceManager.receiveTextChunk(dataModelJSON)
+            print("[Main Page] Sent DataModel data")
+        }
+        
+        surfaceManager.endTextStream()
+    }
+
+    // MARK: - Streaming Helpers
+
+    private func sendInChunks(_ json: String, chunkCount: Int) {
+        let totalLength = json.count
+        let chunkSize = max(1, Int(ceil(Double(totalLength) / Double(chunkCount))))
+        var offset = json.startIndex
+        var index = 0
+        while offset < json.endIndex {
+            let end = json.index(offset, offsetBy: chunkSize, limitedBy: json.endIndex) ?? json.endIndex
+            let chunk = String(json[offset..<end])
+            surfaceManager.receiveTextChunk(chunk)
+            index += 1
+            offset = end
+        }
+        print("[Main Page] Streaming: \(index) chunks sent")
+    }
+
+    // MARK: - AVCaptureMetadataOutputObjectsDelegate
+
+    func metadataOutput(
+        _ output: AVCaptureMetadataOutput,
+        didOutput metadataObjects: [AVMetadataObject],
+        from connection: AVCaptureConnection
+    ) {
+        // Stop if no objects detected
+        guard let metadataObject = metadataObjects.first else { return }
+
+        // Check if it's a QR code
+        guard let readableObject = metadataObject as? AVMetadataMachineReadableCodeObject else { return }
+        guard let stringValue = readableObject.stringValue else { return }
+
+        // Animate the scan
+        AudioServicesPlaySystemSound(SystemSoundID(kSystemSoundID_Vibrate))
+
+        // Update UI on main thread
+        DispatchQueue.main.async {
+            self.highlightQRCodeFrame(boundingBox: readableObject.bounds)
+            self.processQRCodeResult(stringValue)
+        }
+    }
+
+    private func highlightQRCodeFrame(boundingBox: CGRect) {
+        guard let windowQRCodeFrameView = self.windowQRCodeFrameView,
+              let previewLayer = self.previewLayer else { return }
+
+        // Convert bounding box to view coordinates
+        let convertedBoundingBox = previewLayer.layerRectConverted(fromMetadataOutputRect: boundingBox)
+
+        // Convert from layer coordinates to window coordinates
+        let windowCoordinates = view.convert(convertedBoundingBox, to: nil)
+
+        windowQRCodeFrameView.frame = windowCoordinates
+
+        // Ensure QR code frame view stays on top
+        if let superview = windowQRCodeFrameView.superview {
+            superview.bringSubviewToFront(windowQRCodeFrameView)
+        }
+    }
+}

@@ -1,0 +1,319 @@
+#include "jni_scoped_local_ref.h"
+#include <jni.h>
+#include <memory>
+#include <mutex>
+#include <unordered_map>
+#include "jni_scoped_utf_chars.h"
+#include "agenui_engine_entry.h"
+#include "agenui_dispatcher_types.h"
+#include "jni_message_listener_bridge.h"
+#include "jni_surface_size_provider_bridge.h"
+#include "agenui_type_define.h"
+#include "agenui_logger_internal.h"
+#include "agenui_message_listener.h"
+#include "module/agenui_engine_impl.h"
+#include "module/agenui_surface_manager.h"
+
+namespace agenui {
+
+namespace {
+
+// Owns the JNISurfaceSizeProviderBridge instance for each registered
+// SurfaceManager. The C++ ISurfaceManager only holds a non-owning pointer to
+// the bridge, so somewhere on the C++ side has to keep the bridge alive while
+// the engine may still query it. Keyed by Java SurfaceManager.instanceId so
+// register/clear are idempotent and double-clear is safe.
+std::mutex sSurfaceSizeProviderBridgeMapMutex;
+std::unordered_map<int, std::unique_ptr<JNISurfaceSizeProviderBridge>>
+        sSurfaceSizeProviderBridgeMap;
+
+}  // namespace
+
+static std::shared_ptr<ISurfaceManager> findSurfaceManagerByInstanceId(jint instanceId) {
+    IAGenUIEngine* engine = getAGenUIEngine();
+    if (!engine) {
+        AGENUI_LOG("[JNI] findSurfaceManagerByInstanceId: engine is null");
+        return nullptr;
+    }
+    // Shared ownership keeps the instance alive for the whole JNI call.
+    auto sm = engine->findSurfaceManagerShared(instanceId);
+    if (!sm) {
+        AGENUI_LOG("[JNI] findSurfaceManagerByInstanceId: SurfaceManager not found for instanceId=%d", instanceId);
+    }
+    return sm;
+}
+
+static void jni_addEventListener(JNIEnv* env, jclass clazz, jint instanceId, jobject javaListener) {
+    AGENUI_LOG("[JNI] addEventListener: instanceId=%d", instanceId);
+    if (javaListener == nullptr) {
+        AGENUI_LOG("[JNI] addEventListener: listener is null");
+        return;
+    }
+    auto surfaceManager = findSurfaceManagerByInstanceId(instanceId);
+    if (!surfaceManager) {
+        return;
+    }
+    
+    // Create bridge object
+    auto* bridge = new JNIMessageListenerBridge(env, javaListener);
+    
+    // Register to SurfaceManager
+    surfaceManager->addSurfaceEventListener(bridge);
+    
+    // Save mapping
+    ListenerBridgeManager::getInstance().addMapping(env, javaListener, bridge);
+
+    AGENUI_LOG("[JNI] addEventListener: success, instanceId=%d", instanceId);
+}
+
+static void jni_removeEventListener(JNIEnv* env, jclass clazz, jint instanceId, jobject javaListener) {
+    AGENUI_LOG("[JNI] removeEventListener: instanceId=%d", instanceId);
+    if (javaListener == nullptr) {
+        AGENUI_LOG("[JNI] removeEventListener: listener is null");
+        return;
+    }
+    auto surfaceManager = findSurfaceManagerByInstanceId(instanceId);
+    if (!surfaceManager) {
+        // SM already destroyed — still need to clean up the bridge from the global map
+        AGENUI_LOG("[JNI] removeEventListener: SM not found, cleaning bridge only");
+        ListenerBridgeManager::getInstance().findAndRemoveBridge(env, javaListener,
+            [](JNIMessageListenerBridge*) { /* SM gone, no listener list to update */ });
+        return;
+    }
+
+    // Atomically find, remove, and delete the bridge.
+    // The shared_ptr keeps the SM alive for the duration of this call.
+    // removeSurfaceEventListener has its own _isRunning check + _cachedListenersMutex,
+    // so it's safe to call even if another thread is destroying the SM.
+    // ORDER MATTERS: remove from dispatcher FIRST (bridge still alive),
+    // then DeleteGlobalRef + SAFELY_DELETE (bridge freed after no one can call it).
+    ListenerBridgeManager::getInstance().findAndRemoveBridge(env, javaListener,
+        [surfaceManager](JNIMessageListenerBridge* bridge) {
+            surfaceManager->removeSurfaceEventListener(bridge);
+        });
+}
+
+static void jni_submitUIAction(JNIEnv* env, jclass clazz, jint instanceId, jstring jSurfaceId, jstring jSourceComponentId, jstring jContextJson) {
+    AGENUI_LOG("[JNI] submitUIAction: instanceId=%d", instanceId);
+    auto surfaceManager = findSurfaceManagerByInstanceId(instanceId);
+    if (!surfaceManager) {
+        return;
+    }
+    ActionMessage msg;
+    
+    if (jSurfaceId != nullptr) {
+        ScopedUtfChars surfaceId(env, jSurfaceId);
+        msg.surfaceId = surfaceId.c_str();
+    }
+    
+    if (jSourceComponentId != nullptr) {
+        ScopedUtfChars sourceComponentId(env, jSourceComponentId);
+        msg.sourceComponentId = sourceComponentId.c_str();
+    }
+    
+    if (jContextJson != nullptr) {
+        ScopedUtfChars contextJson(env, jContextJson);
+        msg.contextJson = contextJson.c_str();
+    }
+
+    surfaceManager->submitUIAction(msg);
+}
+
+static void jni_submitUIDataModel(JNIEnv* env, jclass clazz, jint instanceId, jstring jSurfaceId, jstring jComponentId, jstring jChange) {
+    auto surfaceManager = findSurfaceManagerByInstanceId(instanceId);
+    if (!surfaceManager) {
+        return;
+    }
+    SyncUIToDataMessage msg;
+    if (jSurfaceId != nullptr) {
+        ScopedUtfChars surfaceId(env, jSurfaceId);
+        msg.surfaceId = surfaceId.c_str();
+    }
+    
+    if (jComponentId != nullptr) {
+        ScopedUtfChars componentId(env, jComponentId);
+        msg.componentId = componentId.c_str();
+    }
+    
+    if (jChange != nullptr) {
+        ScopedUtfChars change(env, jChange);
+        msg.change = change.c_str();
+    }
+    
+    AGENUI_LOG("[JNI] submitUIDataModel: instanceId=%d, surfaceId=%s, componentId=%s", instanceId, msg.surfaceId.c_str(), msg.componentId.c_str());
+
+    surfaceManager->submitUIDataModel(msg);
+}
+
+static void jni_beginTextStream(JNIEnv* env, jclass clazz, jint instanceId) {
+    auto surfaceManager = findSurfaceManagerByInstanceId(instanceId);
+    if (!surfaceManager) {
+        return;
+    }
+    surfaceManager->beginTextStream();
+}
+
+static void jni_receiveTextChunk(JNIEnv* env, jclass clazz, jint instanceId, jstring jContent) {
+    if (jContent == nullptr) {
+        AGENUI_LOG("[JNI] receiveTextChunk: content is null");
+        return;
+    }
+    auto surfaceManager = findSurfaceManagerByInstanceId(instanceId);
+    if (!surfaceManager) {
+        return;
+    }
+    ScopedUtfChars contentObj(env, jContent);
+    std::string inputContent = contentObj.c_str();
+    surfaceManager->receiveTextChunk(inputContent);
+}
+
+static void jni_endTextStream(JNIEnv* env, jclass clazz, jint instanceId) {
+    auto surfaceManager = findSurfaceManagerByInstanceId(instanceId);
+    if (!surfaceManager) {
+        return;
+    }
+    surfaceManager->endTextStream();
+}
+
+static void jni_notifyRenderFinish(JNIEnv* env, jclass clazz, jint instanceId,
+                                   jstring jSurfaceId, jstring jComponentId, jstring jType,
+                                   jfloat width, jfloat height, jint selectedIndex) {
+    auto surfaceManager = findSurfaceManagerByInstanceId(instanceId);
+    if (!surfaceManager) {
+        return;
+    }
+
+    ComponentRenderInfo info;
+    if (jSurfaceId != nullptr) {
+        ScopedUtfChars surfaceId(env, jSurfaceId);
+        info.surfaceId = surfaceId.c_str();
+    }
+    if (jComponentId != nullptr) {
+        ScopedUtfChars componentId(env, jComponentId);
+        info.componentId = componentId.c_str();
+    }
+    if (jType != nullptr) {
+        ScopedUtfChars type(env, jType);
+        info.type = type.c_str();
+    }
+    info.width = width;
+    info.height = height;
+    info.selectedIndex = selectedIndex;
+
+    AGENUI_LOG("[JNI] notifyRenderFinish: instanceId=%d, surfaceId=%s, componentId=%s, type=%s, width=%.1f, height=%.1f, selectedIndex=%d",
+               instanceId,
+               info.surfaceId.c_str(),
+               info.componentId.c_str(),
+               info.type.c_str(),
+               info.width,
+               info.height,
+               info.selectedIndex);
+    surfaceManager->onRenderFinish(info);
+}
+
+static void jni_notifySurfaceSizeChanged(JNIEnv* env, jclass clazz, jint instanceId,
+                                         jstring jSurfaceId, jfloat width, jfloat height) {
+    auto surfaceManager = findSurfaceManagerByInstanceId(instanceId);
+    if (!surfaceManager) {
+        return;
+    }
+    
+    SurfaceLayoutInfo info;
+    if (jSurfaceId != nullptr) {
+        ScopedUtfChars surfaceId(env, jSurfaceId);
+        info.surfaceId = surfaceId.c_str();
+    }
+    info.width = width;
+    info.height = height;
+    surfaceManager->onSurfaceSizeChanged(info);
+}
+
+static void jni_invalidateFunctionCallValues(JNIEnv* env, jclass clazz, jint instanceId) {
+    auto surfaceManager = findSurfaceManagerByInstanceId(instanceId);
+    if (!surfaceManager) {
+        return;
+    }
+    surfaceManager->invalidateFunctionCallValues();
+}
+
+static void jni_setSurfaceSizeProvider(JNIEnv* env, jclass clazz, jint instanceId,
+                                       jobject javaSurfaceManager) {
+    AGENUI_LOG("[JNI] setSurfaceSizeProvider: instanceId=%d", instanceId);
+    if (javaSurfaceManager == nullptr) {
+        AGENUI_LOG("[JNI] setSurfaceSizeProvider: javaSurfaceManager is null");
+        return;
+    }
+    auto surfaceManager = findSurfaceManagerByInstanceId(instanceId);
+    if (!surfaceManager) {
+        return;
+    }
+
+    auto bridge = std::make_unique<JNISurfaceSizeProviderBridge>(env, javaSurfaceManager);
+    surfaceManager->setSurfaceSizeProvider(bridge.get());
+
+    std::lock_guard<std::mutex> lock(sSurfaceSizeProviderBridgeMapMutex);
+    // Replacing an existing entry: detach old bridge from C++ first so the engine
+    // never sees a dangling pointer between the new assignment above and the
+    // old unique_ptr's destructor below.
+    auto it = sSurfaceSizeProviderBridgeMap.find(instanceId);
+    if (it != sSurfaceSizeProviderBridgeMap.end()) {
+        AGENUI_LOG("[JNI] setSurfaceSizeProvider: replacing existing bridge, instanceId=%d",
+                   instanceId);
+        it->second.reset();  // unique_ptr deleter runs here
+    }
+    sSurfaceSizeProviderBridgeMap[instanceId] = std::move(bridge);
+}
+
+static void jni_clearSurfaceSizeProvider(JNIEnv* env, jclass clazz, jint instanceId) {
+    AGENUI_LOG("[JNI] clearSurfaceSizeProvider: instanceId=%d", instanceId);
+    // Detach from the engine first so no in-flight Yoga pass can see the bridge
+    // while we delete it. If the SurfaceManager is already gone we skip the
+    // detach (the engine has nothing to point at) but still drop the bridge.
+    auto surfaceManager = findSurfaceManagerByInstanceId(instanceId);
+    if (surfaceManager) {
+        surfaceManager->setSurfaceSizeProvider(nullptr);
+    }
+
+    std::lock_guard<std::mutex> lock(sSurfaceSizeProviderBridgeMapMutex);
+    sSurfaceSizeProviderBridgeMap.erase(instanceId);
+}
+
+jint register_jni_AGenUISurfaceManager(JNIEnv* env) {
+    AGENUI_LOG("[JNI] register_jni_AGenUIEngine");
+    // Register all methods for AGenUI class
+    ScopedLocalRef<jclass> engineClz(env, env->FindClass("com/amap/agenui/render/surface/SurfaceManager"));
+    if (engineClz.get() == nullptr) {
+        AGENUI_LOG("[JNI] register_jni_AGenUIEngine: AGenUI class not found");
+        return JNI_ERR;
+    }
+    
+    JNINativeMethod nativeMethods[] = {
+        // SurfaceManager event listener
+        {"nativeAddEventListener", "(ILcom/amap/agenui/IAGenUIMessageListener;)V", (void*)jni_addEventListener},
+        {"nativeRemoveEventListener", "(ILcom/amap/agenui/IAGenUIMessageListener;)V", (void*)jni_removeEventListener},
+        // SurfaceManager UI interaction
+        {"nativeSubmitUIAction", "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V", (void*)jni_submitUIAction},
+        {"nativeSubmitUIDataModel", "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V", (void*)jni_submitUIDataModel},
+        // SurfaceManager data input
+        {"nativeBeginTextStream", "(I)V", (void*)jni_beginTextStream},
+        {"nativeReceiveTextChunk", "(ILjava/lang/String;)V", (void*)jni_receiveTextChunk},
+        {"nativeEndTextStream", "(I)V", (void*)jni_endTextStream},
+        {"nativeNotifyRenderFinish", "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;FFI)V", (void*)jni_notifyRenderFinish},
+        {"nativeNotifySurfaceSizeChanged", "(ILjava/lang/String;FF)V", (void*)jni_notifySurfaceSizeChanged},
+        // SurfaceManager FunctionCall value invalidation
+        {"nativeInvalidateFunctionCallValues", "(I)V", (void*)jni_invalidateFunctionCallValues},
+        // Surface size pull-channel provider bridge
+        {"nativeSetSurfaceSizeProvider",   "(ILcom/amap/agenui/render/surface/ISurfaceSizeProviderHost;)V", (void*)jni_setSurfaceSizeProvider},
+        {"nativeClearSurfaceSizeProvider", "(I)V",                                                          (void*)jni_clearSurfaceSizeProvider},
+    };
+    
+    jint result = env->RegisterNatives(engineClz.get(), nativeMethods, sizeof(nativeMethods) / sizeof(nativeMethods[0]));
+    if (result != JNI_OK) {
+        AGENUI_LOG("[JNI] register_jni_AGenUIEngine: RegisterNatives failed");
+        return JNI_ERR;
+    }
+    
+    return JNI_OK;
+}
+
+}

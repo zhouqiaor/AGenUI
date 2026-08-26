@@ -1,0 +1,203 @@
+{
+  "description": "Settings panel two-pane layout: left nav with 3 categories + right content with List dynamic items — verifies List componentId template rendering",
+  "surfaceId": "test-surf-settings-02",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": {
+        "surfaceId": "test-surf-settings-02",
+        "catalogId": "https://a2ui.org/specification/v0_9/basic_catalog.json"
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "test-surf-settings-02",
+        "components": [
+          {
+            "id": "root",
+            "component": "Column",
+            "align": "stretch",
+            "children": ["two-pane", "footer"]
+          },
+          {
+            "id": "two-pane",
+            "component": "Row",
+            "styles": {"flex-direction": "row", "flex-grow": "1"},
+            "children": ["left-nav", "right-content"]
+          },
+          {
+            "id": "left-nav",
+            "component": "Column",
+            "align": "stretch",
+            "styles": {
+              "width": "764px",
+              "background-color": "#FAFAFA"
+            },
+            "children": ["cat-1", "cat-2", "cat-3"]
+          },
+          {
+            "id": "cat-1",
+            "component": "Row",
+            "align": "center",
+            "styles": {
+              "padding": "24px 32px 24px 32px",
+              "background-color": "#E3F2FD"
+            },
+            "children": ["cat-1-icon", "cat-1-text"],
+            "action": {"event": "selectCategory", "args": {"categoryId": "enterprise"}}
+          },
+          {
+            "id": "cat-1-icon",
+            "component": "Icon",
+            "name": "business",
+            "styles": {"font-size": "40px", "color": "#1976D2", "margin": "0px 20px 0px 8px"}
+          },
+          {
+            "id": "cat-1-text",
+            "component": "Text",
+            "text": "企业服务",
+            "styles": {"font-size": "30px", "font-weight": "bold", "color": "#1976D2"}
+          },
+          {
+            "id": "cat-2",
+            "component": "Row",
+            "align": "center",
+            "styles": {
+              "padding": "24px 32px 24px 32px",
+              "background-color": "transparent"
+            },
+            "children": ["cat-2-icon", "cat-2-text"],
+            "action": {"event": "selectCategory", "args": {"categoryId": "sound"}}
+          },
+          {
+            "id": "cat-2-icon",
+            "component": "Icon",
+            "name": "volume_up",
+            "styles": {"font-size": "40px", "color": "#666666", "margin": "0px 20px 0px 8px"}
+          },
+          {
+            "id": "cat-2-text",
+            "component": "Text",
+            "text": "声音与显示",
+            "styles": {"font-size": "30px", "color": "#333333"}
+          },
+          {
+            "id": "cat-3",
+            "component": "Row",
+            "align": "center",
+            "styles": {
+              "padding": "24px 32px 24px 32px",
+              "background-color": "transparent"
+            },
+            "children": ["cat-3-icon", "cat-3-text"],
+            "action": {"event": "selectCategory", "args": {"categoryId": "wifi"}}
+          },
+          {
+            "id": "cat-3-icon",
+            "component": "Icon",
+            "name": "wifi",
+            "styles": {"font-size": "40px", "color": "#666666", "margin": "0px 20px 0px 8px"}
+          },
+          {
+            "id": "cat-3-text",
+            "component": "Text",
+            "text": "Wi-Fi",
+            "styles": {"font-size": "30px", "color": "#333333"}
+          },
+          {
+            "id": "right-content",
+            "component": "Column",
+            "align": "stretch",
+            "styles": {
+              "flex-grow": "1",
+              "background-color": "#FFFFFF",
+              "padding": "32px 40px 32px 40px"
+            },
+            "children": ["content-title", "settings-list"]
+          },
+          {
+            "id": "content-title",
+            "component": "Text",
+            "text": "企业服务",
+            "variant": "h4",
+            "styles": {"font-size": "36px", "font-weight": "600", "color": "#1A1A1A", "margin": "0px 0px 24px 0px"}
+          },
+          {
+            "id": "settings-list",
+            "component": "List",
+            "direction": "vertical",
+            "align": "stretch",
+            "children": {
+              "path": "/data/switchItems",
+              "componentId": "switch-item-template"
+            }
+          },
+          {
+            "id": "switch-item-template",
+            "component": "Row",
+            "justify": "spaceBetween",
+            "align": "center",
+            "styles": {
+              "padding": "20px 0px 20px 0px",
+              "border-bottom-width": "1px",
+              "border-bottom-color": "#F0F0F0"
+            },
+            "children": ["switch-item-info", "switch-item-control"]
+          },
+          {
+            "id": "switch-item-info",
+            "component": "Row",
+            "align": "center",
+            "children": ["switch-item-icon", "switch-item-title"]
+          },
+          {
+            "id": "switch-item-icon",
+            "component": "Icon",
+            "name": {"path": "icon"},
+            "styles": {"font-size": "40px", "color": "#1976D2", "margin": "0px 20px 0px 0px"}
+          },
+          {
+            "id": "switch-item-title",
+            "component": "Text",
+            "text": {"path": "title"},
+            "styles": {"font-size": "28px", "color": "#333333"}
+          },
+          {
+            "id": "switch-item-control",
+            "component": "CheckBox",
+            "label": "",
+            "value": {"path": "enabled"},
+            "styles": {"width": "56px", "height": "56px"}
+          },
+          {
+            "id": "footer",
+            "component": "Text",
+            "text": "设备版本：V4.1.0",
+            "variant": "caption",
+            "styles": {"font-size": "24px", "color": "#999999", "text-align": "center", "padding": "20px 0px 20px 0px"}
+          }
+        ]
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateDataModel": {
+        "surfaceId": "test-surf-settings-02",
+        "path": "/data",
+        "value": {
+          "switchItems": [
+            {"icon": "login", "title": "自动登录", "enabled": true},
+            {"icon": "lock", "title": "企业账号绑定", "enabled": false}
+          ]
+        }
+      }
+    }
+  ],
+  "expect": {
+    "componentCount": 19,
+    "componentTypes": ["Column", "Row", "Column", "Row", "Icon", "Text", "Row", "Icon", "Text", "Row", "Icon", "Text", "Column", "Text", "List", "Row", "Row", "Icon", "Text", "CheckBox", "Text"],
+    "rootComponentId": "root",
+    "componentIds": ["root", "two-pane", "left-nav", "cat-1", "cat-1-icon", "cat-1-text", "cat-2", "cat-2-icon", "cat-2-text", "cat-3", "cat-3-icon", "cat-3-text", "right-content", "content-title", "settings-list", "switch-item-template", "switch-item-info", "switch-item-icon", "switch-item-title", "switch-item-control", "footer"]
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "version": "v0.9",
+  "updateComponents": {
+    "surfaceId": "harmony_button_demo",
+    "components": [
+      {
+        "id": "root",
+        "component": "Column",
+        "children": ["btn-filled", "btn-outlined", "btn-text", "btn-capsule"],
+        "align": "center",
+        "styles": {
+          "padding": "16px",
+          "gap": "12px",
+          "background-color": "#FFFFFF"
+        }
+      },
+      {
+        "id": "btn-filled",
+        "component": "Button",
+        "child": "btn-filled-text",
+        "styles": {
+          "width": "320px",
+          "height": "48px",
+          "border-radius": "12px",
+          "background-color": "#007DFF",
+          "padding": "8px 16px"
+        },
+        "action": {
+          "functionCall": { "call": "toast", "args": { "value": "Harmony Filled Button" } }
+        }
+      },
+      {
+        "id": "btn-filled-text",
+        "component": "Text",
+        "text": "Filled Button",
+        "styles": {
+          "font-size": "16px",
+          "font-weight": "500",
+          "color": "#FFFFFF",
+          "text-align": "center"
+        }
+      },
+      {
+        "id": "btn-outlined",
+        "component": "Button",
+        "child": "btn-outlined-text",
+        "styles": {
+          "width": "320px",
+          "height": "48px",
+          "border-radius": "12px",
+          "background-color": "#FFFFFF",
+          "border-width": "1px",
+          "border-color": "#007DFF",
+          "padding": "8px 16px"
+        },
+        "action": {
+          "functionCall": { "call": "toast", "args": { "value": "Harmony Outlined Button" } }
+        }
+      },
+      {
+        "id": "btn-outlined-text",
+        "component": "Text",
+        "text": "Outlined Button",
+        "styles": {
+          "font-size": "16px",
+          "font-weight": "500",
+          "color": "#007DFF",
+          "text-align": "center"
+        }
+      },
+      {
+        "id": "btn-text",
+        "component": "Button",
+        "child": "btn-text-text",
+        "styles": {
+          "width": "320px",
+          "height": "48px",
+          "background-color": "#FFFFFF",
+          "padding": "8px 16px"
+        },
+        "action": {
+          "functionCall": { "call": "toast", "args": { "value": "Harmony Text Button" } }
+        }
+      },
+      {
+        "id": "btn-text-text",
+        "component": "Text",
+        "text": "Text Button",
+        "styles": {
+          "font-size": "16px",
+          "font-weight": "500",
+          "color": "#007DFF",
+          "text-align": "center"
+        }
+      },
+      {
+        "id": "btn-capsule",
+        "component": "Button",
+        "child": "btn-capsule-text",
+        "styles": {
+          "width": "320px",
+          "height": "48px",
+          "border-radius": "999px",
+          "background-color": "#E8F3FF",
+          "padding": "8px 16px"
+        },
+        "action": {
+          "functionCall": { "call": "toast", "args": { "value": "Harmony Capsule Button" } }
+        }
+      },
+      {
+        "id": "btn-capsule-text",
+        "component": "Text",
+        "text": "Capsule Button",
+        "styles": {
+          "font-size": "16px",
+          "font-weight": "500",
+          "color": "#007DFF",
+          "text-align": "center"
+        }
+      }
+    ]
+  }
+}

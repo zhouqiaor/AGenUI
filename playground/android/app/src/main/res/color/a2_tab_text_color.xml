@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A2 大屏深色会议主题 - Tab 文字色（选中白/未选中灰） -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true" android:color="@color/a2_tab_selected_text" />
+    <item android:color="@color/a2_tab_unselected_text" />
+</selector>

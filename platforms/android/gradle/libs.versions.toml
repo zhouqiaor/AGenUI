@@ -1,0 +1,23 @@
+[versions]
+agp = "8.4.2"
+junit = "4.13.2"
+junitVersion = "1.2.1"
+espressoCore = "3.6.1"
+picasso = "2.8"
+gson = "2.10.1"
+cardview = "1.0.0"
+viewpager2 = "1.0.0"
+recyclerview = "1.3.2"
+
+[libraries]
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+picasso = { group = "com.squareup.picasso", name = "picasso", version.ref = "picasso" }
+gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+cardview = { group = "androidx.cardview", name = "cardview", version.ref = "cardview" }
+viewpager2 = { group = "androidx.viewpager2", name = "viewpager2", version.ref = "viewpager2" }
+recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "recyclerview" }
+
+[plugins]
+android-library = { id = "com.android.library", version.ref = "agp" }

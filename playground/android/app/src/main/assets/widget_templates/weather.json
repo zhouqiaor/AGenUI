@@ -1,0 +1,109 @@
+[
+  {
+    "type": "createSurface",
+    "surfaceId": "__SURFACE_ID__",
+    "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+    "width": 300
+  },
+  {
+    "type": "updateComponents",
+    "surfaceId": "__SURFACE_ID__",
+    "components": [
+      {
+        "id": "root",
+        "type": "Card",
+        "children": [
+          {
+            "id": "root_c0",
+            "type": "Column",
+            "children": [
+              {
+                "id": "root_c0_c0",
+                "type": "Row",
+                "children": [
+                  {
+                    "id": "root_c0_c0_c0",
+                    "type": "Container",
+                    "styles": {"width": 48, "height": 48, "borderRadius": 999, "backgroundColor": "#E8F3FF", "alignItems": "center", "justifyContent": "center"},
+                    "children": [
+                      {"id": "root_c0_c0_c0_c0", "type": "Text", "text": "☀", "styles": {"fontSize": 24}}
+                    ]
+                  },
+                  {
+                    "id": "root_c0_c0_c1",
+                    "type": "Column",
+                    "styles": {"marginLeft": 12, "flex": 1},
+                    "children": [
+                      {"id": "root_c0_c0_c1_c0", "type": "Text", "text": "北京", "styles": {"fontSize": 16, "fontWeight": "bold", "color": "#181818"}},
+                      {"id": "root_c0_c0_c1_c1", "type": "Text", "text": "晴 · 微风", "styles": {"fontSize": 14, "color": "#666666"}}
+                    ]
+                  },
+                  {
+                    "id": "root_c0_c0_c2",
+                    "type": "Text",
+                    "text": "23°",
+                    "styles": {"fontSize": 30, "fontWeight": "bold", "color": "#007DFF"}
+                  }
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 16, "paddingBottom": 12, "alignItems": "center"}
+              },
+              {
+                "id": "root_c0_c1",
+                "type": "Divider",
+                "styles": {"backgroundColor": "#E8EAED", "height": 1, "marginLeft": 16, "marginRight": 16}
+              },
+              {
+                "id": "root_c0_c2",
+                "type": "Row",
+                "children": [
+                  {
+                    "id": "root_c0_c2_c0",
+                    "type": "Column",
+                    "styles": {"flex": 1, "alignItems": "center"},
+                    "children": [
+                      {"id": "root_c0_c2_c0_c0", "type": "Text", "text": "湿度", "styles": {"fontSize": 12, "color": "#999999"}},
+                      {"id": "root_c0_c2_c0_c1", "type": "Text", "text": "45%", "styles": {"fontSize": 14, "color": "#181818", "marginTop": 4}}
+                    ]
+                  },
+                  {
+                    "id": "root_c0_c2_c1",
+                    "type": "Column",
+                    "styles": {"flex": 1, "alignItems": "center"},
+                    "children": [
+                      {"id": "root_c0_c2_c1_c0", "type": "Text", "text": "风速", "styles": {"fontSize": 12, "color": "#999999"}},
+                      {"id": "root_c0_c2_c1_c1", "type": "Text", "text": "3级", "styles": {"fontSize": 14, "color": "#181818", "marginTop": 4}}
+                    ]
+                  },
+                  {
+                    "id": "root_c0_c2_c2",
+                    "type": "Column",
+                    "styles": {"flex": 1, "alignItems": "center"},
+                    "children": [
+                      {"id": "root_c0_c2_c2_c0", "type": "Text", "text": "AQI", "styles": {"fontSize": 12, "color": "#999999"}},
+                      {"id": "root_c0_c2_c2_c1", "type": "Text", "text": "优 42", "styles": {"fontSize": 14, "color": "#181818", "marginTop": 4}}
+                    ]
+                  }
+                ],
+                "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 12, "paddingBottom": 16}
+              }
+            ]
+          }
+        ],
+        "styles": {"borderRadius": 16, "backgroundColor": "#FFFFFF", "elevation": 2}
+      }
+    ]
+  },
+  {
+    "type": "updateDataModel",
+    "surfaceId": "__SURFACE_ID__",
+    "value": {
+      "city": "北京",
+      "condition": "晴 · 微风",
+      "temperature": "23°",
+      "humidity": "45%",
+      "wind": "3级",
+      "aqi": "优 42",
+      "view": "current"
+    }
+  }
+]

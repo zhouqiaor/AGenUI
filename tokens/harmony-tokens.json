@@ -1,0 +1,157 @@
+{
+  "brand": {
+    "color": {
+      "light": {
+        "value": "#007DFF",
+        "type": "color",
+        "description": "HarmonyOS brand blue (light mode)"
+      },
+      "dark": {
+        "value": "#3D9BFF",
+        "type": "color",
+        "description": "HarmonyOS brand blue (dark mode)"
+      }
+    },
+    "pressed": {
+      "light": {
+        "value": "#0069D6",
+        "type": "color",
+        "description": "Brand pressed state (light)"
+      },
+      "dark": {
+        "value": "#2B82E6",
+        "type": "color",
+        "description": "Brand pressed state (dark)"
+      }
+    },
+    "surface": {
+      "light": {
+        "value": "#E8F3FF",
+        "type": "color",
+        "description": "Brand surface tint (light)"
+      },
+      "dark": {
+        "value": "#123A5C",
+        "type": "color",
+        "description": "Brand surface tint (dark)"
+      }
+    }
+  },
+  "success": {
+    "light": { "value": "#2E7D32", "type": "color" },
+    "dark": { "value": "#4CAF50", "type": "color" }
+  },
+  "warning": {
+    "light": { "value": "#F5A623", "type": "color" },
+    "dark": { "value": "#FFB84D", "type": "color" }
+  },
+  "danger": {
+    "light": { "value": "#FF3B30", "type": "color" },
+    "dark": { "value": "#FF6B61", "type": "color" }
+  },
+  "text": {
+    "primary": {
+      "light": { "value": "#181818", "type": "color", "description": "Primary text" },
+      "dark": { "value": "#E6E6E6", "type": "color" }
+    },
+    "secondary": {
+      "light": { "value": "#666666", "type": "color", "description": "Secondary text" },
+      "dark": { "value": "#B0B3B8", "type": "color" }
+    },
+    "tertiary": {
+      "light": { "value": "#999999", "type": "color", "description": "Tertiary/hint text" },
+      "dark": { "value": "#8A8D93", "type": "color" }
+    },
+    "inverse": {
+      "light": { "value": "#FFFFFF", "type": "color", "description": "Text on brand color" },
+      "dark": { "value": "#1A1A1A", "type": "color" }
+    }
+  },
+  "surface": {
+    "primary": {
+      "light": { "value": "#FFFFFF", "type": "color", "description": "Card/content surface" },
+      "dark": { "value": "#1F1F22", "type": "color" }
+    },
+    "muted": {
+      "light": { "value": "#F5F6F7", "type": "color", "description": "Page background" },
+      "dark": { "value": "#2A2A2E", "type": "color" }
+    }
+  },
+  "divider": {
+    "light": { "value": "#E8EAED", "type": "color" },
+    "dark": { "value": "#3A3A40", "type": "color" }
+  },
+  "font": {
+    "family": {
+      "value": "HarmonyOS Sans",
+      "type": "fontFamily"
+    },
+    "display": {
+      "size": { "value": "30", "type": "dimension", "unit": "fp" },
+      "weight": { "value": "Bold", "type": "fontWeight" }
+    },
+    "title": {
+      "size": { "value": "22", "type": "dimension", "unit": "fp" },
+      "weight": { "value": "Medium", "type": "fontWeight" }
+    },
+    "subtitle": {
+      "size": { "value": "18", "type": "dimension", "unit": "fp" },
+      "weight": { "value": "Medium", "type": "fontWeight" }
+    },
+    "body": {
+      "size": { "value": "16", "type": "dimension", "unit": "fp" },
+      "weight": { "value": "Regular", "type": "fontWeight" }
+    },
+    "caption": {
+      "size": { "value": "14", "type": "dimension", "unit": "fp" },
+      "weight": { "value": "Regular", "type": "fontWeight" }
+    },
+    "overline": {
+      "size": { "value": "12", "type": "dimension", "unit": "fp" },
+      "weight": { "value": "Regular", "type": "fontWeight" }
+    },
+    "line_height_factor": { "value": "1.5", "type": "number" }
+  },
+  "space": {
+    "2xs": { "value": "4", "type": "dimension", "unit": "vp", "description": "Icon-text gap" },
+    "xs": { "value": "8", "type": "dimension", "unit": "vp", "description": "Compact spacing" },
+    "sm": { "value": "12", "type": "dimension", "unit": "vp", "description": "Regular spacing" },
+    "md": { "value": "16", "type": "dimension", "unit": "vp", "description": "Card padding/safe margin" },
+    "lg": { "value": "24", "type": "dimension", "unit": "vp", "description": "Section spacing" },
+    "xl": { "value": "32", "type": "dimension", "unit": "vp", "description": "Large section spacing" }
+  },
+  "radius": {
+    "sm": { "value": "8", "type": "dimension", "unit": "vp", "description": "Input, small elements" },
+    "md": { "value": "12", "type": "dimension", "unit": "vp", "description": "Card default" },
+    "lg": { "value": "16", "type": "dimension", "unit": "vp", "description": "Large card/dialog" },
+    "full": { "value": "999", "type": "dimension", "unit": "vp", "description": "Capsule button, avatar" }
+  },
+  "shadow": {
+    "card": {
+      "offset_x": { "value": "0", "type": "dimension", "unit": "vp" },
+      "offset_y": { "value": "2", "type": "dimension", "unit": "vp" },
+      "radius": { "value": "8", "type": "dimension", "unit": "vp" },
+      "color": { "value": "#20000000", "type": "color" }
+    },
+    "elevated": {
+      "offset_x": { "value": "0", "type": "dimension", "unit": "vp" },
+      "offset_y": { "value": "6", "type": "dimension", "unit": "vp" },
+      "radius": { "value": "16", "type": "dimension", "unit": "vp" },
+      "color": { "value": "#28000000", "type": "color" },
+      "layers": { "value": "2", "type": "number" }
+    }
+  },
+  "breakpoint": {
+    "xs": { "min_width": { "value": "0", "type": "dimension", "unit": "vp" }, "description": "Small phone" },
+    "sm": { "min_width": { "value": "320", "type": "dimension", "unit": "vp" }, "description": "Phone" },
+    "md": { "min_width": { "value": "520", "type": "dimension", "unit": "vp" }, "description": "Foldable/tablet portrait" },
+    "lg": { "min_width": { "value": "840", "type": "dimension", "unit": "vp" }, "description": "Tablet landscape/desktop" }
+  },
+  "motion": {
+    "tap_ms": { "value": "100", "type": "duration" },
+    "list_ms": { "value": "250", "type": "duration" },
+    "page_ms": { "value": "300", "type": "duration" },
+    "expand_ms": { "value": "250", "type": "duration" },
+    "press_scale": { "value": "0.95", "type": "number" }
+  }
+}

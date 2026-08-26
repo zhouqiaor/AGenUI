@@ -1,0 +1,113 @@
+{
+  "version": "v0.9",
+  "updateDataModel": {
+    "surfaceId": "settings_panel",
+    "path": "/data",
+    "value": {
+      "openLabel": "打开设置",
+      "title": "设置",
+      "searchPlaceholder": "搜索设置项",
+      "searchKeyword": "",
+      "versionText": "设备版本：V4.1.0",
+      "currentCategoryTitle": "企业服务",
+      "categories": [
+        {
+          "id": "enterprise",
+          "title": "企业服务",
+          "icon": "business",
+          "activeBg": "#E3F2FD",
+          "activeColor": "#1976D2",
+          "activeWeight": "bold"
+        },
+        {
+          "id": "sound",
+          "title": "声音与显示",
+          "icon": "volume_up",
+          "activeBg": "transparent",
+          "activeColor": "#333333",
+          "activeWeight": "normal"
+        },
+        {
+          "id": "camera",
+          "title": "摄像机",
+          "icon": "videocam",
+          "activeBg": "transparent",
+          "activeColor": "#333333",
+          "activeWeight": "normal"
+        },
+        {
+          "id": "wallpaper",
+          "title": "壁纸",
+          "icon": "image",
+          "activeBg": "transparent",
+          "activeColor": "#333333",
+          "activeWeight": "normal"
+        },
+        {
+          "id": "wifi",
+          "title": "Wi-Fi",
+          "icon": "wifi",
+          "activeBg": "transparent",
+          "activeColor": "#333333",
+          "activeWeight": "normal"
+        },
+        {
+          "id": "smart",
+          "title": "智慧功能",
+          "icon": "smart_toy",
+          "activeBg": "transparent",
+          "activeColor": "#333333",
+          "activeWeight": "normal"
+        },
+        {
+          "id": "advanced",
+          "title": "高级设置",
+          "icon": "settings",
+          "activeBg": "transparent",
+          "activeColor": "#333333",
+          "activeWeight": "normal"
+        }
+      ],
+      "switchItems": [
+        {
+          "icon": "login",
+          "title": "自动登录",
+          "enabled": true
+        },
+        {
+          "icon": "lock",
+          "title": "企业账号绑定",
+          "enabled": false
+        }
+      ],
+      "sliderItems": [
+        {
+          "icon": "volume_up",
+          "title": "扬声器音量",
+          "value": 60,
+          "max": 100,
+          "displayValue": "60%"
+        },
+        {
+          "icon": "brightness_7",
+          "title": "屏幕亮度",
+          "value": 75,
+          "max": 100,
+          "displayValue": "75%"
+        }
+      ],
+      "linkItems": [
+        {
+          "icon": "server",
+          "title": "服务器配置",
+          "link": "/settings/enterprise/server"
+        },
+        {
+          "icon": "person",
+          "title": "企业账号管理",
+          "link": "/settings/enterprise/account"
+        }
+      ]
+    }
+  }
+}

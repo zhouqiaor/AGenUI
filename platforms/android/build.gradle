@@ -1,0 +1,361 @@
+plugins {
+    id 'com.android.library'
+    id 'maven-publish'
+    id 'signing'
+}
+
+// ==================== Maven Publishing Configuration ====================
+// Coordinates: com.amap.genui:agenui-sdk:<version> (version in gradle.properties)
+//
+// Publish to local Maven (development):
+//   ./gradlew publishReleasePublicationToLocalMavenRepository
+//
+// Publish to remote Maven (production):
+//   Set env vars: MAVEN_URL / MAVEN_USERNAME / MAVEN_PASSWORD
+//   ./gradlew publishReleasePublicationToRemoteMavenRepository
+
+def localMavenDir = "${System.getProperty('user.home')}/.m2/repository"
+
+// ==================== Yoga Configuration (dual-control) ====================
+// Two independent controls:
+//   1. yoga.prebuilt.dir  — path to prebuilt yoga (libyoga.so + headers)
+//   2. yoga.include.in.aar — whether to bundle libyoga.so into the AAR (default: true)
+//
+// Priority: Gradle -P parameter > local.properties > default (FetchContent + include)
+// ============================================================================
+
+// --- Read local.properties for yoga config ---
+// Check project-level first (works when embedded in external workspace),
+// then fall back to rootProject-level (standalone build).
+def localProps = new Properties()
+def localPropsFile = file("${projectDir}/local.properties")
+if (!localPropsFile.exists()) {
+    localPropsFile = file("${rootProject.projectDir}/local.properties")
+}
+if (localPropsFile.exists()) {
+    localPropsFile.withInputStream { localProps.load(it) }
+}
+
+// --- Resolve YOGA_PREBUILT_DIR ---
+def resolvedYogaPrebuiltDir = ''
+if (project.hasProperty('YOGA_PREBUILT_DIR')) {
+    resolvedYogaPrebuiltDir = project.property('YOGA_PREBUILT_DIR')
+    logger.lifecycle("[yoga] Using prebuilt dir from -P parameter: ${resolvedYogaPrebuiltDir}")
+} else if (localProps.containsKey('yoga.prebuilt.dir')) {
+    resolvedYogaPrebuiltDir = localProps.getProperty('yoga.prebuilt.dir')
+    logger.lifecycle("[yoga] Using prebuilt dir from local.properties: ${resolvedYogaPrebuiltDir}")
+}
+// Validate if set
+if (resolvedYogaPrebuiltDir && !file("${resolvedYogaPrebuiltDir}/libs/libyoga.so").exists()) {
+    throw new GradleException("[yoga] ERROR: yoga.prebuilt.dir is set but invalid \u2014 " +
+        "libyoga.so not found at: ${resolvedYogaPrebuiltDir}/libs/libyoga.so")
+}
+
+// --- Resolve YOGA_INCLUDE_IN_AAR (default: true) ---
+def resolvedYogaIncludeInAar = true
+if (project.hasProperty('YOGA_INCLUDE_IN_AAR')) {
+    resolvedYogaIncludeInAar = project.property('YOGA_INCLUDE_IN_AAR').toString().toBoolean()
+    logger.lifecycle("[yoga] Include in AAR from -P parameter: ${resolvedYogaIncludeInAar}")
+} else if (localProps.containsKey('yoga.include.in.aar')) {
+    resolvedYogaIncludeInAar = localProps.getProperty('yoga.include.in.aar').toBoolean()
+    logger.lifecycle("[yoga] Include in AAR from local.properties: ${resolvedYogaIncludeInAar}")
+}
+
+if (!resolvedYogaPrebuiltDir) {
+    logger.lifecycle("[yoga] No prebuilt configured \u2014 will use GitHub FetchContent (built-in)")
+} else {
+    logger.lifecycle("[yoga] Prebuilt: ${resolvedYogaPrebuiltDir}, include in AAR: ${resolvedYogaIncludeInAar}")
+}
+
+android {
+    namespace 'com.amap.a2ui_sdk'
+    resourcePrefix 'agenui_'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 21
+        targetSdk 35
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles "consumer-rules.pro"
+
+        // C++ configuration
+        externalNativeBuild {
+            cmake {
+                cppFlags "-std=c++17"
+                abiFilters 'arm64-v8a'
+                // When using prebuilt yoga (compiled with c++_shared), we must use c++_shared
+                // to avoid mixing STL types in the same process (NDK requirement).
+                def stlType = resolvedYogaPrebuiltDir ? "c++_shared" : "c++_static"
+                // projectDir = platforms/android/ \u2192 parentFile = platforms/ \u2192 parentFile = repo root
+                def cmakeArgs = ["-DANDROID_STL=" + stlType,
+                          "-DAGENUI_REPO_ROOT=" + projectDir.parentFile.parentFile.absolutePath]
+                // Pass YOGA_PREBUILT_DIR to CMake if resolved
+                if (resolvedYogaPrebuiltDir) {
+                    cmakeArgs.add("-DYOGA_PREBUILT_DIR=" + resolvedYogaPrebuiltDir)
+                }
+                if (project.hasProperty('agenuiEmitDebugSymbols')
+                        && project.property('agenuiEmitDebugSymbols').toString().toBoolean()) {
+                    cmakeArgs.add("-DAGENUI_EMIT_DEBUG_SYMBOLS=ON")
+                }
+                // ASan: enable AddressSanitizer via -PagenuiEnableAsan=true
+                if (project.hasProperty('agenuiEnableAsan')
+                        && project.property('agenuiEnableAsan').toString().toBoolean()) {
+                    cmakeArgs.add("-DAGENUI_ENABLE_ASAN=ON")
+                }
+                arguments(*cmakeArgs)
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            externalNativeBuild {
+                cmake {
+                    arguments "-DCMAKE_BUILD_TYPE=Debug"
+                }
+            }
+        }
+
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+
+            externalNativeBuild {
+                cmake {
+                    arguments "-DCMAKE_BUILD_TYPE=Release"
+                }
+            }
+        }
+    }
+
+    // CMake configuration
+    externalNativeBuild {
+        cmake {
+            path "src/main/cpp/CMakeLists.txt"
+            version "3.22.1"
+        }
+    }
+
+    ndkVersion "27.3.13750724"
+
+    // Exclude libyoga.so and libc++_shared.so from AAR when configured not to include yoga.
+    // In this mode, the host app is responsible for providing both libraries.
+    if (resolvedYogaPrebuiltDir && !resolvedYogaIncludeInAar) {
+        packagingOptions {
+            exclude '**/libyoga.so'
+            exclude '**/libc++_shared.so'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
+// Processor module path varies by workspace layout
+def processorProject = findProject(':processor') ?: findProject(':a2ui_renderer:processor')
+if (processorProject == null) {
+    throw new GradleException("[AGenUI] Cannot find :processor module. " +
+        "Ensure settings.gradle includes the processor project.")
+}
+
+dependencies {
+    annotationProcessor processorProject
+    compileOnly processorProject
+
+    implementation 'com.squareup.picasso:picasso:2.8'
+    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'androidx.cardview:cardview:1.0.0'
+    implementation 'androidx.viewpager2:viewpager2:1.0.0'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20231013'
+    testImplementation 'org.mockito:mockito-core:5.11.0'
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+}
+
+// ==================== afterEvaluate: Publishing ====================
+afterEvaluate {
+    publishing {
+        publications {
+            ['release', 'debug'].each { variant ->
+                def capVariant = variant.capitalize()
+
+                create(variant, MavenPublication) {
+                    // Allow -PmavenVersion / -PmavenGroupId / -PmavenArtifactId to override defaults.
+                    // -PmavenAarPath overrides the AAR file path (release only). Used by external
+                    // wrappers that publish a previously-built sidecar AAR (e.g. the
+                    // <name>-symbols.aar from --with-symbols) through this same publication with
+                    // a suffixed version, without re-running assembleRelease.
+                    def pubGroupId = project.hasProperty('mavenGroupId') ? project.property('mavenGroupId') : SDK_GROUP_ID
+                    def pubArtifactId = project.hasProperty('mavenArtifactId') ? project.property('mavenArtifactId') : SDK_ARTIFACT_ID
+                    def pubVersion = project.hasProperty('mavenVersion') ? project.property('mavenVersion') : SDK_VERSION
+                    def defaultAarPath = "${buildDir}/outputs/aar/${project.name}-${variant}.aar"
+                    def pubAarPath = (variant == 'release' && project.hasProperty('mavenAarPath'))
+                            ? project.property('mavenAarPath') : defaultAarPath
+
+                    groupId    = pubGroupId
+                    artifactId = pubArtifactId
+                    version    = pubVersion
+
+                    if (project.hasProperty('mavenVersion')) {
+                        logger.lifecycle("[maven] Publishing ${variant} with version: ${pubVersion} (groupId=${pubGroupId}, artifactId=${pubArtifactId}, aar=${pubAarPath})")
+                    }
+
+                    def normalAar = file(pubAarPath)
+                    if (variant == 'release' && project.hasProperty('mavenAarPath')) {
+                        artifact(normalAar)
+                    } else {
+                        artifact(normalAar) {
+                            builtBy tasks.named("assemble${capVariant}")
+                        }
+                    }
+
+                    pom {
+                        name        = 'AGenUI'
+                        description = 'A Native Renderer for A2UI - AGen UI SDK.'
+                        url         = 'https://github.com/AGenUI/AGenUI'
+
+                        licenses {
+                            license {
+                                name = 'Apache-2.0'
+                                url  = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+                            }
+                        }
+
+                        developers {
+                            developer {
+                                id    = 'agenui'
+                                name  = 'AGenUI Team'
+                                email = 'agenui.team@alibaba-inc.com'
+                            }
+                        }
+
+                        scm {
+                            connection          = 'scm:git:git://github.com/AGenUI/AGenUI.git'
+                            developerConnection = 'scm:git:ssh://github.com/AGenUI/AGenUI.git'
+                            url                 = 'https://github.com/AGenUI/AGenUI'
+                        }
+
+                        withXml {
+                            def deps = asNode().appendNode('dependencies')
+                            configurations["${variant}RuntimeClasspath"]
+                                .resolvedConfiguration
+                                .resolvedArtifacts
+                                .findAll { it.moduleVersion.id.group != project.group }
+                                .each { resolvedArtifact ->
+                                    def dep = deps.appendNode('dependency')
+                                    dep.appendNode('groupId',    resolvedArtifact.moduleVersion.id.group)
+                                    dep.appendNode('artifactId', resolvedArtifact.moduleVersion.id.name)
+                                    dep.appendNode('version',    resolvedArtifact.moduleVersion.id.version)
+                                    dep.appendNode('scope',      'runtime')
+                                }
+                        }
+                    }
+                }
+            }
+        }
+
+        repositories {
+            maven {
+                name = 'LocalMaven'
+                url  = uri(localMavenDir)
+            }
+
+            if (System.getenv('MAVEN_URL')) {
+                maven {
+                    name = 'RemoteMaven'
+                    url  = uri(System.getenv('MAVEN_URL'))
+                    credentials {
+                        username = System.getenv('MAVEN_USERNAME') ?: ''
+                        password = System.getenv('MAVEN_PASSWORD') ?: ''
+                    }
+                }
+            }
+        }
+    }
+
+    signing {
+        required { project.hasProperty('signing.keyId') }
+        sign publishing.publications.release
+    }
+}
+
+// ==================== afterEvaluate: Native debug symbols AAR ====================
+// ".so.debug" is the GNU/LLVM convention, NOT Android's debug buildType \u2014
+// both the release AAR and the symbols AAR are produced from the same release compile.
+afterEvaluate {
+    if (!project.hasProperty('agenuiEmitDebugSymbols')
+            || !project.property('agenuiEmitDebugSymbols').toString().toBoolean()) {
+        return
+    }
+
+    def symbolsTask = tasks.register('assembleReleaseSymbols', Zip) {
+        group = 'build'
+        description = 'Bundle lib*.so.debug companion files into a separate <name>-symbols.aar'
+
+        def nativeTask = tasks.findByName('externalNativeBuildRelease')
+        if (nativeTask != null) {
+            dependsOn nativeTask
+        }
+
+        archiveBaseName = rootProject.name
+        archiveAppendix = 'symbols'
+        archiveExtension = 'aar'
+        destinationDirectory = file("${buildDir}/outputs/aar")
+
+        // AGP never prunes old hash dirs under intermediates/cxx/Release/;
+        // always pick the freshest one to avoid Zip duplicate-entry failures.
+        def cxxReleaseRoot = file("${buildDir}/intermediates/cxx/Release")
+        def pickFreshestCxxDir = {
+            if (!cxxReleaseRoot.exists()) return null
+            def candidates = cxxReleaseRoot.listFiles()?.findAll { it.isDirectory() }
+            if (!candidates) return null
+            return candidates.max { dir ->
+                def files = fileTree(dir).files
+                files.isEmpty() ? 0L : files*.lastModified().max()
+            }
+        }
+
+        from({
+            def freshest = pickFreshestCxxDir()
+            freshest == null ? files() : fileTree(freshest) { include '**/*.so.debug' }
+        }) {
+            eachFile { fcd ->
+                def segs = fcd.relativePath.segments
+                fcd.relativePath = new RelativePath(true, 'jni', segs[-2], segs[-1])
+            }
+            includeEmptyDirs = false
+        }
+
+        from("${projectDir}/src/main/AndroidManifest.xml")
+
+        doFirst {
+            def freshest = pickFreshestCxxDir()
+            def found = freshest == null ? [] :
+                fileTree(freshest) { include '**/*.so.debug' }.files
+            if (found.isEmpty()) {
+                throw new GradleException(
+                    "[symbols] No lib*.so.debug files found in the freshest cxx dir " +
+                    "(${freshest ?: cxxReleaseRoot}). Make sure assembleRelease ran with " +
+                    "-PagenuiEmitDebugSymbols=true so CMake's agenui_split_debug_symbols " +
+                    "POST_BUILD step produced them.")
+            }
+            logger.lifecycle("[symbols] packaging ${found.size()} debug file(s) from ${freshest.name} into ${archiveFile.get().asFile.name}")
+        }
+
+        doLast {
+            logger.lifecycle("[symbols] wrote ${archiveFile.get().asFile}")
+        }
+    }
+
+    tasks.named('assembleRelease').configure { finalizedBy symbolsTask }
+}
