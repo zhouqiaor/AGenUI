@@ -85,6 +85,56 @@ public class WidgetHistoryRepository {
     }
 
     /**
+     * Returns the most recent successful generation records (for use as
+     * few-shot examples in the next LLM prompt).
+     *
+     * <p>Filters: {@code success == true} AND {@code a2uiJson} is non-empty.
+     * Returns at most {@code limit} records, most-recent first.
+     *
+     * <p>Each entry is a {@link FewShotExample} holding the original user
+     * prompt and the validated A2UI JSON. Callers can further categorize
+     * them by keyword to match the current request's domain (weather / todo
+     * / agenda / general).
+     *
+     * @param limit max number of examples to return (e.g. 3)
+     * @return list of examples, possibly empty.
+     */
+    public List<FewShotExample> getRecentSuccessfulExamples(int limit) {
+        List<FewShotExample> result = new ArrayList<>();
+        if (limit <= 0) return result;
+        try {
+            JSONArray records = loadRecordsJsonArray();
+            for (int i = 0; i < records.length() && result.size() < limit; i++) {
+                JSONObject rec = records.optJSONObject(i);
+                if (rec == null) continue;
+                if (!rec.optBoolean("success", false)) continue;
+                String prompt = rec.optString("prompt", "");
+                String a2uiJson = rec.optString("a2uiJson", "");
+                if (prompt.isEmpty() || a2uiJson.isEmpty()) continue;
+                // Skip records whose a2uiJson is just an empty/truncated placeholder
+                if (a2uiJson.length() < 40) continue;
+                result.add(new FewShotExample(prompt, a2uiJson));
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to get few-shot examples", e);
+        }
+        return result;
+    }
+
+    /**
+     * A successful generation record used as a few-shot example.
+     */
+    public static class FewShotExample {
+        public final String prompt;
+        public final String a2uiJson;
+
+        public FewShotExample(String prompt, String a2uiJson) {
+            this.prompt = prompt;
+            this.a2uiJson = a2uiJson;
+        }
+    }
+
+    /**
      * Returns all records as a list of summary strings (for UI display).
      */
     public List<String> getRecentSummaries() {
