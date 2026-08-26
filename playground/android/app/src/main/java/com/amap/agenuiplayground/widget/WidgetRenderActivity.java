@@ -37,6 +37,11 @@ public class WidgetRenderActivity extends Activity {
     private static final String TAG = "WidgetRenderActivity";
     private static final long SURFACE_TIMEOUT_MS = 5000;
 
+    // Intent extras for streaming mode (used by WidgetInputActivity)
+    public static final String EXTRA_MODE = "extra_mode";
+    public static final String EXTRA_USER_TEXT = "extra_user_text";
+    public static final int MODE_STREAM = 1;
+
     private SurfaceManager surfaceManager;
     private int appWidgetId = AppWidgetManager.INVALID_APPWIDGET_ID;
     private String template;
