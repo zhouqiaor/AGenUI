@@ -29,6 +29,19 @@
 - `WidgetLLMConfig` 增加 `getModelByTier(tier)` 方法
 - 验收：`qwen-turbo` 首字延迟 <3s
 
+> **百炼 Key 实际可用模型（2026-08-26 确认）：**
+> 当前 API Key（`sk-ws-...`）在百炼平台支持以下 4 个模型：
+> 1. `qwen3.7-plus` — 通义千问 3.7 Plus（阿里，DashScope endpoint）
+> 2. `qwen3.7-max` — 通义千问 3.7 Max（阿里，DashScope endpoint，更高质量）
+> 3. `doubao-seed-2.1-pro` — 豆包 Seed 2.1 Pro（字节，Volcengine Ark endpoint）
+> 4. `glm-5.2` — GLM 5.2（智谱，BigModel endpoint）
+>
+> **注意**：`qwen-turbo` 返回 HTTP 403 Model.AccessDenied — 当前 Key 无此模型权限。
+> **注意**：当前代码中 `doubao-1.5-pro` 是旧模型名，应更新为 `doubao-seed-2.1-pro`。
+> **后续优化**：Failover 链可调整为 `qwen3.7-plus → qwen3.7-max → doubao-seed-2.1-pro → glm-5.2`，
+> 但 GLM 需要智谱平台单独的 API Key（不同平台），当前只有百炼 Key。
+> 所有 4 个模型同属百炼平台，可用同一个 API Key（待确认 doubao/glm 是否也在百炼接入）。
+
 ### F2: 流式渐进渲染验证 + 修复
 
 **文件**: `WidgetRenderActivity.java`, `WidgetPartialParser.java`

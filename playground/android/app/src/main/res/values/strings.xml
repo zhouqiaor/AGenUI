@@ -67,4 +67,6 @@
     <string name="widget_ai_input_hint">描述你想生成的内容…</string>
     <string name="widget_ai_input_cancel">取消</string>
     <string name="widget_ai_input_send">发送</string>
+    <string name="ai_drawer_title">AI 生成 A2UI</string>
+    <string name="action_ai_input">AI Input</string>
 </resources>

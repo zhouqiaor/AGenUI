@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  小艺风格右侧 AI 输入侧边面板（V2 对齐 UX-DESIGN-GUIDELINES）。
+  - 深色会议主题（#0D1117 / #161B22）
+  - 字号：标题 32sp / 正文 28sp / 辅助 24sp（大屏远距离可读）
+  - 触控：按钮 ≥96dp / 图标按钮 80dp / Chips 64dp
+  - 圆角：卡片 16dp / 输入框 8dp / Chips 胶囊
+  - 间距：8 倍数（16/24/32）
+  - layout_gravity="end" 从右侧滑出
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_gravity="end"
+    android:orientation="vertical"
+    android:background="@color/a2_bg">
+
+    <!-- ============== Header ============== -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@color/a2_bg_elevated"
+        android:paddingStart="@dimen/a2_ai_header_padding"
+        android:paddingEnd="@dimen/a2_ai_header_padding"
+        android:paddingTop="@dimen/spacing_large"
+        android:paddingBottom="@dimen/spacing_large"
+        android:fitsSystemWindows="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <ImageButton
+                android:id="@+id/btnAiDrawerClose"
+                android:layout_width="@dimen/a2_ai_close_btn"
+                android:layout_height="@dimen/a2_ai_close_btn"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="关闭"
+                android:layout_marginEnd="@dimen/spacing_medium"
+                android:tint="@color/a2_text_secondary" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/ai_drawer_title"
+                android:textColor="@color/a2_text_primary"
+                android:textSize="@dimen/a2_ai_title"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvAiDrawerStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_small"
+            android:text="就绪 · 输入描述生成 A2UI"
+            android:textColor="@color/a2_text_secondary"
+            android:textSize="@dimen/a2_ai_status" />
+
+    </LinearLayout>
+
+    <!-- ============== Tab Bar ============== -->
+    <LinearLayout
+        android:id="@+id/aiTabBar"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/a2_ai_tab_height"
+        android:orientation="horizontal"
+        android:background="@color/a2_bg"
+        android:gravity="center"
+        android:layoutDirection="ltr">
+
+        <TextView
+            android:id="@+id/aiTabKeyboard"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+                android:background="@drawable/a2_tab_selector_bg"
+                android:gravity="center"
+                android:text="键盘"
+                android:textColor="@color/a2_tab_text_color"
+                android:textSize="@dimen/a2_ai_tab"
+                android:textStyle="bold" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="@dimen/a2_ai_tab_height"
+            android:background="@color/a2_divider" />
+
+        <TextView
+            android:id="@+id/aiTabVoice"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/a2_tab_selector_bg"
+            android:gravity="center"
+            android:text="语音"
+            android:textColor="@color/a2_tab_text_color"
+            android:textSize="@dimen/a2_ai_tab" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="@dimen/a2_ai_tab_height"
+            android:background="@color/a2_divider" />
+
+        <TextView
+            android:id="@+id/aiTabFile"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/a2_tab_selector_bg"
+            android:gravity="center"
+            android:text="文件"
+            android:textColor="@color/a2_tab_text_color"
+            android:textSize="@dimen/a2_ai_tab" />
+
+    </LinearLayout>
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/a2_divider" />
+
+    <!-- ============== Content Area (ViewFlipper) ============== -->
+    <ViewFlipper
+        android:id="@+id/aiContentFlipper"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="@dimen/a2_ai_content_padding"
+        android:minHeight="160dp">
+
+        <!-- Tab 1: Keyboard Input -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:scrollbars="vertical">
+
+                <EditText
+                    android:id="@+id/etAiDrawerInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/widget_ai_input_hint"
+                    android:inputType="textMultiLine"
+                    android:minHeight="@dimen/a2_ai_input_min_height"
+                    android:textColor="@color/a2_input_text"
+                    android:textColorHint="@color/a2_input_hint"
+                    android:textSize="@dimen/a2_ai_input"
+                    android:background="@drawable/a2_input_bg"
+                    android:padding="@dimen/spacing_medium"
+                    android:importantForAutofill="no" />
+
+            </ScrollView>
+
+            <!-- Quick Chips -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_medium"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvAiQuickWeather"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/a2_ai_chip_height"
+                    android:background="@drawable/a2_chip_bg"
+                    android:paddingStart="@dimen/spacing_medium"
+                    android:paddingEnd="@dimen/spacing_medium"
+                    android:layout_marginEnd="@dimen/spacing_small"
+                    android:gravity="center"
+                    android:text="天气"
+                    android:textColor="@color/a2_chip_text"
+                    android:textSize="@dimen/a2_ai_chip" />
+
+                <TextView
+                    android:id="@+id/tvAiQuickTodo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/a2_ai_chip_height"
+                    android:background="@drawable/a2_chip_bg"
+                    android:paddingStart="@dimen/spacing_medium"
+                    android:paddingEnd="@dimen/spacing_medium"
+                    android:layout_marginEnd="@dimen/spacing_small"
+                    android:gravity="center"
+                    android:text="待办"
+                    android:textColor="@color/a2_chip_text"
+                    android:textSize="@dimen/a2_ai_chip" />
+
+                <TextView
+                    android:id="@+id/tvAiQuickAgenda"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/a2_ai_chip_height"
+                    android:background="@drawable/a2_chip_bg"
+                    android:paddingStart="@dimen/spacing_medium"
+                    android:paddingEnd="@dimen/spacing_medium"
+                    android:gravity="center"
+                    android:text="日程"
+                    android:textColor="@color/a2_chip_text"
+                    android:textSize="@dimen/a2_ai_chip" />
+
+                <View
+                    android:layout_width="0dp"
+                    android:layout_height="1dp"
+                    android:layout_weight="1" />
+
+                <TextView
+                    android:id="@+id/tvAiClear"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/a2_ai_chip_height"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:paddingStart="@dimen/spacing_medium"
+                    android:paddingEnd="@dimen/spacing_medium"
+                    android:gravity="center"
+                    android:text="清空"
+                    android:textColor="@color/a2_text_secondary"
+                    android:textSize="@dimen/a2_ai_chip" />
+
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Tab 2: Voice Input -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvAiVoiceStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="点击麦克风开始语音输入"
+                android:textColor="@color/a2_text_secondary"
+                android:textSize="@dimen/a2_ai_status" />
+
+            <ImageButton
+                android:id="@+id/btnAiMic"
+                android:layout_width="@dimen/a2_ai_mic_size"
+                android:layout_height="@dimen/a2_ai_mic_size"
+                android:layout_marginTop="@dimen/spacing_large"
+                android:background="@drawable/a2_mic_button_bg"
+                android:src="@android:drawable/ic_btn_speak_now"
+                android:contentDescription="语音输入"
+                android:tint="@color/a2_mic_icon" />
+
+            <TextView
+                android:id="@+id/tvAiVoiceResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_large"
+                android:gravity="center"
+                android:textColor="@color/a2_text_primary"
+                android:textSize="@dimen/a2_ai_input"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <!-- Tab 3: File Import -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvAiFileHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="选择 PDF/TXT 文件"
+                android:textColor="@color/a2_text_secondary"
+                android:textSize="@dimen/a2_ai_status" />
+
+            <TextView
+                android:id="@+id/btnAiSelectFile"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/a2_ai_file_btn_height"
+                android:layout_marginTop="@dimen/spacing_medium"
+                android:background="@drawable/a2_file_button_bg"
+                android:gravity="center"
+                android:text="选择文件"
+                android:textColor="@color/a2_file_btn_text"
+                android:textSize="@dimen/a2_ai_button"
+                android:textStyle="bold" />
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:layout_marginTop="@dimen/spacing_medium"
+                android:scrollbars="vertical">
+
+                <TextView
+                    android:id="@+id/tvAiFilePreview"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/a2_text_secondary"
+                    android:textSize="@dimen/a2_ai_status"
+                    android:visibility="gone"
+                    android:padding="@dimen/spacing_medium" />
+
+            </ScrollView>
+
+        </LinearLayout>
+
+    </ViewFlipper>
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/a2_divider" />
+
+    <!-- ============== Bottom Buttons ============== -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="@dimen/a2_ai_content_padding"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/btnAiDrawerCancel"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/a2_ai_send_height"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:paddingStart="@dimen/spacing_large"
+            android:paddingEnd="@dimen/spacing_large"
+            android:gravity="center"
+            android:text="@string/widget_ai_input_cancel"
+            android:textColor="@color/a2_cancel_text"
+            android:textSize="@dimen/a2_ai_button" />
+
+        <TextView
+            android:id="@+id/btnAiDrawerSend"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/a2_ai_send_height"
+            android:minWidth="@dimen/a2_ai_send_min_width"
+            android:layout_marginStart="@dimen/spacing_medium"
+            android:background="@drawable/a2_send_button_bg"
+            android:paddingStart="@dimen/spacing_large"
+            android:paddingEnd="@dimen/spacing_large"
+            android:gravity="center"
+            android:text="@string/widget_ai_input_send"
+            android:textColor="@color/a2_send_text"
+            android:textSize="@dimen/a2_ai_button"
+            android:textStyle="bold"
+            android:enabled="false"
+            android:alpha="0.4" />
+
+    </LinearLayout>
+
+</LinearLayout>

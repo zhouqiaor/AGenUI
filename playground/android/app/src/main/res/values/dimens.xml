@@ -6,18 +6,63 @@
     <dimen name="logs_collapsed_height">48dp</dimen>
     <dimen name="logs_expanded_max_height">300dp</dimen>
     <dimen name="drawer_width">280dp</dimen>
-    
+    <dimen name="ai_drawer_width">420dp</dimen>
+
     <!-- Spacing -->
     <dimen name="spacing_small">8dp</dimen>
     <dimen name="spacing_medium">16dp</dimen>
     <dimen name="spacing_large">24dp</dimen>
-    
-    <!-- Text sizes -->
+    <dimen name="spacing_xlarge">32dp</dimen>
+
+    <!-- Text sizes (旧，保留兼容) -->
     <dimen name="text_size_title">20sp</dimen>
     <dimen name="text_size_body">16sp</dimen>
     <dimen name="text_size_caption">12sp</dimen>
-    
+
     <!-- Corner radius -->
     <dimen name="corner_radius_small">4dp</dimen>
     <dimen name="corner_radius_medium">8dp</dimen>
+
+    <!-- ============================================================
+         A2 大屏字号阶梯（对齐 UX-DESIGN-GUIDELINES §0.2）
+         App sp ↔ A2UI px 同值；大屏字号固定不缩放
+         ============================================================ -->
+    <dimen name="a2_text_h1">40sp</dimen>
+    <dimen name="a2_text_h2">32sp</dimen>
+    <dimen name="a2_text_body">28sp</dimen>
+    <dimen name="a2_text_caption">24sp</dimen>
+    <dimen name="a2_text_number">120sp</dimen>
+
+    <!-- AI Drawer 专用 -->
+    <dimen name="a2_ai_title">32sp</dimen>
+    <dimen name="a2_ai_status">24sp</dimen>
+    <dimen name="a2_ai_tab">28sp</dimen>
+    <dimen name="a2_ai_input">28sp</dimen>
+    <dimen name="a2_ai_chip">24sp</dimen>
+    <dimen name="a2_ai_button">28sp</dimen>
+
+    <!-- ============================================================
+         A2 大屏触控尺寸（对齐 UX-DESIGN-GUIDELINES §0.3）
+         ============================================================ -->
+    <dimen name="a2_btn_height">96dp</dimen>
+    <dimen name="a2_btn_primary_height">120dp</dimen>
+    <dimen name="a2_icon_btn_size">80dp</dimen>
+    <dimen name="a2_btn_spacing">24dp</dimen>
+    <dimen name="a2_card_padding">32dp</dimen>
+    <dimen name="a2_card_radius">16dp</dimen>
+    <dimen name="a2_input_radius">8dp</dimen>
+    <dimen name="a2_chip_radius">999dp</dimen>
+    <dimen name="a2_page_margin">32dp</dimen>
+
+    <!-- AI Drawer 专用尺寸 -->
+    <dimen name="a2_ai_header_padding">32dp</dimen>
+    <dimen name="a2_ai_content_padding">32dp</dimen>
+    <dimen name="a2_ai_tab_height">80dp</dimen>
+    <dimen name="a2_ai_mic_size">120dp</dimen>
+    <dimen name="a2_ai_file_btn_height">96dp</dimen>
+    <dimen name="a2_ai_send_height">96dp</dimen>
+    <dimen name="a2_ai_send_min_width">200dp</dimen>
+    <dimen name="a2_ai_close_btn">80dp</dimen>
+    <dimen name="a2_ai_chip_height">64dp</dimen>
+    <dimen name="a2_ai_input_min_height">240dp</dimen>
 </resources>
