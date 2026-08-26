@@ -171,8 +171,9 @@ object GlanceBitmapCache {
         targetWidth: Int,
         targetHeight: Int
     ): Int {
-        if (srcWidth <= 0 || srcHeight <= 0) return 1
+        if (srcWidth <= 0 || srcHeight <= 0 || targetWidth <= 0 || targetHeight <= 0) return 1
         var sampleSize = 1
+        // Halve until the next step would be smaller than the target
         while (srcWidth / (sampleSize * 2) >= targetWidth &&
                srcHeight / (sampleSize * 2) >= targetHeight) {
             sampleSize *= 2

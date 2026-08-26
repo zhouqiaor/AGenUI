@@ -21,6 +21,7 @@ import com.amap.agenui.render.surface.SurfaceSize
 import com.amap.agenuiplayground.BuildConfig
 import com.amap.agenuiplayground.widget.WidgetProtocolTemplates
 import org.json.JSONArray
+import kotlinx.coroutines.withTimeout
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -53,6 +54,7 @@ class GlanceRenderWorker(
         private const val WIDGET_HEIGHT = 400
         private const val PERIODIC_WORK_NAME = "a2ui_glance_render_periodic"
         private const val PERIODIC_INTERVAL_MIN = 15L
+        private const val WORKER_TOTAL_TIMEOUT_MS = 30_000L
 
         fun schedulePeriodic(context: Context) {
             val request = PeriodicWorkRequestBuilder<GlanceRenderWorker>(PERIODIC_INTERVAL_MIN, TimeUnit.MINUTES)
@@ -84,139 +86,147 @@ class GlanceRenderWorker(
         Log.d(TAG, "doWork: started")
         val context = applicationContext
 
-        try {
-            val stateDef = A2UIGlanceStateDefinition
-            val state = stateDef.getWidgetState(context)
-
-            val templateName = if (state.template.isNotEmpty()) state.template
-                               else WidgetProtocolTemplates.DEFAULT_TEMPLATE
-
-            Log.d(TAG, "doWork: template=$templateName, viewMode=${state.viewMode}")
-
-            val surfaceId = "glance_${System.currentTimeMillis()}"
-            val templateJson = WidgetProtocolTemplates.loadTemplate(context, templateName, surfaceId)
-            if (templateJson == null) {
-                Log.e(TAG, "Template not found: $templateName")
-                stateDef.setError(context, "模板未找到: $templateName")
-                A2UIGlanceWidgetReceiver.updateAll(context)
-                return Result.failure()
+        return try {
+            withTimeout(WORKER_TOTAL_TIMEOUT_MS) {
+                doRenderWork(context)
             }
-
-            val arr = JSONArray(templateJson)
-            val createSurfaceJson = arr.optJSONObject(0)?.toString()
-            val updateComponentsJson = arr.optJSONObject(1)?.toString()
-            val updateDataModelJson = arr.optJSONObject(2)?.toString()
-
-            // Apply viewMode filtering to updateComponents (weather template only)
-            val filteredComponentsJson = filterWeatherComponents(updateComponentsJson, state.viewMode)
-
-            AGenUI.getInstance().initialize(context)
-            AGenUI.getInstance().setDebug(BuildConfig.DEBUG)
-
-            val surfaceManager = SurfaceManager(context)
-            val surfaceRef = AtomicReference<Surface?>(null)
-            val surfaceCreated = CountDownLatch(1)
-            val rootComponentReady = CountDownLatch(1)
-
-            surfaceManagerListener = object : ISurfaceManagerListener {
-                override fun onCreateSurface(surface: Surface) {
-                    Log.d(TAG, "onCreateSurface: ${surface.surfaceId}")
-                    surfaceRef.set(surface)
-                    surfaceCreated.countDown()
-                }
-                override fun onDeleteSurface(surface: Surface) {}
-                override fun onReceiveActionEvent(event: String?) {}
-                override fun onRootComponentUpdate(surface: Surface, props: Map<String, String>) {
-                    Log.d(TAG, "onRootComponentUpdate: ${surface.surfaceId}")
-                    surfaceRef.set(surface)
-                    Handler(Looper.getMainLooper()).postDelayed({ rootComponentReady.countDown() }, 100)
-                }
-                override fun onError(surface: Surface?, code: Int, message: String?) {
-                    Log.e(TAG, "Surface error: code=$code, msg=$message")
-                    surfaceCreated.countDown()
-                    rootComponentReady.countDown()
-                }
-                override fun onBlankCheckResult(surface: Surface?, isBlank: Boolean) {}
-                override fun onComponentAppeared(
-                    surface: Surface?, parentComponentId: String?,
-                    parentType: String?, properties: Map<String, Any>?
-                ) {}
-                override fun surfaceSize(sid: String): SurfaceSize {
-                    return SurfaceSize(WIDGET_WIDTH.toFloat(), WIDGET_HEIGHT.toFloat())
-                }
-            }
-            surfaceManager.addListener(surfaceManagerListener)
-
-            surfaceManager.beginTextStream()
-            createSurfaceJson?.let { surfaceManager.receiveTextChunk(it) }
-            filteredComponentsJson?.let { surfaceManager.receiveTextChunk(it) }
-            updateDataModelJson?.let {
-                if (!it.contains("\"value\":{}")) surfaceManager.receiveTextChunk(it)
-            }
-            surfaceManager.endTextStream()
-
-            val created = surfaceCreated.await(SURFACE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-            if (!created || surfaceRef.get() == null) {
-                Log.e(TAG, "Surface creation timeout")
-                cleanup(surfaceManager)
-                return Result.retry()
-            }
-            rootComponentReady.await(SURFACE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-
-            val surface = surfaceRef.get()!!
-            val bitmapResult = AtomicReference<Bitmap?>(null)
-            val drawDone = CountDownLatch(1)
-
-            Handler(Looper.getMainLooper()).post {
-                try {
-                    bitmapResult.set(drawSurfaceToBitmap(surface))
-                } catch (e: Exception) {
-                    Log.e(TAG, "Draw failed", e)
-                } finally {
-                    drawDone.countDown()
-                }
-            }
-
-            drawDone.await(SURFACE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-            val bitmap = bitmapResult.get()
-
-            if (bitmap == null) {
-                Log.e(TAG, "Bitmap render returned null")
-                cleanup(surfaceManager)
-                return Result.retry()
-            }
-
-            val appWidgetId = A2UIGlanceWidget.DEFAULT_CACHE_WIDGET_ID
-            val bitmapPath = GlanceBitmapCache.save(context, appWidgetId, bitmap)
-            if (bitmapPath == null) {
-                Log.e(TAG, "Bitmap cache save failed")
-                cleanup(surfaceManager)
-                return Result.retry()
-            }
-
-            val newState = A2UIGlanceState(
-                template = templateName,
-                bitmapPath = bitmapPath,
-                viewMode = state.viewMode,
-                hasContent = true,
-                lastUpdateTs = System.currentTimeMillis()
-            )
-            stateDef.setWidgetState(context, newState)
-            stateDef.clearError(context)
-
-            Log.d(TAG, "doWork: render complete, bitmap=${bitmap.width}x${bitmap.height}")
-
-            A2UIGlanceWidgetReceiver.updateAll(context)
-            cleanup(surfaceManager)
-            return Result.success()
-
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            Log.e(TAG, "doWork: total timeout exceeded ${WORKER_TOTAL_TIMEOUT_MS}ms", e)
+            A2UIGlanceStateDefinition.setError(applicationContext, "渲染超时")
+            A2UIGlanceWidgetReceiver.updateAll(applicationContext)
+            Result.retry()
         } catch (e: Exception) {
             Log.e(TAG, "doWork failed", e)
-            val stateDef = A2UIGlanceStateDefinition
-            stateDef.setError(applicationContext, e.message ?: "未知错误")
+            A2UIGlanceStateDefinition.setError(applicationContext, e.message ?: "未知错误")
             A2UIGlanceWidgetReceiver.updateAll(applicationContext)
+            Result.retry()
+        }
+    }
+
+    private suspend fun doRenderWork(context: Context): Result {
+        val state = A2UIGlanceStateDefinition.getWidgetState(context)
+
+        val templateName = if (state.template.isNotEmpty()) state.template
+                           else WidgetProtocolTemplates.DEFAULT_TEMPLATE
+
+        Log.d(TAG, "doWork: template=$templateName, viewMode=${state.viewMode}")
+
+        val surfaceId = "glance_${System.currentTimeMillis()}"
+        val templateJson = WidgetProtocolTemplates.loadTemplate(context, templateName, surfaceId)
+        if (templateJson == null) {
+            Log.e(TAG, "Template not found: $templateName")
+            A2UIGlanceStateDefinition.setError(context, "模板未找到: $templateName")
+            A2UIGlanceWidgetReceiver.updateAll(context)
+            return Result.failure()
+        }
+
+        val arr = JSONArray(templateJson)
+        val createSurfaceJson = arr.optJSONObject(0)?.toString()
+        val updateComponentsJson = arr.optJSONObject(1)?.toString()
+        val updateDataModelJson = arr.optJSONObject(2)?.toString()
+
+        // Apply viewMode filtering to updateComponents (weather template only)
+        val filteredComponentsJson = filterWeatherComponents(updateComponentsJson, state.viewMode)
+
+        AGenUI.getInstance().initialize(context)
+        AGenUI.getInstance().setDebug(BuildConfig.DEBUG)
+
+        val surfaceManager = SurfaceManager(context)
+        val surfaceRef = AtomicReference<Surface?>(null)
+        val surfaceCreated = CountDownLatch(1)
+        val rootComponentReady = CountDownLatch(1)
+
+        surfaceManagerListener = object : ISurfaceManagerListener {
+            override fun onCreateSurface(surface: Surface) {
+                Log.d(TAG, "onCreateSurface: ${surface.surfaceId}")
+                surfaceRef.set(surface)
+                surfaceCreated.countDown()
+            }
+            override fun onDeleteSurface(surface: Surface) {}
+            override fun onReceiveActionEvent(event: String?) {}
+            override fun onRootComponentUpdate(surface: Surface, props: Map<String, String>) {
+                Log.d(TAG, "onRootComponentUpdate: ${surface.surfaceId}")
+                surfaceRef.set(surface)
+                Handler(Looper.getMainLooper()).postDelayed({ rootComponentReady.countDown() }, 100)
+            }
+            override fun onError(surface: Surface?, code: Int, message: String?) {
+                Log.e(TAG, "Surface error: code=$code, msg=$message")
+                surfaceCreated.countDown()
+                rootComponentReady.countDown()
+            }
+            override fun onBlankCheckResult(surface: Surface?, isBlank: Boolean) {}
+            override fun onComponentAppeared(
+                surface: Surface?, parentComponentId: String?,
+                parentType: String?, properties: Map<String, Any>?
+            ) {}
+            override fun surfaceSize(sid: String): SurfaceSize {
+                return SurfaceSize(WIDGET_WIDTH.toFloat(), WIDGET_HEIGHT.toFloat())
+            }
+        }
+        surfaceManager.addListener(surfaceManagerListener)
+
+        surfaceManager.beginTextStream()
+        createSurfaceJson?.let { surfaceManager.receiveTextChunk(it) }
+        filteredComponentsJson?.let { surfaceManager.receiveTextChunk(it) }
+        updateDataModelJson?.let {
+            if (!it.contains("\"value\":{}")) surfaceManager.receiveTextChunk(it)
+        }
+        surfaceManager.endTextStream()
+
+        val created = surfaceCreated.await(SURFACE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        if (!created || surfaceRef.get() == null) {
+            Log.e(TAG, "Surface creation timeout")
+            cleanup(surfaceManager)
             return Result.retry()
         }
+        rootComponentReady.await(SURFACE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+
+        val surface = surfaceRef.get()!!
+        val bitmapResult = AtomicReference<Bitmap?>(null)
+        val drawDone = CountDownLatch(1)
+
+        Handler(Looper.getMainLooper()).post {
+            try {
+                bitmapResult.set(drawSurfaceToBitmap(surface))
+            } catch (e: Exception) {
+                Log.e(TAG, "Draw failed", e)
+            } finally {
+                drawDone.countDown()
+            }
+        }
+
+        drawDone.await(SURFACE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        val bitmap = bitmapResult.get()
+
+        if (bitmap == null) {
+            Log.e(TAG, "Bitmap render returned null")
+            cleanup(surfaceManager)
+            return Result.retry()
+        }
+
+        val appWidgetId = A2UIGlanceWidget.DEFAULT_CACHE_WIDGET_ID
+        val bitmapPath = GlanceBitmapCache.save(context, appWidgetId, bitmap)
+        if (bitmapPath == null) {
+            Log.e(TAG, "Bitmap cache save failed")
+            cleanup(surfaceManager)
+            return Result.retry()
+        }
+
+        val newState = A2UIGlanceState(
+            template = templateName,
+            bitmapPath = bitmapPath,
+            viewMode = state.viewMode,
+            hasContent = true,
+            lastUpdateTs = System.currentTimeMillis()
+        )
+        A2UIGlanceStateDefinition.setWidgetState(context, newState)
+        A2UIGlanceStateDefinition.clearError(context)
+
+        Log.d(TAG, "doWork: render complete, bitmap=${bitmap.width}x${bitmap.height}")
+
+        A2UIGlanceWidgetReceiver.updateAll(context)
+        cleanup(surfaceManager)
+        return Result.success()
     }
 
     private fun drawSurfaceToBitmap(surface: Surface): Bitmap? {

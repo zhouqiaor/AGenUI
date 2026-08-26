@@ -53,6 +53,16 @@ public abstract class A2UIComponent {
     private boolean isViewCreated = false;
 
     /**
+     * Cached parsed styles Map. When {@code properties.get("styles")} is a JSON String,
+     * {@link #extractStyles(Map)} re-parses it on every call. This cache avoids the
+     * redundant parse for unchanged styles.
+     *
+     * Invalidation: set to null in {@link #onUpdateProperties(Map)} when the "styles"
+     * key is present in the changed properties.
+     */
+    private Map<String, Object> stylesCache;
+
+    /**
      * The Surface ID this component belongs to.
      * Set by Surface.addComponent().
      *
@@ -350,12 +360,18 @@ public abstract class A2UIComponent {
             return (Map<String, Object>) stylesObj;
         }
 
-        // If it's a JSON String, parse it into a Map
+        // If it's a JSON String, parse it into a Map (with cache)
         if (stylesObj instanceof String) {
+            // Return cached parsed styles if available (avoids re-parsing on every call)
+            if (stylesCache != null) {
+                return stylesCache;
+            }
             try {
                 String jsonStr = (String) stylesObj;
-                // Simple JSON parsing (using org.json or another JSON library available in the project)
-                return parseJsonToMap(jsonStr);
+                Map<String, Object> parsed = parseJsonToMap(jsonStr);
+                // Cache the parsed result
+                stylesCache = parsed;
+                return parsed;
             } catch (Exception e) {
                 AGenUILogger.e(TAG, "Failed to parse styles JSON: " + stylesObj, e);
                 return new HashMap<>();

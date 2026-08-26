@@ -360,10 +360,28 @@ public class AGenUIWidgetRenderService extends JobIntentService {
 
     /**
      * Pushes an error state to the widget.
+     *
+     * <p><b>Last-good fallback (industry best practice):</b> Before showing the error,
+     * checks if a cached bitmap exists for this template+dimensions. If found, shows
+     * the last successful render with a subtle error indicator, rather than replacing
+     * useful content with a blank error page.
      */
     private static void pushErrorWidget(Context context, int appWidgetId,
                                         String errorMessage, String currentTemplate) {
         if (appWidgetId < 0) return; // prerender pass — no widget to push to
+
+        // Try to show last successful bitmap instead of blank error
+        WidgetSizeDetector.WidgetDimensions dims = WidgetSizeDetector.resolve(context, appWidgetId);
+        String cacheKey = WidgetBitmapCache.buildKey(currentTemplate, "default")
+                + "_" + dims.width + "x" + dims.height;
+        Bitmap lastGood = WidgetBitmapCache.get(cacheKey);
+        if (lastGood != null) {
+            Log.d(TAG, "Render failed but showing last good bitmap from cache: " + cacheKey);
+            String title = "AGenUI · " + currentTemplate + " · ⚠";
+            pushBitmapToWidget(context, appWidgetId, lastGood, title, currentTemplate);
+            return;
+        }
+
         AppWidgetManager awm = AppWidgetManager.getInstance(context);
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.a2ui_widget_content);
         views.setTextViewText(R.id.widgetTitle, "AGenUI · " + errorMessage);

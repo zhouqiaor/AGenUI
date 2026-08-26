@@ -77,7 +77,9 @@ class A2UIGlanceWidget : GlanceAppWidget() {
             // Observe state changes within composition for live updates
             val state by remember { A2UIGlanceStateDefinition.getStateFlow(context) }.collectAsState(initial = initialState)
             val bitmap = if (state.hasBitmap) {
-                remember(state.bitmapPath) { GlanceBitmapCache.load(context, DEFAULT_CACHE_WIDGET_ID) }
+                remember(state.bitmapPath, state.lastUpdateTs) {
+                    GlanceBitmapCache.load(context, DEFAULT_CACHE_WIDGET_ID)
+                }
             } else null
 
             GlanceContent(state, bitmap ?: initialBitmap)

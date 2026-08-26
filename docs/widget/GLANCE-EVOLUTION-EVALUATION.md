@@ -112,6 +112,12 @@ PoC (4a69e53)                     演进版 (20轮迭代)
 | R43-R45 | GlanceRenderWorker.kt | catch 块安全调用 + 文件结构修复 | ✅ |
 | R46-R47 | A2UIGlanceWidget.kt + StateDefinition.kt | collectAsState 模式 + getStateFlow (业界最佳实践) | ✅ |
 | R48 | StateDefinition.kt | getStateFlow 实现 | ✅ |
+| R51 | A2UIGlanceWidget.kt | bitmap remember 加入 lastUpdateTs 键 (防同路径不刷新) | ✅ |
+| R52 | GlanceBitmapCache.kt | calculateSampleSize guard target<=0 | ✅ |
+| R53 | GlanceRenderWorker.kt | 清理 stateDef 别名 (直接调 object) | ✅ |
+| R55-R57 | GlanceRenderWorker.kt | withTimeout(30s) 包裹 doWork + doRenderWork 拆分 | ✅ |
+| R58 | GlanceRenderWorker.kt | 文件结构验证通过 | ✅ |
+| R59-R60 | 文档 | 第三轮调研+评估更新 | ✅ |
 | R49-R50 | 文档更新 | 评估 + plan 文档 | ✅ |
 
 ### 3.3 Git 仓库状态
