@@ -16,25 +16,59 @@ RUNNER="androidx.test.runner.AndroidJUnitRunner"
 RESULT_DIR="C:/Code/AGenUI-p2-test-v3/test_results_separated"
 mkdir -p "$RESULT_DIR"
 
-# ---- Phase 1: Safe classes (single instrumentation call) ----
-# Excludes: destructive classes (call destroy()) + crash-prone risk probes
+# ---- Phase 1: Functional test classes only (single instrumentation call) ----
+# All SDKRiskProbe* classes are excluded — they are designed to trigger native
+# crashes (SIGSEGV/SIGABRT) via concurrency races, deep nesting, type mismatches,
+# and engine destroy() calls. Even "non-crash" risk probes can hit intermittent
+# races under stress. Running ANY of them in the shared Phase 1 process risks
+# killing all subsequent tests (as seen in Run 3: RISK25 crashed at test #36,
+# blocking 198 tests).
 SAFE_CLASSES=(
   "com.amap.agenuiplayground.tests.ComponentRenderTest"
   "com.amap.agenuiplayground.tests.FunctionCallTest"
   "com.amap.agenuiplayground.tests.InitializationTest"
   "com.amap.agenuiplayground.tests.MultiSurfaceTest"
   "com.amap.agenuiplayground.tests.PlatformFunctionTest"
+  "com.amap.agenuiplayground.tests.StreamTest"
+  "com.amap.agenuiplayground.tests.SurfaceLifecycleTest"
+  "com.amap.agenuiplayground.tests.WidgetDegradationTest"
+  "com.amap.agenuiplayground.tests.WidgetE2ETest"
+  "com.amap.agenuiplayground.tests.WidgetLLMConfigTest"
+  "com.amap.agenuiplayground.tests.WidgetLogicTest"
+  "com.amap.agenuiplayground.tests.WidgetPartialParserTest"
+  "com.amap.agenuiplayground.tests.WidgetRenderTest"
+  "com.amap.agenuiplayground.tests.WidgetScreenshotTest"
+  "com.amap.agenuiplayground.tests.WidgetValidatorTest"
+)
+
+# ---- Phase 2: ALL SDKRiskProbe* classes (each in its own process) ----
+# These are risk probes designed to trigger/observe native crashes:
+#   - Crash-prone: deep nesting, type mismatch, JSON fuzz → SIGSEGV/SIGABRT
+#   - Destructive: call AGenUI.destroy() → corrupts engine via std::call_once
+#   - Concurrency races: CyclicBarrier + multi-thread → intermittent SIGSEGV
+# Each gets its own process so a crash doesn't affect other tests.
+SEPARATE_CLASSES=(
   "com.amap.agenuiplayground.tests.SDKRiskProbeCombinedStressTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeConcurrentCoordinatorTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeConcurrentDestroyBridgeTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeConfigApiStackOverflowTest"
+  "com.amap.agenuiplayground.tests.SDKRiskProbeConfigDestroyRaceTest"
+  "com.amap.agenuiplayground.tests.SDKRiskProbeDeepComponentTreeTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeDeepJsonCrashTest"
+  "com.amap.agenuiplayground.tests.SDKRiskProbeEngineDestroyRaceTest"
+  "com.amap.agenuiplayground.tests.SDKRiskProbeEngineDestroyUAFTest"
+  "com.amap.agenuiplayground.tests.SDKRiskProbeEngineLifecycleStressTest"
+  "com.amap.agenuiplayground.tests.SDKRiskProbeEngineReinitFailureTest"
+  "com.amap.agenuiplayground.tests.SDKRiskProbeEngineSelfJoinCrashTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeExtendedLifecycleTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeExtremeStyleValuesTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeFormatNumberOOMCrashTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeFuncRegUnregRaceTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeFuncRegisterRaceTest"
+  "com.amap.agenuiplayground.tests.SDKRiskProbeFunctionUnregisterRaceTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeInitCrashTest"
+  "com.amap.agenuiplayground.tests.SDKRiskProbeJniBridgeRaceTest"
+  "com.amap.agenuiplayground.tests.SDKRiskProbeJsonTypeMismatchTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeListenerSelfUnregDeadlockTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeMultiSMFloodTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeNativeMemoryLeakTest"
@@ -48,35 +82,6 @@ SAFE_CLASSES=(
   "com.amap.agenuiplayground.tests.SDKRiskProbeTextChunkStylesPathTypeMismatchTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeTextChunkTypeMismatchTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeWidthAndPayloadTest"
-  "com.amap.agenuiplayground.tests.StreamTest"
-  "com.amap.agenuiplayground.tests.SurfaceLifecycleTest"
-  "com.amap.agenuiplayground.tests.WidgetDegradationTest"
-  "com.amap.agenuiplayground.tests.WidgetE2ETest"
-  "com.amap.agenuiplayground.tests.WidgetLLMConfigTest"
-  "com.amap.agenuiplayground.tests.WidgetLogicTest"
-  "com.amap.agenuiplayground.tests.WidgetPartialParserTest"
-  "com.amap.agenuiplayground.tests.WidgetRenderTest"
-  "com.amap.agenuiplayground.tests.WidgetScreenshotTest"
-  "com.amap.agenuiplayground.tests.WidgetValidatorTest"
-)
-
-# ---- Phase 2: Crash-prone + Destructive classes (each in its own process) ----
-# Crash-prone: risk probes that can crash the native process (deep nesting, type mismatch, etc.)
-# Destructive: call AGenUI.destroy() which corrupts engine state via std::call_once
-# Both need separate processes to avoid affecting other tests.
-SEPARATE_CLASSES=(
-  # Crash-prone risk probes
-  "com.amap.agenuiplayground.tests.SDKRiskProbeDeepComponentTreeTest"
-  "com.amap.agenuiplayground.tests.SDKRiskProbeJsonTypeMismatchTest"
-  "com.amap.agenuiplayground.tests.SDKRiskProbeFunctionUnregisterRaceTest"
-  # Destructive (call destroy())
-  "com.amap.agenuiplayground.tests.SDKRiskProbeConfigDestroyRaceTest"
-  "com.amap.agenuiplayground.tests.SDKRiskProbeEngineDestroyRaceTest"
-  "com.amap.agenuiplayground.tests.SDKRiskProbeEngineDestroyUAFTest"
-  "com.amap.agenuiplayground.tests.SDKRiskProbeEngineLifecycleStressTest"
-  "com.amap.agenuiplayground.tests.SDKRiskProbeEngineReinitFailureTest"
-  "com.amap.agenuiplayground.tests.SDKRiskProbeEngineSelfJoinCrashTest"
-  "com.amap.agenuiplayground.tests.SDKRiskProbeJniBridgeRaceTest"
 )
 
 # Summary tracking
