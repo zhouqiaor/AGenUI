@@ -16,8 +16,9 @@ RUNNER="androidx.test.runner.AndroidJUnitRunner"
 RESULT_DIR="C:/Code/AGenUI-p2-test-v3/test_results_separated"
 mkdir -p "$RESULT_DIR"
 
-# ---- Phase 1: Non-destructive classes (single instrumentation call) ----
-NON_DESTRUCTIVE_CLASSES=(
+# ---- Phase 1: Safe classes (single instrumentation call) ----
+# Excludes: destructive classes (call destroy()) + crash-prone risk probes
+SAFE_CLASSES=(
   "com.amap.agenuiplayground.tests.ComponentRenderTest"
   "com.amap.agenuiplayground.tests.FunctionCallTest"
   "com.amap.agenuiplayground.tests.InitializationTest"
@@ -27,16 +28,13 @@ NON_DESTRUCTIVE_CLASSES=(
   "com.amap.agenuiplayground.tests.SDKRiskProbeConcurrentCoordinatorTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeConcurrentDestroyBridgeTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeConfigApiStackOverflowTest"
-  "com.amap.agenuiplayground.tests.SDKRiskProbeDeepComponentTreeTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeDeepJsonCrashTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeExtendedLifecycleTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeExtremeStyleValuesTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeFormatNumberOOMCrashTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeFuncRegUnregRaceTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeFuncRegisterRaceTest"
-  "com.amap.agenuiplayground.tests.SDKRiskProbeFunctionUnregisterRaceTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeInitCrashTest"
-  "com.amap.agenuiplayground.tests.SDKRiskProbeJsonTypeMismatchTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeListenerSelfUnregDeadlockTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeMultiSMFloodTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeNativeMemoryLeakTest"
@@ -62,8 +60,16 @@ NON_DESTRUCTIVE_CLASSES=(
   "com.amap.agenuiplayground.tests.WidgetValidatorTest"
 )
 
-# ---- Phase 2: Destructive classes (each in its own process) ----
-DESTRUCTIVE_CLASSES=(
+# ---- Phase 2: Crash-prone + Destructive classes (each in its own process) ----
+# Crash-prone: risk probes that can crash the native process (deep nesting, type mismatch, etc.)
+# Destructive: call AGenUI.destroy() which corrupts engine state via std::call_once
+# Both need separate processes to avoid affecting other tests.
+SEPARATE_CLASSES=(
+  # Crash-prone risk probes
+  "com.amap.agenuiplayground.tests.SDKRiskProbeDeepComponentTreeTest"
+  "com.amap.agenuiplayground.tests.SDKRiskProbeJsonTypeMismatchTest"
+  "com.amap.agenuiplayground.tests.SDKRiskProbeFunctionUnregisterRaceTest"
+  # Destructive (call destroy())
   "com.amap.agenuiplayground.tests.SDKRiskProbeConfigDestroyRaceTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeEngineDestroyRaceTest"
   "com.amap.agenuiplayground.tests.SDKRiskProbeEngineDestroyUAFTest"
@@ -83,8 +89,8 @@ CRASHED_CLASSES=""
 echo "=========================================="
 echo "AGenUI Full Test Run (separated approach)"
 echo "Device: $DEVICE"
-echo "Phase 1: ${#NON_DESTRUCTIVE_CLASSES[@]} non-destructive classes (single process)"
-echo "Phase 2: ${#DESTRUCTIVE_CLASSES[@]} destructive classes (separate processes)"
+echo "Phase 1: ${#SAFE_CLASSES[@]} safe classes (single process)"
+echo "Phase 2: ${#SEPARATE_CLASSES[@]} crash-prone + destructive classes (separate processes)"
 echo "Started: $(date)"
 echo "=========================================="
 
@@ -93,8 +99,8 @@ echo ""
 echo ">>> PHASE 1: Non-destructive classes (single instrumentation)"
 echo ""
 
-CLASS_ARG=$(IFS=,; echo "${NON_DESTRUCTIVE_CLASSES[*]}")
-PHASE1_FILE="$RESULT_DIR/PHASE1_nondestructive.txt"
+CLASS_ARG=$(IFS=,; echo "${SAFE_CLASSES[*]}")
+PHASE1_FILE="$RESULT_DIR/PHASE1_safe.txt"
 
 adb -s "$DEVICE" shell am instrument -w -r \
   -e class "$CLASS_ARG" \
@@ -123,16 +129,16 @@ TOTAL_SKIP=$((TOTAL_SKIP + P1_SKIP))
 
 # ============ Phase 2 ============
 echo ""
-echo ">>> PHASE 2: Destructive classes (each in separate process)"
+echo ">>> PHASE 2: Crash-prone + Destructive classes (each in separate process)"
 echo ""
 
 P2_IDX=0
-for CLASS in "${DESTRUCTIVE_CLASSES[@]}"; do
+for CLASS in "${SEPARATE_CLASSES[@]}"; do
   P2_IDX=$((P2_IDX + 1))
   SHORT_NAME=$(echo "$CLASS" | sed 's/.*\.//')
   FILE="$RESULT_DIR/PHASE2_${P2_IDX}_${SHORT_NAME}.txt"
 
-  echo "  [$P2_IDX/${#DESTRUCTIVE_CLASSES[@]}] $SHORT_NAME ..."
+  echo "  [$P2_IDX/${#SEPARATE_CLASSES[@]}] $SHORT_NAME ..."
 
   # Force-stop the app before each destructive test to get a fresh process
   adb -s "$DEVICE" shell am force-stop "$APP_PKG" 2>/dev/null
