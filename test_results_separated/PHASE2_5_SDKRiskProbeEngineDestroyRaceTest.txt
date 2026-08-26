@@ -1,0 +1,23 @@
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeEngineDestroyRaceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+com.amap.agenuiplayground.tests.SDKRiskProbeEngineDestroyRaceTest:
+INSTRUMENTATION_STATUS: test=testSDKRISK06_engineDestroyDuringActiveStreaming
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeEngineDestroyRaceTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSDKRISK06_engineDestroyDuringActiveStreaming
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 4.069
+
+OK (1 test)
+
+
+INSTRUMENTATION_CODE: -1

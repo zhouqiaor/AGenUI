@@ -10,6 +10,7 @@ import com.amap.agenui.AGenUI;
 import com.amap.agenui.render.surface.SurfaceManager;
 import com.amap.agenuiplayground.A2UIPlaygroundActivity;
 
+import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -66,6 +67,18 @@ public class SDKRiskProbeEngineDestroyUAFTest {
     @Rule
     public ActivityScenarioRule<A2UIPlaygroundActivity> activityRule =
             new ActivityScenarioRule<>(A2UIPlaygroundActivity.class);
+
+    @After
+    public void tearDown() {
+        // Engine is destroyed mid-test. Best-effort re-init for subsequent tests.
+        try {
+            activityRule.getScenario().onActivity(activity -> {
+                AGenUI.getInstance().initialize(activity.getApplicationContext());
+            });
+        } catch (Throwable ignored) {
+            // Re-init may fail; in separated batch runs each destructive test gets a fresh process.
+        }
+    }
 
     /**
      * Test: concurrent engine destroy while multiple threads are actively

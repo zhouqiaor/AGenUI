@@ -1,0 +1,166 @@
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest:
+INSTRUMENTATION_STATUS: test=RISK23_reentrantDeadlockViaUnregisterFunction
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=RISK23_reentrantDeadlockViaUnregisterFunction
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=RISK22_reentrantDeadlockViaRegisterFunction
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stack=android.content.ActivityNotFoundException: Unable to find explicit activity class {com.amap.agenuiplayground.test/androidx.test.core.app.InstrumentationActivityInvoker$EmptyActivity}; have you declared this activity in your AndroidManifest.xml, or does your intent not match its declared <intent-filter>?
+	at android.app.Instrumentation.checkStartActivityResult(Instrumentation.java:2429)
+	at android.app.Instrumentation.execStartActivity(Instrumentation.java:2007)
+	at androidx.test.runner.MonitoringInstrumentation.execStartActivity(MonitoringInstrumentation.java:592)
+	at android.app.ContextImpl.startActivity(ContextImpl.java:1161)
+	at android.app.ContextImpl.startActivity(ContextImpl.java:1132)
+	at android.content.ContextWrapper.startActivity(ContextWrapper.java:438)
+	at androidx.test.core.app.InstrumentationActivityInvoker.startEmptyActivitySync(InstrumentationActivityInvoker.java:571)
+	at androidx.test.core.app.InstrumentationActivityInvoker.finishActivity(InstrumentationActivityInvoker.java:610)
+	at androidx.test.core.app.ActivityScenario.moveToState(ActivityScenario.java:682)
+	at androidx.test.core.app.ActivityScenario.close(ActivityScenario.java:421)
+	at androidx.test.ext.junit.rules.ActivityScenarioRule.after(ActivityScenarioRule.java:117)
+	at org.junit.rules.ExternalResource$1.evaluate(ExternalResource.java:59)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+	at org.junit.runners.Suite.runChild(Suite.java:128)
+	at org.junit.runners.Suite.runChild(Suite.java:27)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2596)
+
+INSTRUMENTATION_STATUS: stream=
+Error in RISK22_reentrantDeadlockViaRegisterFunction(com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest):
+android.content.ActivityNotFoundException: Unable to find explicit activity class {com.amap.agenuiplayground.test/androidx.test.core.app.InstrumentationActivityInvoker$EmptyActivity}; have you declared this activity in your AndroidManifest.xml, or does your intent not match its declared <intent-filter>?
+	at android.app.Instrumentation.checkStartActivityResult(Instrumentation.java:2429)
+	at android.app.Instrumentation.execStartActivity(Instrumentation.java:2007)
+	at androidx.test.runner.MonitoringInstrumentation.execStartActivity(MonitoringInstrumentation.java:592)
+	at android.app.ContextImpl.startActivity(ContextImpl.java:1161)
+	at android.app.ContextImpl.startActivity(ContextImpl.java:1132)
+	at android.content.ContextWrapper.startActivity(ContextWrapper.java:438)
+	at androidx.test.core.app.InstrumentationActivityInvoker.startEmptyActivitySync(InstrumentationActivityInvoker.java:571)
+	at androidx.test.core.app.InstrumentationActivityInvoker.finishActivity(InstrumentationActivityInvoker.java:610)
+	at androidx.test.core.app.ActivityScenario.moveToState(ActivityScenario.java:682)
+	at androidx.test.core.app.ActivityScenario.close(ActivityScenario.java:421)
+	at androidx.test.ext.junit.rules.ActivityScenarioRule.after(ActivityScenarioRule.java:117)
+	at org.junit.rules.ExternalResource$1.evaluate(ExternalResource.java:59)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+	at org.junit.runners.Suite.runChild(Suite.java:128)
+	at org.junit.runners.Suite.runChild(Suite.java:27)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2596)
+
+INSTRUMENTATION_STATUS: test=RISK22_reentrantDeadlockViaRegisterFunction
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: stream=
+
+Time: 14.687
+There was 1 failure:
+1) RISK22_reentrantDeadlockViaRegisterFunction(com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest)
+android.content.ActivityNotFoundException: Unable to find explicit activity class {com.amap.agenuiplayground.test/androidx.test.core.app.InstrumentationActivityInvoker$EmptyActivity}; have you declared this activity in your AndroidManifest.xml, or does your intent not match its declared <intent-filter>?
+	at android.app.Instrumentation.checkStartActivityResult(Instrumentation.java:2429)
+	at android.app.Instrumentation.execStartActivity(Instrumentation.java:2007)
+	at androidx.test.runner.MonitoringInstrumentation.execStartActivity(MonitoringInstrumentation.java:592)
+	at android.app.ContextImpl.startActivity(ContextImpl.java:1161)
+	at android.app.ContextImpl.startActivity(ContextImpl.java:1132)
+	at android.content.ContextWrapper.startActivity(ContextWrapper.java:438)
+	at androidx.test.core.app.InstrumentationActivityInvoker.startEmptyActivitySync(InstrumentationActivityInvoker.java:571)
+	at androidx.test.core.app.InstrumentationActivityInvoker.finishActivity(InstrumentationActivityInvoker.java:610)
+	at androidx.test.core.app.ActivityScenario.moveToState(ActivityScenario.java:682)
+	at androidx.test.core.app.ActivityScenario.close(ActivityScenario.java:421)
+	at androidx.test.ext.junit.rules.ActivityScenarioRule.after(ActivityScenarioRule.java:117)
+	at org.junit.rules.ExternalResource$1.evaluate(ExternalResource.java:59)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+	at org.junit.runners.Suite.runChild(Suite.java:128)
+	at org.junit.runners.Suite.runChild(Suite.java:27)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2596)
+
+FAILURES!!!
+Tests run: 2,  Failures: 1
+
+
+INSTRUMENTATION_CODE: -1

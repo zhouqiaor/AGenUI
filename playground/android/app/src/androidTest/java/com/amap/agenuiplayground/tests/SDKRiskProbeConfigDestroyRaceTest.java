@@ -73,7 +73,15 @@ public class SDKRiskProbeConfigDestroyRaceTest extends AGenUIBaseTest {
 
     @Override
     public void tearDown() {
-        // Engine is destroyed mid-test. Suppress base class tearDown.
+        // Engine is destroyed mid-test. Best-effort re-init for subsequent tests.
+        // std::call_once may prevent C++ re-init (RISK54), but this resets Java state.
+        try {
+            activityRule.getScenario().onActivity(activity -> {
+                AGenUI.getInstance().initialize(activity.getApplicationContext());
+            });
+        } catch (Throwable ignored) {
+            // Re-init may fail; in separated batch runs each destructive test gets a fresh process.
+        }
         surfaceManager = null;
     }
 

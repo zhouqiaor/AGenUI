@@ -2,6 +2,7 @@
 #include "jni_scoped_local_ref.h"
 #include "jni_scoped_utf_chars.h"
 #include "agenui_logger_internal.h"
+#include "agenui_type_define.h"
 #include <sstream>
 
 namespace agenui {
@@ -345,6 +346,55 @@ void ListenerBridgeManager::removeMapping(JNIEnv* env, jobject javaListener) {
             return;
         }
     }
+}
+
+JNIMessageListenerBridge* ListenerBridgeManager::findBridgeLocked(JNIEnv* env, jobject javaListener) {
+    for (const auto& pair : _listenerMap) {
+        if (env->IsSameObject(pair.first, javaListener)) {
+            return pair.second;
+        }
+    }
+    return nullptr;
+}
+
+bool ListenerBridgeManager::findAndRemoveBridge(JNIEnv* env, jobject javaListener,
+                                                  const std::function<void(JNIMessageListenerBridge*)>& onRemove) {
+    std::lock_guard<std::mutex> lock(_mutex);
+
+    // Find the bridge while holding the lock
+    JNIMessageListenerBridge* bridge = nullptr;
+    jobject globalRefToRemove = nullptr;
+
+    for (auto it = _listenerMap.begin(); it != _listenerMap.end(); ++it) {
+        if (env->IsSameObject(it->first, javaListener)) {
+            bridge = it->second;
+            globalRefToRemove = it->first;
+            _listenerMap.erase(it);
+            break;
+        }
+    }
+
+    if (bridge == nullptr) {
+        // Already removed by another thread -- safe to return
+        AGENUI_LOG("[ListenerBridgeManager] findAndRemoveBridge: bridge not found (already removed?)");
+        return false;
+    }
+
+    // Remove from SurfaceManager's listener list (caller-provided callback)
+    if (onRemove) {
+        onRemove(bridge);
+    }
+
+    // Delete the global ref
+    if (globalRefToRemove != nullptr) {
+        env->DeleteGlobalRef(globalRefToRemove);
+    }
+
+    // Delete the bridge object -- safe because no other thread can reach it
+    // (it's already removed from the map, and findBridge won't return it)
+    SAFELY_DELETE(bridge);
+
+    return true;
 }
 
 } // namespace agenui

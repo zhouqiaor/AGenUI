@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Surface manager
@@ -46,6 +47,13 @@ public class SurfaceManager implements ISurfaceSizeProviderHost {
     private final Map<String, Surface> surfaces = new ConcurrentHashMap<>();
     private final List<ISurfaceManagerListener> listeners = new CopyOnWriteArrayList<>();
     private final int instanceId;
+
+    /**
+     * Guard against concurrent or repeated destroy() calls.
+     * Uses CAS so only the first caller proceeds with cleanup;
+     * subsequent callers return immediately (idempotent).
+     */
+    private final AtomicBoolean m_destroyed = new AtomicBoolean(false);
 
     /**
      * Constructor
@@ -202,8 +210,18 @@ public class SurfaceManager implements ISurfaceSizeProviderHost {
      * Destroys all resources held by this SurfaceManager.
      * <p>
      * Destroys all Surfaces, removes all listeners, and cleans up NativeEventBridge.
+     * <p>
+     * Thread-safe and idempotent: concurrent calls from multiple threads (e.g.
+     * parallel destroy cycles in stress tests) are safe. Only the first call
+     * performs cleanup; subsequent calls return immediately.
      */
     public void destroy() {
+        if (!m_destroyed.compareAndSet(false, true)) {
+            if (AGenUILogger.isLoggingEnabled()) {
+                AGenUILogger.w(TAG, "destroy: already destroyed, instanceId=" + instanceId);
+            }
+            return;
+        }
         clearAll();
         listeners.clear();
         removeMessageListener(nativeEventBridge);

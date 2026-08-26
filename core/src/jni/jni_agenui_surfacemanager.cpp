@@ -74,23 +74,23 @@ static void jni_removeEventListener(JNIEnv* env, jclass clazz, jint instanceId, 
     }
     auto surfaceManager = findSurfaceManagerByInstanceId(instanceId);
     if (!surfaceManager) {
-        AGENUI_LOG("%d does not exist", instanceId);
+        // SM already destroyed — still need to clean up the bridge from the global map
+        AGENUI_LOG("[JNI] removeEventListener: SM not found, cleaning bridge only");
+        ListenerBridgeManager::getInstance().findAndRemoveBridge(env, javaListener,
+            [](JNIMessageListenerBridge*) { /* SM gone, no listener list to update */ });
         return;
     }
-    
-    // Find bridge
-    auto* bridge = ListenerBridgeManager::getInstance().findBridge(env, javaListener);
-    if (bridge == nullptr) {
-        AGENUI_LOG("[JNI] removeEventListener: bridge not found");
-        return;
-    }
-    
-    // Remove from SurfaceManager
-    surfaceManager->removeSurfaceEventListener(bridge);
-    
-    // Clean up
-    ListenerBridgeManager::getInstance().removeMapping(env, javaListener);
-    SAFELY_DELETE(bridge);
+
+    // Atomically find, remove, and delete the bridge.
+    // The shared_ptr keeps the SM alive for the duration of this call.
+    // removeSurfaceEventListener has its own _isRunning check + _cachedListenersMutex,
+    // so it's safe to call even if another thread is destroying the SM.
+    // ORDER MATTERS: remove from dispatcher FIRST (bridge still alive),
+    // then DeleteGlobalRef + SAFELY_DELETE (bridge freed after no one can call it).
+    ListenerBridgeManager::getInstance().findAndRemoveBridge(env, javaListener,
+        [surfaceManager](JNIMessageListenerBridge* bridge) {
+            surfaceManager->removeSurfaceEventListener(bridge);
+        });
 }
 
 static void jni_submitUIAction(JNIEnv* env, jclass clazz, jint instanceId, jstring jSurfaceId, jstring jSourceComponentId, jstring jContextJson) {
