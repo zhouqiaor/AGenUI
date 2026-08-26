@@ -293,3 +293,47 @@ TEST_F(FormatCurrencyEdgeCaseTest, FourDecimals) {
     ASSERT_TRUE(isSuccess(r));
     EXPECT_EQ(r.getValue(), "$ 99.9999");
 }
+
+// =============================================================================
+// Additional edge cases (R66-70)
+// =============================================================================
+
+// R66: FormatCurrency with zero amount
+TEST_F(FormatCurrencyEdgeCaseTest, R66_ZeroAmount) {
+    auto r = fc.execute({{"value", 0}, {"currency", "¥"}});
+    ASSERT_TRUE(isSuccess(r));
+    EXPECT_EQ(r.getValue(), "¥ 0.00");
+}
+
+// R67: FormatCurrency with negative amount
+TEST_F(FormatCurrencyEdgeCaseTest, R67_NegativeAmount) {
+    auto r = fc.execute({{"value", -42.5}, {"currency", "$"}});
+    ASSERT_TRUE(isSuccess(r));
+    // Negative amounts should be formatted with the minus sign
+    EXPECT_TRUE(r.getValue().find("-") != std::string::npos);
+}
+
+// R68: FormatCurrency with very large amount
+TEST_F(FormatCurrencyEdgeCaseTest, R68_LargeAmount) {
+    auto r = fc.execute({{"value", 9999999.99}, {"currency", "$"}});
+    ASSERT_TRUE(isSuccess(r));
+    EXPECT_TRUE(r.getValue().find("9999999.99") != std::string::npos);
+}
+
+// R69: FormatCurrency with missing currency param
+TEST_F(FormatCurrencyEdgeCaseTest, R69_MissingCurrency) {
+    auto r = fc.execute({{"value", 10.0}});
+    // Should either fail or use a default currency
+    if (isSuccess(r)) {
+        EXPECT_FALSE(r.getValue().empty());
+    }
+}
+
+// R70: FormatCurrency with empty currency string
+TEST_F(FormatCurrencyEdgeCaseTest, R70_EmptyCurrency) {
+    auto r = fc.execute({{"value", 5.0}, {"currency", ""}});
+    if (isSuccess(r)) {
+        // Value should still contain the formatted number
+        EXPECT_TRUE(r.getValue().find("5.00") != std::string::npos);
+    }
+}

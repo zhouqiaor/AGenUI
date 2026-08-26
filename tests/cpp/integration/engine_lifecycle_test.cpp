@@ -153,4 +153,47 @@ TEST_F(EngineLifecycleTest, E018_LoadDesignTokenConfig_InvalidJson_Fails) {
 // destroyAGenUIEngine() is the sole responsibility of the global test
 // Environment (support/test_env.h::AGenUIEngineEnvironment::TearDown).
 
+// =============================================================================
+// Additional lifecycle tests (R61-65)
+// =============================================================================
+
+// R61: Load design token config with empty JSON object
+TEST_F(EngineLifecycleTest, R61_LoadDesignTokenConfig_EmptyObject_Fails) {
+    auto* engine = agenui::testing::GetEngine();
+    std::string err;
+    bool ok = engine->loadDesignTokenConfig("{}", err);
+    EXPECT_FALSE(ok);
+}
+
+// R62: Load theme config with empty object
+TEST_F(EngineLifecycleTest, R62_LoadThemeConfig_EmptyObject_Fails) {
+    auto* engine = agenui::testing::GetEngine();
+    std::string err;
+    bool ok = engine->loadThemeConfig("{}", err);
+    EXPECT_FALSE(ok);
+}
+
+// R63: SetDayNightMode with unknown mode — should not crash
+TEST_F(EngineLifecycleTest, R63_SetDayNightMode_UnknownMode_NoCrash) {
+    auto* engine = agenui::testing::GetEngine();
+    engine->setDayNightMode("unknown_mode");
+    SUCCEED();
+}
+
+// R64: SetDayNightMode with empty string — no crash
+TEST_F(EngineLifecycleTest, R64_SetDayNightMode_EmptyString_NoCrash) {
+    auto* engine = agenui::testing::GetEngine();
+    engine->setDayNightMode("");
+    SUCCEED();
+}
+
+// R65: LoadDesignTokenConfig then LoadThemeConfig — sequential
+TEST_F(EngineLifecycleTest, R65_SequentialConfigLoad_NoCrash) {
+    auto* engine = agenui::testing::GetEngine();
+    std::string err;
+    engine->loadDesignTokenConfig(R"({"designTokens":{}})", err);
+    engine->loadThemeConfig(R"({"theme":{"colors":{}}})", err);
+    SUCCEED();
+}
+
 }  // namespace

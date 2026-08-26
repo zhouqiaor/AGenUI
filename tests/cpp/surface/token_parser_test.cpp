@@ -220,3 +220,73 @@ TEST_F(TokenParserTest, LoadFromJsonString_OverwritesExistingToken) {
     })");
     EXPECT_EQ(parser.resolve("tp.test.overwrite"), "#222");
 }
+
+// =============================================================================
+// Additional edge case tests (R56-60)
+// =============================================================================
+
+// R56: Token with numeric value
+TEST_F(TokenParserTest, R56_NumericTokenValue_ResolvedCorrectly) {
+    parser.loadFromJsonString(R"({
+        "designTokens": {
+            "tp.test.numeric": {"type": "number", "light": "42"}
+        }
+    })");
+    EXPECT_EQ(parser.resolve("tp.test.numeric"), "42");
+}
+
+// R57: Token with special chars in name
+TEST_F(TokenParserTest, R57_SpecialCharTokenName_Resolved) {
+    parser.loadFromJsonString(R"({
+        "designTokens": {
+            "tp.test.dash-name": {"type": "color", "light": "#FF0000"}
+        }
+    })");
+    EXPECT_EQ(parser.resolve("tp.test.dash-name"), "#FF0000");
+}
+
+// R58: Multiple theme switches — light→dark→light
+TEST_F(TokenParserTest, R58_MultipleThemeSwitches_RoundTrip) {
+    parser.loadFromJsonString(R"({
+        "designTokens": {
+            "tp.test.color": {"type": "color", "light": "#FFF", "dark": "#000"}
+        }
+    })");
+    EXPECT_EQ(parser.resolve("tp.test.color"), "#FFF");
+    parser.setThemeMode("dark");
+    EXPECT_EQ(parser.resolve("tp.test.color"), "#000");
+    parser.setThemeMode("light");
+    EXPECT_EQ(parser.resolve("tp.test.color"), "#FFF");
+}
+
+// R59: Token with only dark value — light mode falls back
+TEST_F(TokenParserTest, R59_OnlyDarkValue_LightModeFallsBack) {
+    parser.loadFromJsonString(R"({
+        "designTokens": {
+            "tp.test.darkonly": {"type": "color", "dark": "#333"}
+        }
+    })");
+    // Light mode should return empty (no light value, no fallback to dark)
+    EXPECT_TRUE(parser.resolve("tp.test.darkonly").empty());
+    parser.setThemeMode("dark");
+    EXPECT_EQ(parser.resolve("tp.test.darkonly"), "#333");
+}
+
+// R60: Reload tokens after initial load — old tokens cleared
+TEST_F(TokenParserTest, R60_ReloadTokens_OldTokensCleared) {
+    parser.loadFromJsonString(R"({
+        "designTokens": {
+            "tp.test.old": {"type": "color", "light": "#AAA"}
+        }
+    })");
+    EXPECT_EQ(parser.resolve("tp.test.old"), "#AAA");
+
+    parser.loadFromJsonString(R"({
+        "designTokens": {
+            "tp.test.new": {"type": "color", "light": "#BBB"}
+        }
+    })");
+    // Old token should no longer resolve
+    EXPECT_EQ(parser.resolve("tp.test.old"), "tp.test.old");
+    EXPECT_EQ(parser.resolve("tp.test.new"), "#BBB");
+}
