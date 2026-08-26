@@ -14,6 +14,29 @@
 
 namespace agenui_win {
 
+// Parse a pixel value string like "32px" or "32" to float.
+// Returns defaultVal if the string is empty or unparseable.
+inline float parsePixelValue(const std::string& s, float defaultVal) {
+    std::string num;
+    for (char c : s) {
+        if (std::isdigit(c) || c == '.') num += c;
+        else break;
+    }
+    if (num.empty()) return defaultVal;
+    try { return std::stof(num); } catch (...) { return defaultVal; }
+}
+
+// Parse a JSON value that may be a number or a string like "100.5px" to float.
+inline float parseFloatValue(const nlohmann::json& val) {
+    if (val.is_number()) {
+        return val.get<float>();
+    }
+    if (val.is_string()) {
+        return parsePixelValue(val.get<std::string>(), 0.0f);
+    }
+    return 0.0f;
+}
+
 // A unified component captured from the engine's component add/update callbacks.
 struct CapturedComponent {
     std::string id;
@@ -85,6 +108,14 @@ public:
 
         for (const auto& item : msg) {
             parseComponent(item.component, "");
+        }
+
+        // Log post-update coordinate snapshot for resize/layout verification
+        printf("[Listener] post-update snapshot: %zu components\n", m_components.size());
+        for (const auto& cc : m_components) {
+            printf("    -> id=%s type=%s xywh=(%.1f,%.1f,%.1f,%.1f)\n",
+                   cc.id.c_str(), cc.type.c_str(),
+                   cc.x, cc.y, cc.width, cc.height);
         }
     }
 
@@ -209,28 +240,6 @@ private:
         } catch (const std::exception& e) {
             printf("  [Parse Error] %s\n", e.what());
         }
-    }
-
-    static float parsePixelValue(const std::string& s, float defaultVal) {
-        // Parse "32px" or "32" to float
-        std::string num;
-        for (char c : s) {
-            if (std::isdigit(c) || c == '.') num += c;
-            else break;
-        }
-        if (num.empty()) return defaultVal;
-        try { return std::stof(num); } catch (...) { return defaultVal; }
-    }
-
-    // Parse a JSON value that may be a number or a string like "100.5px"
-    static float parseFloatValue(const nlohmann::json& val) {
-        if (val.is_number()) {
-            return val.get<float>();
-        }
-        if (val.is_string()) {
-            return parsePixelValue(val.get<std::string>(), 0.0f);
-        }
-        return 0.0f;
     }
 
     std::mutex m_mutex;

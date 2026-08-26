@@ -111,3 +111,12 @@ option(AGENUI_BUILD_PLAYGROUND "Build the Win32 playground app" ON)
 if(AGENUI_BUILD_PLAYGROUND)
     add_subdirectory(playground)
 endif()
+
+# ---------------------------------------------------------------------------
+# P2 Test Suite (gtest + ApprovalTests.cpp)
+# ---------------------------------------------------------------------------
+option(AGENUI_BUILD_TESTS "Build the P2 test suite" ON)
+if(AGENUI_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()

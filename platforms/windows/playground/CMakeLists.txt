@@ -40,6 +40,7 @@ target_link_libraries(agenui_playground PRIVATE
     dwrite
     windowscodecs
     windowscodecs
+    urlmon
     user32
     gdi32
 )

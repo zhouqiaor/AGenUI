@@ -16,3 +16,4 @@ _deps/
 *.lib
 *.pdb
 *.obj
+nul
