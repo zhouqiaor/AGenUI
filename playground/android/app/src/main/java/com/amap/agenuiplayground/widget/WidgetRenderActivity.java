@@ -771,12 +771,13 @@ public class WidgetRenderActivity extends Activity {
             views.setTextColor(buttonIds[i], color);
         }
 
-        // AI input button
-        Intent aiInputIntent = new Intent(this, A2UIWidgetProvider.class);
-        aiInputIntent.setAction(A2UIWidgetProvider.ACTION_AI_INPUT);
+        // AI input button — 直接用 getActivity 啟動 WidgetInputActivity，繞過 BAL 限制。
+        // （Android 12+ 從 widget PendingIntent.getActivity 有 BAL 豁免；getBroadcast → startActivity 則被擋）
+        Intent aiInputIntent = new Intent(this, WidgetInputActivity.class);
         aiInputIntent.putExtra(A2UIWidgetProvider.EXTRA_APPWIDGET_ID, appWidgetId);
+        aiInputIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         views.setOnClickPendingIntent(R.id.btnAiInput,
-                android.app.PendingIntent.getBroadcast(this, appWidgetId * 10 + 4, aiInputIntent,
+                android.app.PendingIntent.getActivity(this, appWidgetId * 10 + 4, aiInputIntent,
                         android.app.PendingIntent.FLAG_UPDATE_CURRENT
                                 | android.app.PendingIntent.FLAG_IMMUTABLE));
 
