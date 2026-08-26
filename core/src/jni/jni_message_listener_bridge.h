@@ -3,6 +3,7 @@
 #include <jni.h>
 #include <map>
 #include <mutex>
+#include <functional>
 #include "agenui_message_listener.h"
 
 namespace agenui {
@@ -54,6 +55,22 @@ public:
     void addMapping(JNIEnv* env, jobject javaListener, JNIMessageListenerBridge* bridge);
     JNIMessageListenerBridge* findBridge(JNIEnv* env, jobject javaListener);
     void removeMapping(JNIEnv* env, jobject javaListener);
+
+    /**
+     * @brief Atomically find, remove, and delete a bridge.
+     * @remark Prevents use-after-free and double-free when multiple threads
+     *         concurrently destroy the same SurfaceManager. The entire
+     *         findBridge -> removeSurfaceEventListener -> removeMapping -> delete
+     *         flow is protected by a single lock.
+     * @return true if the bridge was found and cleaned up; false if not found
+     *         (e.g. already removed by another thread).
+     */
+    bool findAndRemoveBridge(JNIEnv* env, jobject javaListener,
+                             const std::function<void(JNIMessageListenerBridge*)>& onRemove);
+
+    /// @brief Get the bridge for a listener WITHOUT taking the lock.
+    /// @warning Only safe to use while holding the lock via findAndRemoveBridge.
+    JNIMessageListenerBridge* findBridgeLocked(JNIEnv* env, jobject javaListener);
     
 private:
     ListenerBridgeManager() = default;

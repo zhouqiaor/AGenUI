@@ -1,0 +1,71 @@
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest:
+INSTRUMENTATION_STATUS: test=RISK23_reentrantDeadlockViaUnregisterFunction
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: RISK23: Deadlock should be detected (one-shot unregister self)
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest.RISK23_reentrantDeadlockViaUnregisterFunction(SDKRiskProbeReentrantDeadlockTest.java:443)
+
+INSTRUMENTATION_STATUS: stream=
+Error in RISK23_reentrantDeadlockViaUnregisterFunction(com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest):
+java.lang.AssertionError: RISK23: Deadlock should be detected (one-shot unregister self)
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest.RISK23_reentrantDeadlockViaUnregisterFunction(SDKRiskProbeReentrantDeadlockTest.java:443)
+
+INSTRUMENTATION_STATUS: test=RISK23_reentrantDeadlockViaUnregisterFunction
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=RISK22_reentrantDeadlockViaRegisterFunction
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: RISK22: Deadlock should be detected (FunctionCallManager mutex is non-recursive)
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest.RISK22_reentrantDeadlockViaRegisterFunction(SDKRiskProbeReentrantDeadlockTest.java:325)
+
+INSTRUMENTATION_STATUS: stream=
+Error in RISK22_reentrantDeadlockViaRegisterFunction(com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest):
+java.lang.AssertionError: RISK22: Deadlock should be detected (FunctionCallManager mutex is non-recursive)
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest.RISK22_reentrantDeadlockViaRegisterFunction(SDKRiskProbeReentrantDeadlockTest.java:325)
+
+INSTRUMENTATION_STATUS: test=RISK22_reentrantDeadlockViaRegisterFunction
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: stream=
+
+Time: 23.509
+There were 2 failures:
+1) RISK23_reentrantDeadlockViaUnregisterFunction(com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest)
+java.lang.AssertionError: RISK23: Deadlock should be detected (one-shot unregister self)
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest.RISK23_reentrantDeadlockViaUnregisterFunction(SDKRiskProbeReentrantDeadlockTest.java:443)
+2) RISK22_reentrantDeadlockViaRegisterFunction(com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest)
+java.lang.AssertionError: RISK22: Deadlock should be detected (FunctionCallManager mutex is non-recursive)
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amap.agenuiplayground.tests.SDKRiskProbeReentrantDeadlockTest.RISK22_reentrantDeadlockViaRegisterFunction(SDKRiskProbeReentrantDeadlockTest.java:325)
+
+FAILURES!!!
+Tests run: 2,  Failures: 2
+
+
+INSTRUMENTATION_CODE: -1
