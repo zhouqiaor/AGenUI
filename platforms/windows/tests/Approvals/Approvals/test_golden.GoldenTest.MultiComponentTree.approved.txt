@@ -1,0 +1,14 @@
+10-component tree (Column + Text + Button + Image)
+
+
+root|Column||24.0|||0.0|0.0|320.0|640.0
+h1|Text|Title|32.0|||0.0|0.0|320.0|40.0
+h2|Text|Subtitle|20.0|||0.0|50.0|320.0|24.0
+p1|Text|Paragraph one|14.0|||10.0|90.0|300.0|20.0
+p2|Text|Paragraph two|14.0|||10.0|120.0|300.0|20.0
+btnPrimary|Button|Confirm|16.0|#007DFF||20.0|160.0|140.0|40.0
+btnSecondary|Button|Cancel|16.0|#FFFFFF||170.0|160.0|130.0|40.0
+avatar|Image||24.0||https://example.com/avatar.png|10.0|220.0|64.0|64.0
+banner|Image||24.0||/local/banner.png|10.0|300.0|300.0|80.0
+footer|Text|v1.0.0|10.0|||10.0|620.0|300.0|14.0
+

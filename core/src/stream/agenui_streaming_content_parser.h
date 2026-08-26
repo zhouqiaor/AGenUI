@@ -3,6 +3,8 @@
 #include <string>
 #include <cstdint>
 #include <vector>
+#include <mutex>
+#include <atomic>
 #include "agenui_protocol_stream_extractor.h"
 #include "agenui_markdown_stream_plugin.h"
 #include "agenui_text_stream_plugin.h"

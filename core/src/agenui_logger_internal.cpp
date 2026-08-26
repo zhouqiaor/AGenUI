@@ -18,6 +18,10 @@
     #include <cstdio>
 #endif
 
+// MSVC does not transitively include <cstdarg> via <cstdio>; the logger uses
+// va_list/va_start/va_copy/va_end directly. Include it here for all paths.
+#include <cstdarg>
+
 
 namespace agenui {
 static class DefultLogImpl : public IRuntimeLogger {
