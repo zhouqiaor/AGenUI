@@ -161,12 +161,12 @@ public class ComponentRenderTest extends AGenUIBaseTest {
         Surface surface = sendAndWaitForRender(json, surfaceId);
         assertNotNull("Surface should be created: " + fixturePath, surface);
 
-        // Modal factory is not registered on Android, so modal-dialog won't be created.
-        // Expect 4 components: root(Column), trigger-btn(Button), trigger-btn-text(Text), modal-body(Text)
-        assertEquals("Component count should be 4 (Modal not registered)",
-                4, surface.getComponentCount());
+        // Modal component IS registered — all 5 components created:
+        // root(Column), trigger-btn(Button), trigger-btn-text(Text), modal-dialog(Modal), modal-body(Text)
+        assertEquals("Component count should be 5 (Modal registered)",
+                5, surface.getComponentCount());
 
-        // Verify non-Modal components are rendered correctly
+        // Verify all components are rendered correctly
         assertNotNull("root should exist", surface.getComponent("root"));
         assertEquals("root type should be Column", "Column",
                 surface.getComponent("root").getComponentType());
@@ -176,6 +176,9 @@ public class ComponentRenderTest extends AGenUIBaseTest {
                 surface.getComponent("trigger-btn").getComponentType());
 
         assertNotNull("trigger-btn-text should exist", surface.getComponent("trigger-btn-text"));
+        assertNotNull("modal-dialog should exist", surface.getComponent("modal-dialog"));
+        assertEquals("modal-dialog type should be Modal", "Modal",
+                surface.getComponent("modal-dialog").getComponentType());
         assertNotNull("modal-body should exist", surface.getComponent("modal-body"));
     }
 

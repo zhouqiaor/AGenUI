@@ -53,11 +53,10 @@ public class SDKRiskProbeConfigApiStackOverflowTest {
 
     @After
     public void tearDown() {
-        try {
-            AGenUI.getInstance().destroy();
-        } catch (Exception e) {
-            // ignore
-        }
+        // Do NOT call AGenUI.getInstance().destroy() here — it corrupts engine state
+        // for subsequent tests that reuse the Activity. The engine singleton persists
+        // across tests in the same instrumentation process; destroying it causes
+        // IllegalStateException on Activity recreation.
     }
 
     /**
