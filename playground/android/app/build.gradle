@@ -1,5 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
 }
 
 // ===== ASan Configuration =====
@@ -135,6 +137,15 @@ android {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
+    kotlinOptions {
+        jvmTarget = '11'
+    }
+    buildFeatures {
+        compose true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.5.15'
+    }
     testOptions {
         execution 'ANDROIDX_TEST_ORCHESTRATOR'
     }
@@ -180,14 +191,24 @@ dependencies {
     implementation libs.activity
     implementation libs.constraintlayout
     implementation libs.gson
-    
+
     // ZXing QR code scanning library
     implementation 'com.journeyapps:zxing-android-embedded:4.3.0'
     implementation 'com.google.zxing:core:3.5.1'
 
     // PDF text extraction (P2.3 file import)
     implementation 'com.tom-roush:pdfbox-android:2.0.27.0'
-    
+
+    // ===== Jetpack Glance (Phase 4 预研) =====
+    implementation libs.glance.appwidget
+    implementation libs.glance.material
+    implementation platform(libs.compose.bom)
+    implementation libs.compose.runtime
+    implementation libs.compose.ui
+    implementation libs.compose.foundation
+    implementation libs.compose.material3
+    implementation libs.activity.compose
+
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
