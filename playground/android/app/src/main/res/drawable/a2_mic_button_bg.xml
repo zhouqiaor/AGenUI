@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A2 大屏深色会议主题 - 麦克风按钮（圆形，录音态变红） -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true">
+        <shape android:shape="oval">
+            <solid android:color="@color/a2_mic_active" />
+            <stroke android:width="2dp" android:color="@color/a2_divider" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="@color/a2_mic_idle" />
+            <stroke android:width="2dp" android:color="@color/a2_divider" />
+        </shape>
+    </item>
+</selector>

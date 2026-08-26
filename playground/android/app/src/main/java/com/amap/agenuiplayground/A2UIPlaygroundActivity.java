@@ -1,6 +1,7 @@
 package com.amap.agenuiplayground;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -20,6 +21,7 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
@@ -43,6 +45,12 @@ import com.amap.agenuiplayground.function.ToastFunction;
 import com.amap.agenuiplayground.story.ComponentStory;
 import com.amap.agenuiplayground.story.StoryLoader;
 import com.amap.agenuiplayground.story.SubStory;
+import com.amap.agenuiplayground.widget.AiInputDrawerController;
+import com.amap.agenuiplayground.widget.WidgetLLMClient;
+import com.amap.agenuiplayground.widget.WidgetPromptBuilder;
+import com.amap.agenuiplayground.widget.WidgetProtocolValidator;
+import com.amap.agenuiplayground.widget.WidgetPartialParser;
+import com.amap.agenuiplayground.widget.WidgetHistoryRepository;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.tabs.TabLayout;
@@ -107,6 +115,14 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
     private Button btnValidate;
     private Button btnCancel;
     private Button btnSave;
+
+    // AI Input Drawer (小艺风格侧边面板)
+    private View aiDrawerRoot;
+    private View drawerRightContainer;
+    private AiInputDrawerController aiDrawerController;
+    private WidgetPartialParser aiPartialParser;
+    private WidgetLLMClient aiLlmClient;
+    private WidgetHistoryRepository aiHistoryRepository;
 
     // Data
     private String currentComponentsJson = "{}";
@@ -268,6 +284,23 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
         btnValidate = findViewById(R.id.btnValidate);
         btnCancel = findViewById(R.id.btnCancel);
         btnSave = findViewById(R.id.btnSave);
+
+        // AI Input drawer (小艺风格)
+        drawerRightContainer = findViewById(R.id.drawerRightContainer);
+        aiDrawerRoot = findViewById(R.id.drawerAiInput);
+        if (aiDrawerRoot != null && aiDrawerController == null) {
+            aiDrawerController = new AiInputDrawerController(this, new AiInputDrawerController.Callback() {
+                @Override
+                public void onSend(String text) {
+                    streamLLMToPlayground(text);
+                }
+                @Override
+                public void onClose() {
+                    closeAiDrawer();
+                }
+            });
+            aiDrawerController.bind(aiDrawerRoot);
+        }
 
         // Performance overlay
         performanceOverlay = findViewById(R.id.performanceOverlay);
@@ -488,6 +521,10 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
             // Click the "Scan" button to launch QR code scanning
             startQrCodeScan();
             return true;
+        } else if (id == R.id.action_ai_input) {
+            // Click "AI Input", open right AI input drawer
+            openAiDrawer();
+            return true;
         }
 
         return super.onOptionsItemSelected(item);
@@ -544,6 +581,11 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
         // This prevents the bug where content gets saved to wrong variable
         // when tabLayout.selectTab() triggers onTabUnselected callback
         saveCurrentTabContent();
+
+        // Hide AI drawer if open, show JSON editor
+        if (aiDrawerRoot != null) aiDrawerRoot.setVisibility(View.GONE);
+        View editorView = findViewById(R.id.drawerJsonEditor);
+        if (editorView != null) editorView.setVisibility(View.VISIBLE);
 
         currentEditorType = type;
 
@@ -615,6 +657,199 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
     private void closeDrawer() {
         drawerLayout.closeDrawers();
         currentEditorType = EditorType.NONE;
+    }
+
+    /**
+     * Open the AI input drawer (小艺风格侧边面板).
+     *
+     * <p>Hides the JSON editor view inside the right drawer container so
+     * only the AI input panel is visible, then slides the drawer in.
+     */
+    private void openAiDrawer() {
+        // Hide JSON editor, show AI input
+        View editorView = findViewById(R.id.drawerJsonEditor);
+        if (editorView != null) editorView.setVisibility(View.GONE);
+        if (aiDrawerRoot != null) aiDrawerRoot.setVisibility(View.VISIBLE);
+        // Reset editor state so reopening it later starts clean
+        currentEditorType = EditorType.NONE;
+        // Open the right drawer
+        drawerLayout.openDrawer(GravityCompat.END);
+        addLog("Opened AI input drawer");
+    }
+
+    /**
+     * Close the AI input drawer and restore the JSON editor view visibility
+     * for the next time the user opens the editor.
+     */
+    private void closeAiDrawer() {
+        drawerLayout.closeDrawer(GravityCompat.END);
+        // Restore editor visibility for next open
+        View editorView = findViewById(R.id.drawerJsonEditor);
+        if (editorView != null) editorView.setVisibility(View.VISIBLE);
+        if (aiDrawerRoot != null) aiDrawerRoot.setVisibility(View.GONE);
+        if (aiDrawerController != null) aiDrawerController.reset();
+    }
+
+    /**
+     * Streams an LLM-generated A2UI protocol directly into the Playground's
+     * current SurfaceManager — no WidgetRenderActivity involved.
+     *
+     * <p>This is the core difference from the widget path: the Playground
+     * already has a live SurfaceManager attached to {@link #renderContent},
+     * so we can feed the LLM stream directly and let the existing
+     * {@code onCreateSurface} callback mount the surface.
+     *
+     * <p>Fallback: LLM failure → keyword template → notecard, same as widget.
+     *
+     * @param userText The user's text input
+     */
+    private void streamLLMToPlayground(String userText) {
+        if (aGenUI == null || surfaceManager == null) {
+            addLog("Error: A2UI Framework not initialized");
+            runOnUiThread(() -> {
+                Toast.makeText(this, "A2UI Framework not initialized", Toast.LENGTH_SHORT).show();
+                if (aiDrawerController != null) {
+                    aiDrawerController.onSendComplete(false, "Framework 未初始化");
+                }
+            });
+            return;
+        }
+
+        // Initialize LLM client + parser + history lazily
+        if (aiLlmClient == null) aiLlmClient = new WidgetLLMClient(this);
+        if (aiPartialParser == null) aiPartialParser = new WidgetPartialParser();
+        if (aiHistoryRepository == null) aiHistoryRepository = new WidgetHistoryRepository(this);
+
+        // Reset the partial parser for a fresh stream
+        // (WidgetPartialParser doesn't have a reset method, so create a new one)
+        aiPartialParser = new WidgetPartialParser();
+
+        // Generate a new surfaceId for this generation
+        String newSurfaceId = "ai_drawer_" + System.currentTimeMillis();
+        addLog("AI Drawer: starting LLM stream, surfaceId=" + newSurfaceId);
+
+        // Send createSurface first
+        try {
+            JSONObject createSurfaceJson = new JSONObject();
+            createSurfaceJson.put("version", "v0.9");
+            JSONObject createSurfaceData = new JSONObject();
+            createSurfaceData.put("surfaceId", newSurfaceId);
+            createSurfaceData.put("catalogId",
+                    "https://a2ui.org/specification/v0_9/standard_catalog.json");
+            createSurfaceJson.put("createSurface", createSurfaceData);
+            surfaceManager.beginTextStream();
+            surfaceManager.receiveTextChunk(createSurfaceJson.toString());
+            addLog("AI Drawer: sent createSurface");
+        } catch (JSONException e) {
+            addLog("AI Drawer: createSurface failed: " + e.getMessage());
+            runOnUiThread(() -> {
+                if (aiDrawerController != null) {
+                    aiDrawerController.onSendComplete(false, "createSurface 失败");
+                }
+            });
+            return;
+        }
+
+        final String surfaceId = newSurfaceId;
+        final long startTime = System.currentTimeMillis();
+
+        // Build messages with history (few-shot)
+        String messagesJson = WidgetPromptBuilder.buildMessagesWithHistory(
+                WidgetPromptBuilder.SYSTEM_PROMPT, userText, aiHistoryRepository);
+
+        // Start LLM stream on background thread
+        executorService.execute(() -> {
+            aiLlmClient.streamChat(WidgetPromptBuilder.SYSTEM_PROMPT, userText,
+                    messagesJson,
+                    new WidgetLLMClient.StreamCallback() {
+                        @Override
+                        public void onChunk(String delta) {
+                            if (delta == null || delta.isEmpty()) return;
+                            try {
+                                // Feed to top-level parser
+                                java.util.List<String> jsonObjects = aiPartialParser.feed(delta);
+                                for (String json : jsonObjects) {
+                                    surfaceManager.receiveTextChunk(json);
+                                }
+                                // Progressive render: extract completed components
+                                String progressive = aiPartialParser.extractCompletedComponents();
+                                if (progressive != null) {
+                                    surfaceManager.receiveTextChunk(progressive);
+                                    addLog("AI Drawer: progressive update pushed");
+                                }
+                            } catch (Exception e) {
+                                Log.w(TAG, "AI Drawer: receiveTextChunk failed", e);
+                            }
+                        }
+
+                        @Override
+                        public void onComplete(String content) {
+                            addLog("AI Drawer: LLM complete, " + content.length() + " chars");
+                            try {
+                                surfaceManager.endTextStream();
+                            } catch (Exception e) {
+                                Log.w(TAG, "AI Drawer: endTextStream failed", e);
+                            }
+                            long latency = System.currentTimeMillis() - startTime;
+
+                            // Validate
+                            String a2uiJson = WidgetProtocolValidator.extractA2UIJson(content);
+                            boolean valid = false;
+                            if (a2uiJson != null) {
+                                WidgetProtocolValidator.ValidationResult result =
+                                        WidgetProtocolValidator.validate(a2uiJson);
+                                valid = result.valid;
+                                if (!valid) {
+                                    String repaired = WidgetProtocolValidator.repair(a2uiJson);
+                                    WidgetProtocolValidator.ValidationResult repairedResult =
+                                            WidgetProtocolValidator.validate(repaired);
+                                    if (repairedResult.valid) valid = true;
+                                }
+                            }
+
+                            // Record to history
+                            if (aiHistoryRepository != null) {
+                                aiHistoryRepository.record(userText,
+                                        content != null ? content : "", latency, valid);
+                            }
+
+                            currentSurfaceId = surfaceId;
+                            final boolean fValid = valid;
+                            runOnUiThread(() -> {
+                                if (aiDrawerController != null) {
+                                    String msg = fValid ? "✓ 渲染成功" : "降级渲染";
+                                    aiDrawerController.onSendComplete(true, msg);
+                                }
+                                addLog("AI Drawer: stream complete, valid=" + fValid
+                                        + ", latency=" + latency + "ms");
+                            });
+                        }
+
+                        @Override
+                        public void onError(Exception e) {
+                            Log.e(TAG, "AI Drawer: LLM error", e);
+                            addLog("AI Drawer: LLM error: " + e.getMessage());
+                            long latency = System.currentTimeMillis() - startTime;
+                            if (aiHistoryRepository != null) {
+                                aiHistoryRepository.record(userText, "", latency, false);
+                            }
+                            // Try to end the text stream
+                            try {
+                                surfaceManager.endTextStream();
+                            } catch (Exception ex) {
+                                Log.w(TAG, "AI Drawer: endTextStream on error failed", ex);
+                            }
+                            runOnUiThread(() -> {
+                                if (aiDrawerController != null) {
+                                    aiDrawerController.onSendComplete(false, e.getMessage());
+                                }
+                                Toast.makeText(A2UIPlaygroundActivity.this,
+                                        "LLM 错误: " + e.getMessage(),
+                                        Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                    });
+        });
     }
 
     /**
@@ -1129,6 +1364,19 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
                 Toast.makeText(this, "Camera permission is required to scan QR codes", Toast.LENGTH_SHORT).show();
             }
         }
+        // Forward to AI drawer controller for mic permission
+        if (aiDrawerController != null) {
+            aiDrawerController.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        // Forward to AI drawer controller for file picker
+        if (aiDrawerController != null) {
+            aiDrawerController.onActivityResult(requestCode, resultCode, data);
+        }
     }
 
     /**
@@ -1350,6 +1598,12 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
             } catch (Exception e) {
                 Log.e(TAG, "Failed to destroy SurfaceManager", e);
             }
+        }
+
+        // Clean up AI drawer resources
+        if (aiDrawerController != null) {
+            aiDrawerController.destroy();
+            aiDrawerController = null;
         }
     }
 

@@ -20,4 +20,10 @@
         android:title="@string/action_edit"
         app:showAsAction="always" />
 
+    <item
+        android:id="@+id/action_ai_input"
+        android:icon="@android:drawable/ic_menu_edit"
+        android:title="@string/action_ai_input"
+        app:showAsAction="always" />
+
 </menu>

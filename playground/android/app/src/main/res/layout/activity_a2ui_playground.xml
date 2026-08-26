@@ -210,9 +210,26 @@
     <!-- Left navigation drawer -->
     <include layout="@layout/drawer_navigation" />
 
-    <!-- Right editor drawer -->
-    <include
-        android:id="@+id/drawerJsonEditor"
-        layout="@layout/drawer_json_editor" />
+    <!-- Right drawer container: holds JSON editor + AI input drawer -->
+    <!-- FrameLayout acts as the single right-side drawer for DrawerLayout;
+         child visibility toggles between editor and AI input. -->
+    <FrameLayout
+        android:id="@+id/drawerRightContainer"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="end">
+
+        <!-- JSON editor drawer -->
+        <include
+            android:id="@+id/drawerJsonEditor"
+            layout="@layout/drawer_json_editor" />
+
+        <!-- AI input drawer (小艺风格侧边面板) -->
+        <include
+            android:id="@+id/drawerAiInput"
+            layout="@layout/drawer_ai_input"
+            android:visibility="gone" />
+
+    </FrameLayout>
 
 </androidx.drawerlayout.widget.DrawerLayout>

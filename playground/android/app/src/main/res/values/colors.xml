@@ -24,4 +24,70 @@
     <color name="card_background">#FFFFFF</color>
     <color name="editor_background">#FFFFFF</color>
     <color name="editor_text">#212121</color>
+
+    <!-- ============================================================
+         A2 大屏深色会议主题（对齐 UX-DESIGN-GUIDELINES §0.4）
+         设备：华为 IdeaHub TEQU-S2C，4K 3840×2160，density 3.0
+         场景：会议室暗光环境，远距离 3-5 米观看
+         ============================================================ -->
+    <!-- 主色：华为品牌蓝（按压态提亮） -->
+    <color name="a2_brand">#FF007DFF</color>
+    <color name="a2_brand_pressed">#FF40A9FF</color>
+    <color name="a2_brand_light">#FF1A6FE0</color>
+
+    <!-- 深色会议主题：背景层级 -->
+    <color name="a2_bg">#FF0D1117</color>
+    <color name="a2_bg_elevated">#FF161B22</color>
+    <color name="a2_card">#FF161B22</color>
+    <color name="a2_card_hover">#FF1F2530</color>
+
+    <!-- 文字层级（远距离可读） -->
+    <color name="a2_text_primary">#FFFFFFFF</color>
+    <color name="a2_text_secondary">#FF8FA3BF</color>
+    <color name="a2_text_tertiary">#FF6B7888</color>
+    <color name="a2_text_hint">#FF5A6678</color>
+
+    <!-- 分隔线/边框 -->
+    <color name="a2_divider">#FF30363D</color>
+    <color name="a2_border">#FF30363D</color>
+
+    <!-- 状态色 -->
+    <color name="a2_danger">#FFE84026</color>
+    <color name="a2_danger_pressed">#FFFF5A3D</color>
+    <color name="a2_success">#FF52C41A</color>
+    <color name="a2_warning">#FFFA8C16</color>
+
+    <!-- Tab 选中/未选中态 -->
+    <color name="a2_tab_selected_bg">#FF1F2530</color>
+    <color name="a2_tab_selected_text">#FFFFFFFF</color>
+    <color name="a2_tab_unselected_text">#FF8FA3BF</color>
+
+    <!-- Chips 快捷词 -->
+    <color name="a2_chip_bg">#FF1F2530</color>
+    <color name="a2_chip_border">#FF30363D</color>
+    <color name="a2_chip_text">#FF40A9FF</color>
+
+    <!-- 麦克风按钮（录音态） -->
+    <color name="a2_mic_idle">#FF1F2530</color>
+    <color name="a2_mic_active">#FFE84026</color>
+    <color name="a2_mic_icon">#FFFFFFFF</color>
+
+    <!-- 发送按钮（主操作） -->
+    <color name="a2_send_enabled">#FF007DFF</color>
+    <color name="a2_send_disabled">#FF1F2530</color>
+    <color name="a2_send_text">#FFFFFFFF</color>
+
+    <!-- 取消按钮（次操作） -->
+    <color name="a2_cancel_text">#FF8FA3BF</color>
+
+    <!-- 文件选择按钮 -->
+    <color name="a2_file_btn_bg">#FF1F2530</color>
+    <color name="a2_file_btn_border">#FF30363D</color>
+    <color name="a2_file_btn_text">#FF40A9FF</color>
+
+    <!-- 输入框 -->
+    <color name="a2_input_bg">#FF0D1117</color>
+    <color name="a2_input_border">#FF30363D</color>
+    <color name="a2_input_text">#FFFFFFFF</color>
+    <color name="a2_input_hint">#FF5A6678</color>
 </resources>
