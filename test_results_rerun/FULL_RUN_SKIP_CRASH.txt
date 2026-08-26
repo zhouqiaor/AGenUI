@@ -1,0 +1,632 @@
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.ComponentRenderTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+com.amap.agenuiplayground.tests.ComponentRenderTest:
+INSTRUMENTATION_STATUS: test=testRender_01_textOnly
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.ComponentRenderTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testRender_01_textOnly
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.ComponentRenderTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testRender_05_modalWithTrigger
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.ComponentRenderTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: Component count should be 4 (Modal not registered) expected:<4> but was:<5>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:647)
+	at com.amap.agenuiplayground.tests.ComponentRenderTest.testRender_05_modalWithTrigger(ComponentRenderTest.java:166)
+
+INSTRUMENTATION_STATUS: stream=
+Error in testRender_05_modalWithTrigger(com.amap.agenuiplayground.tests.ComponentRenderTest):
+java.lang.AssertionError: Component count should be 4 (Modal not registered) expected:<4> but was:<5>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:647)
+	at com.amap.agenuiplayground.tests.ComponentRenderTest.testRender_05_modalWithTrigger(ComponentRenderTest.java:166)
+
+INSTRUMENTATION_STATUS: test=testRender_05_modalWithTrigger
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.ComponentRenderTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testRender_04_cardComplex
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.ComponentRenderTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testRender_04_cardComplex
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.ComponentRenderTest
+INSTRUMENTATION_STATUS: current=4
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testRender_componentTreeContainsAllComponents
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.ComponentRenderTest
+INSTRUMENTATION_STATUS: current=4
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testRender_componentTreeContainsAllComponents
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.ComponentRenderTest
+INSTRUMENTATION_STATUS: current=5
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testRender_02_buttonWithAction
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.ComponentRenderTest
+INSTRUMENTATION_STATUS: current=5
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testRender_02_buttonWithAction
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.ComponentRenderTest
+INSTRUMENTATION_STATUS: current=6
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testRender_03_nestedColumn
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.ComponentRenderTest
+INSTRUMENTATION_STATUS: current=6
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testRender_03_nestedColumn
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=7
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+com.amap.agenuiplayground.tests.FunctionCallTest:
+INSTRUMENTATION_STATUS: test=testSKILL03_formatNumber
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=7
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSKILL03_formatNumber
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=8
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSKILL02_formatString
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=8
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSKILL02_formatString
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=9
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSKILL05_pluralize
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=9
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSKILL05_pluralize
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=10
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSKILL08_validateNumeric
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=10
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSKILL08_validateNumeric
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=11
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSKILL04_formatCurrency
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=11
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSKILL04_formatCurrency
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=12
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSKILL06_formatToken
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=12
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSKILL06_formatToken
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=13
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSCENE04_funcInAction_textContent
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=13
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSCENE04_funcInAction_textContent
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=14
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSKILL01_formatDate
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=14
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSKILL01_formatDate
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=15
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSKILL10_validateRegex
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=15
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSKILL10_validateRegex
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=16
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSKILL09_validateLength
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=16
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSKILL09_validateLength
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=17
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSCENE03_logicExpression
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=17
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSCENE03_logicExpression
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=18
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSKILL07_validateRequired
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=18
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSKILL07_validateRequired
+INSTRUMENTATION_STATUS_CODE: -3
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=19
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSCENE02_databindingWithFunc
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=19
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSCENE02_databindingWithFunc
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=20
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSCENE01_formatStringNested
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=20
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSCENE01_formatStringNested
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=21
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSKILL11_validateEmail
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.FunctionCallTest
+INSTRUMENTATION_STATUS: current=21
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSKILL11_validateEmail
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.InitializationTest
+INSTRUMENTATION_STATUS: current=22
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+com.amap.agenuiplayground.tests.InitializationTest:
+INSTRUMENTATION_STATUS: test=testINIT03_surfaceManagerCreatedSuccessfully
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.InitializationTest
+INSTRUMENTATION_STATUS: current=22
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testINIT03_surfaceManagerCreatedSuccessfully
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.InitializationTest
+INSTRUMENTATION_STATUS: current=23
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testINIT02_duplicateInitializationNotCrash
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.InitializationTest
+INSTRUMENTATION_STATUS: current=23
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testINIT02_duplicateInitializationNotCrash
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.InitializationTest
+INSTRUMENTATION_STATUS: current=24
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testINIT01_normalInitialization
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.InitializationTest
+INSTRUMENTATION_STATUS: current=24
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testINIT01_normalInitialization
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.MultiSurfaceTest
+INSTRUMENTATION_STATUS: current=25
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+com.amap.agenuiplayground.tests.MultiSurfaceTest:
+INSTRUMENTATION_STATUS: test=testMULTI01_createThreeSurfacesCallbackFiredThreeTimes
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.MultiSurfaceTest
+INSTRUMENTATION_STATUS: current=25
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testMULTI01_createThreeSurfacesCallbackFiredThreeTimes
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.MultiSurfaceTest
+INSTRUMENTATION_STATUS: current=26
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testMULTI03_deleteSurfaceADoesNotAffectSurfaceB
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.MultiSurfaceTest
+INSTRUMENTATION_STATUS: current=26
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testMULTI03_deleteSurfaceADoesNotAffectSurfaceB
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.MultiSurfaceTest
+INSTRUMENTATION_STATUS: current=27
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testMULTI02_twoSurfacesComponentTreesAreIsolated
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.MultiSurfaceTest
+INSTRUMENTATION_STATUS: current=27
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testMULTI02_twoSurfacesComponentTreesAreIsolated
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.PlatformFunctionTest
+INSTRUMENTATION_STATUS: current=28
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+com.amap.agenuiplayground.tests.PlatformFunctionTest:
+INSTRUMENTATION_STATUS: test=testFUNC02_unregisterIdempotent
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.PlatformFunctionTest
+INSTRUMENTATION_STATUS: current=28
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testFUNC02_unregisterIdempotent
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.PlatformFunctionTest
+INSTRUMENTATION_STATUS: current=29
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testFUNC01_registerAndCallback
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.PlatformFunctionTest
+INSTRUMENTATION_STATUS: current=29
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testFUNC01_registerAndCallback
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.PlatformFunctionTest
+INSTRUMENTATION_STATUS: current=30
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testFUNC04_functionResultSerialization
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.PlatformFunctionTest
+INSTRUMENTATION_STATUS: current=30
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testFUNC04_functionResultSerialization
+INSTRUMENTATION_STATUS_CODE: -3
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.PlatformFunctionTest
+INSTRUMENTATION_STATUS: current=31
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testFUNC03_multipleRegistrations
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.PlatformFunctionTest
+INSTRUMENTATION_STATUS: current=31
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testFUNC03_multipleRegistrations
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeCombinedStressTest
+INSTRUMENTATION_STATUS: current=32
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+com.amap.agenuiplayground.tests.SDKRiskProbeCombinedStressTest:
+INSTRUMENTATION_STATUS: test=testSDKRISK18_gcPressureDuringCallbacks
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeCombinedStressTest
+INSTRUMENTATION_STATUS: current=32
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSDKRISK18_gcPressureDuringCallbacks
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeCombinedStressTest
+INSTRUMENTATION_STATUS: current=33
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSDKRISK19_listenerChurnDuringStreaming
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeCombinedStressTest
+INSTRUMENTATION_STATUS: current=33
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSDKRISK19_listenerChurnDuringStreaming
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeCombinedStressTest
+INSTRUMENTATION_STATUS: current=34
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSDKRISK16_listenerReentryStress
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeCombinedStressTest
+INSTRUMENTATION_STATUS: current=34
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSDKRISK16_listenerReentryStress
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeCombinedStressTest
+INSTRUMENTATION_STATUS: current=35
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testSDKRISK17_multiThreadSMTornado
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeCombinedStressTest
+INSTRUMENTATION_STATUS: current=35
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testSDKRISK17_multiThreadSMTornado
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeConcurrentCoordinatorTest
+INSTRUMENTATION_STATUS: current=36
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+com.amap.agenuiplayground.tests.SDKRiskProbeConcurrentCoordinatorTest:
+INSTRUMENTATION_STATUS: test=testRISK25_concurrentUpdateAndInvalidate
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeConcurrentCoordinatorTest
+INSTRUMENTATION_STATUS: current=36
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testRISK25_concurrentUpdateAndInvalidate
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeConcurrentCoordinatorTest
+INSTRUMENTATION_STATUS: current=37
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testRISK26_concurrentReceiveTextChunkTwoThreads
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeConcurrentCoordinatorTest
+INSTRUMENTATION_STATUS: current=37
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testRISK26_concurrentReceiveTextChunkTwoThreads
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeConcurrentCoordinatorTest
+INSTRUMENTATION_STATUS: current=38
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testRISK24_concurrentCreateSurfaceAndDayNightMode
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeConcurrentCoordinatorTest
+INSTRUMENTATION_STATUS: current=38
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testRISK24_concurrentCreateSurfaceAndDayNightMode
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeConfigApiStackOverflowTest
+INSTRUMENTATION_STATUS: current=39
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+com.amap.agenuiplayground.tests.SDKRiskProbeConfigApiStackOverflowTest:
+INSTRUMENTATION_STATUS: test=test_themeConfigDeepNesting
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeConfigApiStackOverflowTest
+INSTRUMENTATION_STATUS: current=39
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=test_themeConfigDeepNesting
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeConfigApiStackOverflowTest
+INSTRUMENTATION_STATUS: current=40
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=test_setPathConfigDeepNesting
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeConfigApiStackOverflowTest
+INSTRUMENTATION_STATUS: current=40
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=263
+INSTRUMENTATION_STATUS: stack=java.lang.IllegalStateException: createSurfaceManager: AGenUI engine is not initialized
+	at com.amap.agenui.AGenUI.createSurfaceManager(AGenUI.java:160)
+	at com.amap.agenui.render.surface.SurfaceManager.<init>(SurfaceManager.java:58)
+	at com.amap.agenuiplayground.A2UIPlaygroundActivity.initAGenUI(A2UIPlaygroundActivity.java:711)
+	at com.amap.agenuiplayground.A2UIPlaygroundActivity.onCreate(A2UIPlaygroundActivity.java:222)
+	at android.app.Activity.performCreate(Activity.java:9019)
+	at android.app.Activity.performCreate(Activity.java:8997)
+	at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1528)
+	at androidx.test.runner.MonitoringInstrumentation.callActivityOnCreate(MonitoringInstrumentation.java:766)
+	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:4111)
+	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:4316)
+	at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:222)
+	at android.app.servertransaction.TransactionExecutor.executeNonLifecycleItem(TransactionExecutor.java:133)
+	at android.app.servertransaction.TransactionExecutor.executeTransactionItems(TransactionExecutor.java:103)
+	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:80)
+	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2719)
+	at android.os.Handler.dispatchMessage(Handler.java:109)
+	at android.os.Looper.loopOnce(Looper.java:232)
+	at android.os.Looper.loop(Looper.java:317)
+	at android.app.ActivityThread.main(ActivityThread.java:8787)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:591)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:871)
+
+INSTRUMENTATION_STATUS: stream=
+Process crashed while executing test_setPathConfigDeepNesting(com.amap.agenuiplayground.tests.SDKRiskProbeConfigApiStackOverflowTest):
+java.lang.IllegalStateException: createSurfaceManager: AGenUI engine is not initialized
+	at com.amap.agenui.AGenUI.createSurfaceManager(AGenUI.java:160)
+	at com.amap.agenui.render.surface.SurfaceManager.<init>(SurfaceManager.java:58)
+	at com.amap.agenuiplayground.A2UIPlaygroundActivity.initAGenUI(A2UIPlaygroundActivity.java:711)
+	at com.amap.agenuiplayground.A2UIPlaygroundActivity.onCreate(A2UIPlaygroundActivity.java:222)
+	at android.app.Activity.performCreate(Activity.java:9019)
+	at android.app.Activity.performCreate(Activity.java:8997)
+	at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1528)
+	at androidx.test.runner.MonitoringInstrumentation.callActivityOnCreate(MonitoringInstrumentation.java:766)
+	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:4111)
+	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:4316)
+	at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:222)
+	at android.app.servertransaction.TransactionExecutor.executeNonLifecycleItem(TransactionExecutor.java:133)
+	at android.app.servertransaction.TransactionExecutor.executeTransactionItems(TransactionExecutor.java:103)
+	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:80)
+	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2719)
+	at android.os.Handler.dispatchMessage(Handler.java:109)
+	at android.os.Looper.loopOnce(Looper.java:232)
+	at android.os.Looper.loop(Looper.java:317)
+	at android.app.ActivityThread.main(ActivityThread.java:8787)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:591)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:871)
+
+INSTRUMENTATION_STATUS: test=test_setPathConfigDeepNesting
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: shortMsg=Process crashed.
+INSTRUMENTATION_CODE: 0
