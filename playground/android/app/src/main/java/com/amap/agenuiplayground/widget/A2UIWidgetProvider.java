@@ -56,7 +56,9 @@ public class A2UIWidgetProvider extends AppWidgetProvider {
             int appWidgetId = intent.getIntExtra(EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
             String template = intent.getStringExtra(EXTRA_TEMPLATE);
             if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID && template != null) {
+                // Optimistic UI: show loading state immediately before background render
                 WidgetProtocolCache.saveTemplate(context, appWidgetId, template);
+                showLoadingState(context, appWidgetId, template);
                 renderWidget(context, appWidgetId, template);
             }
         } else if (ACTION_AI_INPUT.equals(action)) {
@@ -119,11 +121,24 @@ public class A2UIWidgetProvider extends AppWidgetProvider {
 
     private void renderWidget(Context context, int appWidgetId, String template) {
         Log.d(TAG, "renderWidget: id=" + appWidgetId + ", template=" + template);
-        AppWidgetManager awm = AppWidgetManager.getInstance(context);
-        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.a2ui_widget_placeholder);
-        awm.updateAppWidget(appWidgetId, views);
         // Direct async render — bypasses JobScheduler delays and BAL restriction
         AGenUIWidgetRenderService.renderAsync(context, appWidgetId, template);
+    }
+
+    /**
+     * Optimistic UI: shows a loading indicator on the widget immediately,
+     * before the background render pipeline completes.
+     *
+     * <p>This gives the user instant feedback that their button tap was
+     * registered, matching the 2026 "3-second rule" industry standard.
+     */
+    private void showLoadingState(Context context, int appWidgetId, String template) {
+        AppWidgetManager awm = AppWidgetManager.getInstance(context);
+        RemoteViews views = WidgetRemoteViewsPool.obtainWidgetLayout(context);
+        views.setTextViewText(R.id.widgetTitle, "AGenUI · " + template + " · 加载中");
+        WidgetStateController.setState(views, WidgetStateController.STATE_LOADING);
+        WidgetButtonWiring.wireRefreshOnly(context, views, appWidgetId);
+        awm.updateAppWidget(appWidgetId, views);
     }
 
     public static void updateAllWidgets(Context context) {

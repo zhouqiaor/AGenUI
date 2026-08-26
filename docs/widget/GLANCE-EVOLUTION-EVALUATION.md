@@ -118,7 +118,13 @@ PoC (4a69e53)                     演进版 (20轮迭代)
 | R55-R57 | GlanceRenderWorker.kt | withTimeout(30s) 包裹 doWork + doRenderWork 拆分 | ✅ |
 | R58 | GlanceRenderWorker.kt | 文件结构验证通过 | ✅ |
 | R59-R60 | 文档 | 第三轮调研+评估更新 | ✅ |
-| R49-R50 | 文档更新 | 评估 + plan 文档 | ✅ |
+| R61 | GlanceRenderWorker.kt | `surfaceRef.get()!!` → 安全 null 检查 (防 NPE) | ✅ |
+| R62-R63 | StateDefinition.kt + ActionCallbacks.kt | setViewMode 原子 clearError (单次 DataStore edit) | ✅ |
+| R64 | A2UIGlanceWidget.kt | bitmap fallback 逻辑改进 (takeIf 防旧 bitmap) | ✅ |
+| R66-R67 | StateDefinition.kt | 添加 updateStateViaGlance (官方 updateAppWidgetState 模式) | ✅ |
+| R68-R69 | StateDefinition.kt + ActionCallbacks.kt | 清理重复方法 setViewModeAndClearError | ✅ |
+| R70-R72 | A2UIGlanceWidget.kt | GlanceAppWidgetManager + getGlanceIds 多实例支持 | ✅ |
+| R73-R75 | 文档 | 第四轮评估更新 | ✅ |
 
 ### 3.3 Git 仓库状态
 - Git 对象存储受 AV (360/Defender) 干扰，多个 commit 对象损坏

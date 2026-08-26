@@ -83,3 +83,37 @@
 4. **性能基准** — FPS/内存/首帧自动化
 5. **AST/DSL 层** — 可选的更高效协议层
 6. **多模板 List** — 单 List 支持多模板变体
+
+## 6. 性能优化分析（第二轮迭代）
+
+### 6.1 List 纵向虚拟化
+- **现状**: 纵向 List 用 `YogaAbsoluteLayout` 全量 eager 创建，O(n) 开销
+- **横向**: 已有 RecyclerView 虚拟化 + `YogaLayoutManager` + `ComponentAdapter`
+- **方案**: 纵向也接入 RecyclerView，复用 `YogaLayoutManager`（设 `VERTICAL` direction）
+- **影响文件**: `ListComponent.java` — `createVerticalContainer()` 改为创建 RecyclerView
+- **风险**: 纵向滚动与 Yoga 布局的交互需验证
+
+### 6.2 Styles JSON 解析缓存
+- **现状**: `A2UIComponent.extractStyles()` 每次 call 时如果是 String 类型都重新 parse JSON
+- **方案**: 添加 `stylesCache` 字段，缓存 parsed Map；`updateProperties` 中 "styles" key 变化时清空
+- **状态**: ✅ 已实现 — `A2UIComponent.java` 添加了 `stylesCache` 字段 + 缓存逻辑
+- **收益**: 高频布局调用中避免重复 JSON 解析
+
+### 6.3 流式渲染跨 chunk coalescing
+- **现状**: `dispatchParseResultsBatched` 已有同 chunk 内 contiguous batch 合并
+- **缺失**: 无跨 chunk 时间窗 coalescing — 高频小 chunk 触发多次 JSON 拼接 + updateComponents
+- **方案**: 在 `processDataAssembling` 中增加 16ms 帧级时间窗，合并跨 chunk 的同 surfaceId 更新
+- **实现**: 需要 C++ 层修改（涉及 `StreamingContentParser` + `SurfaceCoordinator`）
+- **风险**: 增加延迟，需权衡 LLM 流式场景的实时性需求
+
+### 6.4 Yoga 布局优化
+- **Tabs 二次布局**: `calculateLayoutWithAdjust` 对 Tabs 场景调用两次 `YGNodeCalculateLayout`
+  - 方案: 只对受影响子树计算
+- **removeNode O(n)**: 对全池扫描重置 `_hasOwner`
+  - 方案: 维护父→子索引避免全扫描
+
+### 6.5 A2UIComponent createView guard
+- **现状**: `isViewCreated` guard 使 `createView` 幂等 ✅
+- **现状**: `updateProperties` 有 diff-aware dirty check ✅
+- **现状**: `appliedYogaLayout` 缓存避免重复布局 ✅
+- **优化**: `extractStyles` 已添加缓存 ✅（本轮完成）
