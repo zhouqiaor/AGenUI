@@ -1,0 +1,10 @@
+CapturedComponent tree (Column + 3 Text + Button + Image)
+
+
+root|Column||24.0|||0.0|0.0|400.0|600.0
+title|Text|Hello AGenUI!|48.0|||0.0|0.0|400.0|60.0
+subtitle|Text|Phase 2 Golden|24.0|||0.0|80.0|400.0|30.0
+body|Text|Body text line|16.0|||10.0|130.0|380.0|24.0
+actionBtn|Button|Click Me|16.0|#007DFF||50.0|200.0|200.0|44.0
+heroImage|Image||24.0||https://example.com/hero.png|0.0|300.0|200.0|120.0
+
