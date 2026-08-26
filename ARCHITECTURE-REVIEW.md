@@ -148,7 +148,40 @@
 ### 7.5 未实现项（遗留）
 | 项目 | 描述 | 优先级 |
 |------|------|--------|
-| 跨 chunk 16ms 时间窗 coalescing | 需要 C++ StreamingContentParser 改造 | P2 |
+| ~~跨 chunk 16ms 时间窗 coalescing~~ | ✅ 已在 R34 实现 | ~~P2~~ |
 | List 垂直虚拟化设备验证 | 需 rebuild APK + 设备测试 | P1 |
 | E2E-02/03 设备验证 | `sendMessagesAndWaitForRender` 修复未打包进 APK | P0 |
 | Yoga 只对受影响子树计算 | Tabs 场景的增量布局 | P3 |
+
+## 8. 跨 Chunk Coalescing 设计 (R34)
+
+### 8.1 算法
+```
+processDataAssembling(chunk):
+  1. extractor.appendData(chunk) → driveParser() → results
+  2. tryCrossChunkCoalesce(results):
+     a. 如果 _pendingUpdates 为空 → 不处理
+     b. 如果距上次 chunk > 16ms → flushPendingUpdates()
+     c. 如果 results[0] 不是 ComponentUpdate → flushPendingUpdates()
+     d. 如果 results[0].surfaceId != _pendingSurfaceId → flushPendingUpdates()
+     e. 否则: results.insert(begin, _pendingUpdates) → 合并
+  3. dispatchParseResultsBatched(results):
+     - NormalEvent → flushPendingUpdates() + processNormalEvent()
+     - ComponentUpdate 连续段:
+       - 最后一段 (isLastRun) → 缓存为 _pendingUpdates
+       - 非最后段 → sendBatchedComponentUpdate / sendSingleComponentUpdate
+  4. _lastChunkTime = now
+```
+
+### 8.2 生命周期
+| 事件 | 动作 |
+|------|------|
+| processDataBeginning | resetState() (清理解析器) |
+| processDataAssembling | coalesce + dispatch + buffer last run |
+| processDataEnding | flushPendingUpdates() + resetState() |
+| NormalEvent | flushPendingUpdates() + process |
+
+### 8.3 权衡
+- **延迟**: 最后一个 ComponentUpdate 段被缓冲到下一个 chunk 或 endTextStream, 最坏 1 帧 (16ms) 延迟
+- **收益**: 高频小 chunk (如 LLM 逐 token 输出) 下, N 次 updateComponents → 1 次, 减少 N-1 次全树 Yoga 布局
+- **风险**: 如果 endTextStream 未被调用, pending 永远不 flush — 但这不可能发生 (endTextStream 是协议合约)

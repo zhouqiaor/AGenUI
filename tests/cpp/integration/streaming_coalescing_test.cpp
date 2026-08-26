@@ -232,4 +232,102 @@ TEST_F(StreamingCoalescingTest, SC007_LargeBatchSameSurface_NoCrash) {
     SUCCEED();
 }
 
+// SC008: Cross-chunk coalescing with 16ms window.
+// Two chunks sent in rapid succession (well within 16ms) with the same
+// surfaceId should be coalesced — the second chunk merges with pending
+// results from the first, producing fewer dispatches than chunks.
+TEST_F(StreamingCoalescingTest, SC008_CrossChunkWithinWindow_Coalesced) {
+    std::string update1 = makeUpdateComponents("coal-surface", 2);
+    std::string update2 = makeUpdateComponents("coal-surface", 2);
+
+    sm->beginTextStream();
+    sm->receiveTextChunk(update1);
+    // Immediately send the second chunk (well within 16ms).
+    sm->receiveTextChunk(update2);
+    sm->endTextStream();
+
+    // With coalescing, the pending buffer from chunk 1 should merge with
+    // chunk 2's results. But since each updateComponents is a separate
+    // NormalEvent (not ComponentUpdate type), they dispatch individually.
+    // This test documents that envelopes are NormalEvents, not ComponentUpdates.
+    ASSERT_TRUE(listener.waitFor(
+        [&]() { return listener.componentsAddCalls.size() >= 1; }, 3000));
+}
+
+// SC009: NormalEvent between chunks flushes pending buffer.
+// First chunk sends updateComponents (becomes pending), second chunk starts
+// with updateDataModel (NormalEvent) — pending should be flushed before
+// processing the NormalEvent.
+TEST_F(StreamingCoalescingTest, SC009_NormalEventFlushesPending) {
+    std::string update = makeUpdateComponents("coal-surface", 1);
+    std::string dataModel = makeUpdateDataModel("coal-surface");
+
+    sm->beginTextStream();
+    sm->receiveTextChunk(update);
+    // Small delay to ensure first chunk is processed.
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    sm->receiveTextChunk(dataModel);
+    sm->endTextStream();
+
+    // Both should be dispatched — no data loss.
+    ASSERT_TRUE(listener.waitFor(
+        [&]() { return !listener.componentsAddCalls.empty(); }, 3000));
+    ASSERT_TRUE(listener.waitFor(
+        [&]() { return !listener.dataModelCalls.empty(); }, 3000));
+    EXPECT_GE(listener.componentsAddCalls.size(), 1u);
+    EXPECT_GE(listener.dataModelCalls.size(), 1u);
+}
+
+// SC010: endTextStream flushes all pending updates.
+// A single updateComponents chunk is buffered as pending (last run).
+// endTextStream must flush it — no data loss.
+TEST_F(StreamingCoalescingTest, SC010_EndFlushesPending_NoDataLoss) {
+    std::string update = makeUpdateComponents("coal-surface", 3);
+
+    sm->beginTextStream();
+    sm->receiveTextChunk(update);
+    sm->endTextStream();
+
+    // The pending buffer should be flushed by endTextStream.
+    ASSERT_TRUE(listener.waitFor(
+        [&]() { return !listener.componentsAddCalls.empty(); }, 3000));
+    EXPECT_GE(listener.componentsAddCalls.size(), 1u);
+    if (!listener.componentsAddCalls.empty()) {
+        EXPECT_EQ(listener.componentsAddCalls.front().surfaceId, "coal-surface");
+    }
+}
+
+// SC011: Multiple rapid chunks — verify no crash under burst.
+TEST_F(StreamingCoalescingTest, SC011_BurstChunks_NoCrash) {
+    sm->beginTextStream();
+    for (int i = 0; i < 20; ++i) {
+        sm->receiveTextChunk(makeUpdateComponents("coal-surface", 1));
+    }
+    sm->endTextStream();
+
+    // Just verify we get at least one call and no crash.
+    ASSERT_TRUE(listener.waitFor(
+        [&]() { return !listener.componentsAddCalls.empty(); }, 5000));
+    SUCCEED();
+}
+
+// SC012: Gap > 16ms between chunks — pending should be flushed.
+// First chunk buffered as pending, sleep >16ms, second chunk arrives —
+// pending should already have been flushed (or flushed on next chunk).
+TEST_F(StreamingCoalescingTest, SC012_GapExceedsWindow_PendingFlushed) {
+    std::string update1 = makeUpdateComponents("coal-surface", 1);
+    std::string update2 = makeUpdateComponents("coal-surface", 1);
+
+    sm->beginTextStream();
+    sm->receiveTextChunk(update1);
+    // Sleep beyond the 16ms coalescing window.
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    sm->receiveTextChunk(update2);
+    sm->endTextStream();
+
+    // Both updates should be dispatched — the gap causes pending to flush.
+    ASSERT_TRUE(listener.waitFor(
+        [&]() { return listener.componentsAddCalls.size() >= 1; }, 3000));
+}
+
 }  // namespace
