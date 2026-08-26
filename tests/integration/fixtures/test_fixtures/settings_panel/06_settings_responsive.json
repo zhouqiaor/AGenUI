@@ -1,0 +1,108 @@
+{
+  "description": "Settings panel responsive: verify flex-grow layout adapts to 4K width",
+  "surfaceId": "test-surf-settings-06",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": {
+        "surfaceId": "test-surf-settings-06"
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "test-surf-settings-06",
+        "components": [
+          {
+            "id": "root",
+            "component": "Column",
+            "align": "stretch",
+            "children": ["header", "main-row"]
+          },
+          {
+            "id": "header",
+            "component": "Row",
+            "justify": "spaceBetween",
+            "align": "center",
+            "styles": { "height": "126px", "padding": "0px 48px" },
+            "children": ["header-title", "header-close"]
+          },
+          {
+            "id": "header-title",
+            "component": "Text",
+            "text": "设置",
+            "variant": "h3",
+            "styles": { "font-size": "42px", "font-weight": "500" }
+          },
+          {
+            "id": "header-close",
+            "component": "Button",
+            "variant": "borderless",
+            "child": "close-icon",
+            "action": { "event": "closeSettings" }
+          },
+          {
+            "id": "close-icon",
+            "component": "Icon",
+            "name": "close",
+            "styles": { "font-size": "40px", "color": "#666666" }
+          },
+          {
+            "id": "main-row",
+            "component": "Row",
+            "flex-grow": 1,
+            "children": ["left-nav", "right-content"]
+          },
+          {
+            "id": "left-nav",
+            "component": "Column",
+            "width": "300px",
+            "styles": { "background-color": "#F5F5F5" },
+            "children": ["nav-item-1", "nav-item-2"]
+          },
+          {
+            "id": "nav-item-1",
+            "component": "Button",
+            "child": "nav-item-1-text",
+            "action": { "event": "selectCategory", "args": { "categoryId": "enterprise" } }
+          },
+          {
+            "id": "nav-item-1-text",
+            "component": "Text",
+            "text": "企业服务",
+            "styles": { "font-size": "28px", "color": "#1976D2", "font-weight": "bold" }
+          },
+          {
+            "id": "nav-item-2",
+            "component": "Button",
+            "child": "nav-item-2-text",
+            "action": { "event": "selectCategory", "args": { "categoryId": "sound" } }
+          },
+          {
+            "id": "nav-item-2-text",
+            "component": "Text",
+            "text": "声音与显示",
+            "styles": { "font-size": "28px", "color": "#333333" }
+          },
+          {
+            "id": "right-content",
+            "component": "Column",
+            "flex-grow": 1,
+            "children": ["content-title"]
+          },
+          {
+            "id": "content-title",
+            "component": "Text",
+            "text": "企业服务",
+            "variant": "h4",
+            "styles": { "font-size": "36px", "font-weight": "500" }
+          }
+        ]
+      }
+    }
+  ],
+  "expect": {
+    "componentCount": 12,
+    "componentIds": ["root", "header", "header-title", "header-close", "close-icon", "main-row", "left-nav", "nav-item-1", "nav-item-1-text", "nav-item-2", "nav-item-2-text", "right-content", "content-title"]
+  }
+}

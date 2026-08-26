@@ -79,4 +79,8 @@
     <string name="widget_ai_input_send">发送</string>
     <string name="ai_drawer_title">AI 生成 A2UI</string>
     <string name="action_ai_input">AI Input</string>
+
+    <!-- Widget Configuration -->
+    <string name="widget_config_title">选择 Widget 模板</string>
+    <string name="widget_config_selected">已选择模板: %1$s</string>
 </resources>

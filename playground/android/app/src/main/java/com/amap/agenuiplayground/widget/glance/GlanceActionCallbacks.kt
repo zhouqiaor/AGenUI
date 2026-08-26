@@ -35,7 +35,7 @@ object GlanceActionCallbacks {
                 A2UIGlanceStateDefinition.VIEW_MODE_CURRENT
             }
 
-            A2UIGlanceStateDefinition.setViewModeAndClearError(context, newMode)
+            A2UIGlanceStateDefinition.setViewMode(context, newMode)
             Log.d(TAG, "ToggleViewModeAction: ${state.viewMode} -> $newMode")
             GlanceRenderWorker.renderNow(context)
         }

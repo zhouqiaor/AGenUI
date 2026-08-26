@@ -1,0 +1,60 @@
+{
+  "description": "Settings panel with multiple List instances: switch + slider + link lists in one right pane",
+  "surfaceId": "test-surf-settings-07",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": { "surfaceId": "test-surf-settings-07" }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "test-surf-settings-07",
+        "components": [
+          { "id": "root", "component": "Column", "align": "stretch", "children": ["title", "switch-list", "slider-list", "link-list"] },
+          { "id": "title", "component": "Text", "text": "设置", "variant": "h3", "styles": { "font-size": "42px" } },
+          { "id": "switch-list", "component": "List", "direction": "vertical", "children": { "path": "/data/switchItems", "componentId": "switch-template" } },
+          { "id": "switch-template", "component": "Row", "align": "center", "styles": { "height": "80px", "padding": "0px 40px" }, "children": ["switch-icon", "switch-label", "switch-control"] },
+          { "id": "switch-icon", "component": "Icon", "name": "login", "styles": { "font-size": "32px" } },
+          { "id": "switch-label", "component": "Text", "text": { "path": "/title" }, "styles": { "font-size": "28px", "flex-grow": 1 } },
+          { "id": "switch-control", "component": "CheckBox", "value": { "path": "/enabled" } },
+          { "id": "slider-list", "component": "List", "direction": "vertical", "children": { "path": "/data/sliderItems", "componentId": "slider-template" } },
+          { "id": "slider-template", "component": "Row", "align": "center", "styles": { "height": "80px", "padding": "0px 40px" }, "children": ["slider-icon", "slider-label", "slider-control"] },
+          { "id": "slider-icon", "component": "Icon", "name": "volume_up", "styles": { "font-size": "32px" } },
+          { "id": "slider-label", "component": "Text", "text": { "path": "/title" }, "styles": { "font-size": "28px" } },
+          { "id": "slider-control", "component": "Slider", "value": { "path": "/value" }, "max": { "path": "/max" } },
+          { "id": "link-list", "component": "List", "direction": "vertical", "children": { "path": "/data/linkItems", "componentId": "link-template" } },
+          { "id": "link-template", "component": "Row", "align": "center", "styles": { "height": "80px", "padding": "0px 40px" }, "children": ["link-icon", "link-label", "link-arrow"] },
+          { "id": "link-icon", "component": "Icon", "name": "server", "styles": { "font-size": "32px" } },
+          { "id": "link-label", "component": "Text", "text": { "path": "/title" }, "styles": { "font-size": "28px", "flex-grow": 1 } },
+          { "id": "link-arrow", "component": "Icon", "name": "chevron_right", "styles": { "font-size": "32px", "color": "#999999" } }
+        ]
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateDataModel": {
+        "surfaceId": "test-surf-settings-07",
+        "path": "/data",
+        "value": {
+          "switchItems": [
+            { "title": "自动登录", "enabled": true },
+            { "title": "企业账号绑定", "enabled": false }
+          ],
+          "sliderItems": [
+            { "title": "扬声器音量", "value": 60, "max": 100 },
+            { "title": "屏幕亮度", "value": 75, "max": 100 }
+          ],
+          "linkItems": [
+            { "title": "服务器配置" },
+            { "title": "企业账号管理" }
+          ]
+        }
+      }
+    }
+  ],
+  "expect": {
+    "componentCount": 17,
+    "componentIds": ["root", "title", "switch-list", "switch-template", "switch-icon", "switch-label", "switch-control", "slider-list", "slider-template", "slider-icon", "slider-label", "slider-control", "link-list", "link-template", "link-icon", "link-label", "link-arrow"]
+  }
+}

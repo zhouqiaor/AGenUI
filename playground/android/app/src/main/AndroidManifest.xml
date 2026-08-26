@@ -97,6 +97,12 @@
             android:taskAffinity=""
             android:theme="@style/Theme.AGenUIPlayground.Transparent" />
 
+        <!-- Widget configuration activity — shown when user places a new widget -->
+        <activity
+            android:name=".widget.WidgetConfigActivity"
+            android:exported="true"
+            android:theme="@style/Theme.AGenUIPlayground" />
+
         <!-- Widget render service (JobIntentService) -->
         <service
             android:name=".widget.AGenUIWidgetRenderService"

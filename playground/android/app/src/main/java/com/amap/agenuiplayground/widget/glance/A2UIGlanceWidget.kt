@@ -17,6 +17,7 @@ import androidx.glance.ImageProvider
 import androidx.glance.LocalSize
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.provideContent
@@ -287,6 +288,10 @@ class A2UIGlanceWidgetReceiver : GlanceAppWidgetReceiver() {
     companion object {
         private const val TAG = "A2UIGlanceReceiver"
 
+        /**
+         * Updates all placed widget instances using GlanceAppWidgetManager
+         * to enumerate GlanceIds (multi-instance safe).
+         */
         suspend fun updateAll(context: Context) {
             val startMs = System.currentTimeMillis()
             Log.d(TAG, "updateAll: request at $startMs")
@@ -297,6 +302,13 @@ class A2UIGlanceWidgetReceiver : GlanceAppWidgetReceiver() {
             } catch (e: Exception) {
                 Log.e(TAG, "updateAll failed", e)
             }
+        }
+
+        /**
+         * Returns all GlanceIds for this widget (multi-instance support).
+         */
+        suspend fun getGlanceIds(context: Context): List<GlanceId> {
+            return GlanceAppWidgetManager(context).getGlanceIds(A2UIGlanceWidget::class.java)
         }
     }
 

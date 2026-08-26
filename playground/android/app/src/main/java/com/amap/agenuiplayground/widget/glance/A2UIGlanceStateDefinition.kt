@@ -91,16 +91,6 @@ object A2UIGlanceStateDefinition {
     }
 
     /**
-     * Atomically updates viewMode and clears any error in a single DataStore transaction.
-     */
-    suspend fun setViewModeAndClearError(context: Context, viewMode: String) {
-        context.dataStore.edit { prefs ->
-            prefs[KEY_VIEW_MODE] = viewMode
-            prefs[KEY_ERROR_MSG] = ""
-        }
-    }
-
-    /**
      * Exposes widget state as a Flow for composition observation.
      * Use collectAsState() inside provideContent to react to state changes.
      */
@@ -114,6 +104,37 @@ object A2UIGlanceStateDefinition {
                 lastUpdateTs = prefs[KEY_LAST_UPDATE] ?: 0L,
                 errorMsg = prefs[KEY_ERROR_MSG] ?: ""
             )
+        }
+    }
+
+    /**
+     * Uses the official Glance [updateAppWidgetState] to atomically update widget
+     * state within a single DataStore transaction. This is the recommended pattern
+     * for writing state from ActionCallbacks and Workers.
+     *
+     * After calling this, invoke [A2UIGlanceWidget.updateAll] to trigger recomposition.
+     */
+    suspend fun updateStateViaGlance(
+        context: Context,
+        glanceId: androidx.glance.GlanceId,
+        update: suspend (A2UIGlanceState) -> A2UIGlanceState
+    ) {
+        updateAppWidgetState(context, glanceId) { prefs ->
+            val current = A2UIGlanceState(
+                template = prefs[KEY_TEMPLATE] ?: "",
+                bitmapPath = prefs[KEY_BITMAP_PATH] ?: "",
+                viewMode = prefs[KEY_VIEW_MODE] ?: VIEW_MODE_CURRENT,
+                hasContent = prefs[KEY_HAS_CONTENT] ?: false,
+                lastUpdateTs = prefs[KEY_LAST_UPDATE] ?: 0L,
+                errorMsg = prefs[KEY_ERROR_MSG] ?: ""
+            )
+            val newState = update(current)
+            prefs[KEY_TEMPLATE] = newState.template
+            prefs[KEY_BITMAP_PATH] = newState.bitmapPath
+            prefs[KEY_VIEW_MODE] = newState.viewMode
+            prefs[KEY_HAS_CONTENT] = newState.hasContent
+            prefs[KEY_LAST_UPDATE] = newState.lastUpdateTs
+            prefs[KEY_ERROR_MSG] = newState.errorMsg
         }
     }
 }
