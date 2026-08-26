@@ -37,3 +37,6 @@ nul
 test_results/
 test_results_rerun/
 test_results_separated/
+
+# Node
+node_modules/

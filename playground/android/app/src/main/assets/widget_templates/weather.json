@@ -26,7 +26,7 @@
                     "type": "Container",
                     "styles": {"width": 48, "height": 48, "borderRadius": 999, "backgroundColor": "#E8F3FF", "alignItems": "center", "justifyContent": "center"},
                     "children": [
-                      {"id": "root_c0_c0_c0_c0", "type": "Text", "text": "\u2600", "styles": {"fontSize": 24}}
+                      {"id": "root_c0_c0_c0_c0", "type": "Text", "text": "☀", "styles": {"fontSize": 24}}
                     ]
                   },
                   {
@@ -34,14 +34,14 @@
                     "type": "Column",
                     "styles": {"marginLeft": 12, "flex": 1},
                     "children": [
-                      {"id": "root_c0_c0_c1_c0", "type": "Text", "text": "\u5317\u4eac", "styles": {"fontSize": 16, "fontWeight": "bold", "color": "#181818"}},
-                      {"id": "root_c0_c0_c1_c1", "type": "Text", "text": "\u6674 \u00b7 \u5fae\u98ce", "styles": {"fontSize": 14, "color": "#666666"}}
+                      {"id": "root_c0_c0_c1_c0", "type": "Text", "text": "北京", "styles": {"fontSize": 16, "fontWeight": "bold", "color": "#181818"}},
+                      {"id": "root_c0_c0_c1_c1", "type": "Text", "text": "晴 · 微风", "styles": {"fontSize": 14, "color": "#666666"}}
                     ]
                   },
                   {
                     "id": "root_c0_c0_c2",
                     "type": "Text",
-                    "text": "23\u00b0",
+                    "text": "23°",
                     "styles": {"fontSize": 30, "fontWeight": "bold", "color": "#007DFF"}
                   }
                 ],
@@ -61,7 +61,7 @@
                     "type": "Column",
                     "styles": {"flex": 1, "alignItems": "center"},
                     "children": [
-                      {"id": "root_c0_c2_c0_c0", "type": "Text", "text": "\u6e7f\u5ea6", "styles": {"fontSize": 12, "color": "#999999"}},
+                      {"id": "root_c0_c2_c0_c0", "type": "Text", "text": "湿度", "styles": {"fontSize": 12, "color": "#999999"}},
                       {"id": "root_c0_c2_c0_c1", "type": "Text", "text": "45%", "styles": {"fontSize": 14, "color": "#181818", "marginTop": 4}}
                     ]
                   },
@@ -70,8 +70,8 @@
                     "type": "Column",
                     "styles": {"flex": 1, "alignItems": "center"},
                     "children": [
-                      {"id": "root_c0_c2_c1_c0", "type": "Text", "text": "\u98ce\u901f", "styles": {"fontSize": 12, "color": "#999999"}},
-                      {"id": "root_c0_c2_c1_c1", "type": "Text", "text": "3\u7ea7", "styles": {"fontSize": 14, "color": "#181818", "marginTop": 4}}
+                      {"id": "root_c0_c2_c1_c0", "type": "Text", "text": "风速", "styles": {"fontSize": 12, "color": "#999999"}},
+                      {"id": "root_c0_c2_c1_c1", "type": "Text", "text": "3级", "styles": {"fontSize": 14, "color": "#181818", "marginTop": 4}}
                     ]
                   },
                   {
@@ -80,7 +80,7 @@
                     "styles": {"flex": 1, "alignItems": "center"},
                     "children": [
                       {"id": "root_c0_c2_c2_c0", "type": "Text", "text": "AQI", "styles": {"fontSize": 12, "color": "#999999"}},
-                      {"id": "root_c0_c2_c2_c1", "type": "Text", "text": "\u4f18 42", "styles": {"fontSize": 14, "color": "#181818", "marginTop": 4}}
+                      {"id": "root_c0_c2_c2_c1", "type": "Text", "text": "优 42", "styles": {"fontSize": 14, "color": "#181818", "marginTop": 4}}
                     ]
                   }
                 ],
@@ -92,10 +92,5 @@
         "styles": {"borderRadius": 16, "backgroundColor": "#FFFFFF", "elevation": 2}
       }
     ]
-  },
-  {
-    "type": "updateDataModel",
-    "surfaceId": "__SURFACE_ID__",
-    "value": {}
   }
 ]

@@ -1,0 +1,78 @@
+{
+  "version": "v0.9",
+  "updateComponents": {
+    "surfaceId": "harmony_capsulechip_demo",
+    "components": [
+      {
+        "id": "root",
+        "component": "Column",
+        "children": ["chip-row", "chip-desc"],
+        "align": "stretch",
+        "styles": { "padding": "16px", "gap": "12px", "background-color": "#FFFFFF" }
+      },
+      {
+        "id": "chip-row",
+        "component": "Row",
+        "children": ["chip1", "chip2", "chip3"],
+        "styles": { "gap": "8px" }
+      },
+      {
+        "id": "chip1",
+        "component": "Button",
+        "child": "chip1-text",
+        "styles": {
+          "height": "32px",
+          "border-radius": "999px",
+          "background-color": "#E8F3FF",
+          "padding": "2px 8px"
+        }
+      },
+      {
+        "id": "chip1-text",
+        "component": "Text",
+        "text": "HarmonyOS",
+        "styles": { "font-size": "12px", "font-weight": "500", "color": "#007DFF", "text-align": "center" }
+      },
+      {
+        "id": "chip2",
+        "component": "Button",
+        "child": "chip2-text",
+        "styles": {
+          "height": "32px",
+          "border-radius": "999px",
+          "background-color": "#E8F3FF",
+          "padding": "2px 8px"
+        }
+      },
+      {
+        "id": "chip2-text",
+        "component": "Text",
+        "text": "ArkUI",
+        "styles": { "font-size": "12px", "font-weight": "500", "color": "#007DFF", "text-align": "center" }
+      },
+      {
+        "id": "chip3",
+        "component": "Button",
+        "child": "chip3-text",
+        "styles": {
+          "height": "32px",
+          "border-radius": "999px",
+          "background-color": "#E8F3FF",
+          "padding": "2px 8px"
+        }
+      },
+      {
+        "id": "chip3-text",
+        "component": "Text",
+        "text": "DevEco",
+        "styles": { "font-size": "12px", "font-weight": "500", "color": "#007DFF", "text-align": "center" }
+      },
+      {
+        "id": "chip-desc",
+        "component": "Text",
+        "text": "HarmonyOS CapsuleChip: radius_full=999, brand_surface bg, brand text, 12fp overline.",
+        "styles": { "font-size": "14px", "color": "#666666", "text-align": "left" }
+      }
+    ]
+  }
+}

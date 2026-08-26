@@ -1,0 +1,58 @@
+{
+  "version": "v0.9",
+  "updateComponents": {
+    "surfaceId": "harmony_topbar_demo",
+    "components": [
+      {
+        "id": "root",
+        "component": "Column",
+        "children": ["topbar", "content"],
+        "align": "stretch",
+        "styles": { "background-color": "#FFFFFF" }
+      },
+      {
+        "id": "topbar",
+        "component": "Row",
+        "children": ["tb-back", "tb-title", "tb-spacer"],
+        "styles": {
+          "height": "48px",
+          "padding": "0px 16px",
+          "background-color": "#FFFFFF",
+          "border-bottom-width": "1px",
+          "border-bottom-color": "#E8EAED",
+          "align": "center"
+        }
+      },
+      {
+        "id": "tb-back",
+        "component": "Text",
+        "text": "Back",
+        "styles": { "font-size": "16px", "color": "#007DFF" }
+      },
+      {
+        "id": "tb-title",
+        "component": "Text",
+        "text": "Harmony TopBar",
+        "styles": { "font-size": "18px", "font-weight": "500", "color": "#181818", "text-align": "center" }
+      },
+      {
+        "id": "tb-spacer",
+        "component": "Text",
+        "text": "",
+        "styles": { "width": "40px" }
+      },
+      {
+        "id": "content",
+        "component": "Column",
+        "children": ["content-text"],
+        "styles": { "padding": "24px 16px", "gap": "12px" }
+      },
+      {
+        "id": "content-text",
+        "component": "Text",
+        "text": "HarmonyOS TopBar: 48vp height, surface background with 85% opacity blur, centered 18fp medium title, 1vp bottom divider.",
+        "styles": { "font-size": "14px", "line-height": "20px", "color": "#666666", "text-align": "left" }
+      }
+    ]
+  }
+}

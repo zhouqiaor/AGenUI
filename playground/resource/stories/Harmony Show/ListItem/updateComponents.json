@@ -1,0 +1,97 @@
+{
+  "version": "v0.9",
+  "updateComponents": {
+    "surfaceId": "harmony_listitem_demo",
+    "components": [
+      {
+        "id": "root",
+        "component": "Column",
+        "children": ["list-card"],
+        "align": "stretch",
+        "styles": {
+          "padding": "16px",
+          "background-color": "#FFFFFF"
+        }
+      },
+      {
+        "id": "list-card",
+        "component": "Card",
+        "child": "list-content",
+        "styles": {
+          "padding": "0px",
+          "border-radius": "12px",
+          "background-color": "#FFFFFF",
+          "filter": "drop-shadow(0px 2px 12px 0px rgba(0, 0, 0, 0.06))"
+        }
+      },
+      {
+        "id": "list-content",
+        "component": "List",
+        "children": ["item1", "item2", "item3"],
+        "styles": { "background-color": "#FFFFFF" }
+      },
+      {
+        "id": "item1",
+        "component": "Column",
+        "children": ["item1-title", "item1-subtitle"],
+        "styles": {
+          "padding": "12px 16px",
+          "border-bottom-width": "1px",
+          "border-bottom-color": "#E8EAED"
+        }
+      },
+      {
+        "id": "item1-title",
+        "component": "Text",
+        "text": "Settings",
+        "styles": { "font-size": "16px", "color": "#181818", "text-align": "left" }
+      },
+      {
+        "id": "item1-subtitle",
+        "component": "Text",
+        "text": "General settings",
+        "styles": { "font-size": "14px", "color": "#999999", "text-align": "left" }
+      },
+      {
+        "id": "item2",
+        "component": "Column",
+        "children": ["item2-title", "item2-subtitle"],
+        "styles": {
+          "padding": "12px 16px",
+          "border-bottom-width": "1px",
+          "border-bottom-color": "#E8EAED"
+        }
+      },
+      {
+        "id": "item2-title",
+        "component": "Text",
+        "text": "Display & Brightness",
+        "styles": { "font-size": "16px", "color": "#181818", "text-align": "left" }
+      },
+      {
+        "id": "item2-subtitle",
+        "component": "Text",
+        "text": "Dark mode, font size",
+        "styles": { "font-size": "14px", "color": "#999999", "text-align": "left" }
+      },
+      {
+        "id": "item3",
+        "component": "Column",
+        "children": ["item3-title", "item3-subtitle"],
+        "styles": { "padding": "12px 16px" }
+      },
+      {
+        "id": "item3-title",
+        "component": "Text",
+        "text": "Sound",
+        "styles": { "font-size": "16px", "color": "#181818", "text-align": "left" }
+      },
+      {
+        "id": "item3-subtitle",
+        "component": "Text",
+        "text": "Volume, ringtone",
+        "styles": { "font-size": "14px", "color": "#999999", "text-align": "left" }
+      }
+    ]
+  }
+}

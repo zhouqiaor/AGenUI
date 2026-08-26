@@ -75,7 +75,7 @@
             android:gravity="center"
             android:padding="4dp"
             android:text="@string/widget_template_weather"
-            android:textColor="#6200EE"
+            android:textColor="#007DFF"
             android:textSize="11sp" />
 
         <TextView
