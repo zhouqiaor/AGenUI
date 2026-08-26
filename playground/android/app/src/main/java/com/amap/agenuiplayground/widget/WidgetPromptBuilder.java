@@ -119,6 +119,30 @@ public final class WidgetPromptBuilder {
                 + "{\"role\":\"user\",\"content\":\"" + escapedUser + "\"}]";
     }
 
+    /**
+     * Builds the messages array with few-shot history examples.
+     */
+    public static String buildMessagesWithHistory(String systemPrompt, String userText,
+                                                   WidgetHistoryRepository historyRepository) {
+        if (historyRepository == null) {
+            return buildMessagesJson(systemPrompt, userText);
+        }
+
+        java.util.List<WidgetHistoryRepository.FewShotExample> examples =
+                historyRepository.getRecentSuccessfulExamples(3);
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("[{\"role\":\"system\",\"content\":\"").append(escapeJson(systemPrompt)).append("\"}");
+
+        for (WidgetHistoryRepository.FewShotExample ex : examples) {
+            sb.append(",{\"role\":\"user\",\"content\":\"").append(escapeJson(ex.prompt)).append("\"}");
+            sb.append(",{\"role\":\"assistant\",\"content\":\"").append(escapeJson(ex.a2uiJson)).append("\"}");
+        }
+
+        sb.append(",{\"role\":\"user\",\"content\":\"").append(escapeJson(userText)).append("\"}]");
+        return sb.toString();
+    }
+
     private static String escapeJson(String s) {
         if (s == null) return "";
         StringBuilder sb = new StringBuilder(s.length() + 16);

@@ -25,3 +25,6 @@
 -dontwarn org.commonmark.ext.gfm.strikethrough.Strikethrough
 -dontwarn org.conscrypt.Conscrypt
 -dontwarn org.conscrypt.OpenSSLProvider
+
+# PDFBox JP2 decoder (optional JPEG2000 support, class may be absent)
+-dontwarn com.gemalto.jp2.JP2Decoder

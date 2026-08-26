@@ -73,6 +73,25 @@ public class SurfaceManager implements ISurfaceSizeProviderHost {
     }
 
     /**
+     * Constructor with a generic Context (e.g. for Widget/Service scenarios
+     * where no Activity is available). The caller is responsible for ensuring
+     * the AGenUI engine is initialized before calling this constructor.
+     *
+     * @param context Android Context
+     */
+    @SuppressWarnings("RestrictedApi")
+    public SurfaceManager(@NonNull Context context) throws IllegalStateException {
+        this.contextRef = new WeakReference<>(context);
+        this.instanceId = AGenUI.getInstance().createSurfaceManager();
+        this.nativeEventBridge = new NativeEventBridge(this, instanceId);
+        addMessageListener(nativeEventBridge);
+        registerSurfaceSizeProvider();
+        if (AGenUILogger.isLoggingEnabled()) {
+            AGenUILogger.i(TAG, "SurfaceManager created with Context, instanceId=" + instanceId);
+        }
+    }
+
+    /**
      * Begins a round of streaming data reception.
      * <p>
      * Clears the buffer and resets the parsing state. Recommended to call at the start of

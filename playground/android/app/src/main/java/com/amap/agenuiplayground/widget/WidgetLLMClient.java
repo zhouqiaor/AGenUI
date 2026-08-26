@@ -39,15 +39,16 @@ public class WidgetLLMClient {
     }
 
     /**
-     * Starts a streaming chat request.
+     * Starts a streaming chat request with pre-built messages JSON.
      * Runs on the calling thread (should be a background thread).
-     * Calls callback methods on the same thread.
      *
-     * @param systemPrompt System prompt
-     * @param userText User input text
+     * @param systemPrompt System prompt (used for failover retry)
+     * @param userText User input text (used for failover retry)
+     * @param messagesJson Pre-built messages JSON array (includes history)
      * @param callback Stream callback
      */
-    public void streamChat(String systemPrompt, String userText, StreamCallback callback) {
+    public void streamChat(String systemPrompt, String userText,
+                           String messagesJson, StreamCallback callback) {
         // Multi-tier failover: iterate FAILOVER_TIERS starting from current model
         String currentModel = config.getModel();
         int startIndex = 0;
@@ -61,22 +62,33 @@ public class WidgetLLMClient {
         for (int i = startIndex; i < WidgetLLMConfig.FAILOVER_TIERS.length; i++) {
             String model = WidgetLLMConfig.FAILOVER_TIERS[i];
             String endpoint = WidgetLLMConfig.getEndpointForModel(model);
-            String apiKey = config.getApiKey(); // All tiers use same key for now
+            String apiKey = config.getApiKey();
 
             Log.d(TAG, "Trying model tier " + i + ": " + model + " @ " + endpoint);
             boolean success = doStreamRequest(endpoint, apiKey, model,
-                    systemPrompt, userText, callback);
+                    systemPrompt, userText, messagesJson, callback);
             if (success) {
-                // Update config to remember which model worked
                 config.save(apiKey, model, endpoint);
                 return;
             }
             Log.w(TAG, "Model tier " + i + " (" + model + ") failed, trying next tier");
         }
 
-        // All tiers exhausted — reset to primary for next attempt
         Log.e(TAG, "All failover tiers exhausted, resetting to primary");
         config.resetToPrimary();
+    }
+
+    /**
+     * Starts a streaming chat request.
+     * Runs on the calling thread (should be a background thread).
+     * Calls callback methods on the same thread.
+     *
+     * @param systemPrompt System prompt
+     * @param userText User input text
+     * @param callback Stream callback
+     */
+    public void streamChat(String systemPrompt, String userText, StreamCallback callback) {
+        streamChat(systemPrompt, userText, null, callback);
     }
 
     /**
@@ -86,6 +98,7 @@ public class WidgetLLMClient {
      */
     private boolean doStreamRequest(String endpoint, String apiKey, String model,
                                      String systemPrompt, String userText,
+                                     String messagesJson,
                                      StreamCallback callback) {
         HttpURLConnection conn = null;
         try {
@@ -99,8 +112,10 @@ public class WidgetLLMClient {
             conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
             conn.setReadTimeout(READ_TIMEOUT_MS);
 
-            // Build request body
-            String body = buildRequestBody(model, systemPrompt, userText);
+            // Build request body — use custom messagesJson if provided, else build from system+user
+            String body = (messagesJson != null && !messagesJson.isEmpty())
+                    ? buildRequestBodyWithMessages(model, messagesJson)
+                    : buildRequestBody(model, systemPrompt, userText);
             Log.d(TAG, "Request: model=" + model + ", body length=" + body.length());
 
             try (OutputStream os = conn.getOutputStream()) {
@@ -182,6 +197,20 @@ public class WidgetLLMClient {
             body.put("enable_thinking", false);
         } catch (Exception e) {
             Log.e(TAG, "Failed to build request body", e);
+        }
+        return body.toString();
+    }
+
+    private String buildRequestBodyWithMessages(String model, String messagesJson) {
+        JSONObject body = new JSONObject();
+        try {
+            body.put("model", model);
+            body.put("messages", new org.json.JSONArray(messagesJson));
+            body.put("stream", true);
+            body.put("temperature", 0.2);
+            body.put("enable_thinking", false);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to build request body with messages", e);
         }
         return body.toString();
     }
