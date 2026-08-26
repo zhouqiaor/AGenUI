@@ -23,6 +23,7 @@ import com.amap.agenuiplayground.R;
 
 import org.json.JSONArray;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -370,12 +371,40 @@ public class WidgetRenderActivity extends Activity {
     }
 
     /**
-     * Fallback: keyword-matched template or notecard.
-     * Uses WidgetFallbackBuilder to send version-format JSON to the existing SurfaceManager.
+     * Fallback 链路(优先级):
+     * 1. 从历史取上次成功的 A2UI JSON(断网缓存)
+     * 2. 关键词匹配的 Phase 1 模板
+     * 3. notecard 通用降级卡片
+     *
+     * 用 WidgetFallbackBuilder 发送 version-format JSON 到新的 SurfaceManager。
      */
     private void loadFallback() {
         Log.d(TAG, "Loading fallback template");
 
+        final String cachedJson = historyRepository != null
+                ? historyRepository.getLastSuccessfulJson() : null;
+
+        if (cachedJson != null && !cachedJson.isEmpty()) {
+            // 优先使用断网缓存:上次成功渲染的 A2UI JSON
+            Log.d(TAG, "Using offline cached JSON");
+            new Thread(() -> {
+                try {
+                    pushCachedFallback(cachedJson, "AGenUI · 离线缓存");
+                } catch (Exception e) {
+                    Log.e(TAG, "Offline cache fallback failed", e);
+                    runOnUiThread(this::loadKeywordFallback);
+                }
+            }).start();
+            return;
+        }
+
+        loadKeywordFallback();
+    }
+
+    /**
+     * 关键词模板 + notecard 降级链路(原 loadFallback 的主体逻辑)。
+     */
+    private void loadKeywordFallback() {
         String matchedTemplate = matchKeywordTemplate(userText);
         boolean matched = matchedTemplate != null;
         if (!matched) {
@@ -453,6 +482,83 @@ public class WidgetRenderActivity extends Activity {
                         drawAndPush(surface, fallbackTitle, true);
                     } catch (Exception e) {
                         Log.e(TAG, "Fallback draw failed", e);
+                        pushErrorWidget();
+                    } finally {
+                        finish();
+                    }
+                });
+            } catch (InterruptedException e) {
+                runOnUiThread(this::finish);
+            }
+        }).start();
+    }
+
+    /**
+     * 用缓存的 A2UI JSON 推送降级渲染。
+     * 缓存可能是 LLM 原始输出(含 markdown 代码块),需先用 WidgetProtocolValidator 提取。
+     */
+    private void pushCachedFallback(String cachedContent, String title) {
+        // 提取并校验
+        String a2uiJson = WidgetProtocolValidator.extractA2UIJson(cachedContent);
+        if (a2uiJson == null) {
+            // 可能本身就是裸 JSON
+            a2uiJson = cachedContent;
+        }
+
+        // 转成 version-format chunks
+        List<String> chunks;
+        try {
+            // 尝试作为完整 A2UI 模板数组解析
+            chunks = WidgetFallbackBuilder.convertToVersionFormat(a2uiJson, "ai-generated");
+        } catch (Exception e) {
+            chunks = new ArrayList<>();
+        }
+        if (chunks == null || chunks.isEmpty()) {
+            // 无法转换,走 notecard
+            chunks = WidgetFallbackBuilder.buildNoteCard("ai-generated",
+                    "离线缓存", "缓存内容解析失败");
+        }
+
+        // 销毁旧 surfaceManager,新建并推送
+        try {
+            if (surfaceManager != null) {
+                surfaceManager.destroy();
+            }
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to destroy old surfaceManager", e);
+        }
+
+        surfaceManager = new SurfaceManager(this);
+        final CountDownLatch surfaceCreated = new CountDownLatch(1);
+        final AtomicReference<Surface> surfaceRef = new AtomicReference<>(null);
+        registerSurfaceListener(surfaceManager, surfaceRef, surfaceCreated);
+
+        try {
+            surfaceManager.beginTextStream();
+            for (String chunk : chunks) {
+                surfaceManager.receiveTextChunk(chunk);
+            }
+            surfaceManager.endTextStream();
+        } catch (Exception e) {
+            Log.e(TAG, "Cached fallback stream failed", e);
+            runOnUiThread(this::loadKeywordFallback);
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                boolean created = surfaceCreated.await(SURFACE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+                if (!created || surfaceRef.get() == null) {
+                    runOnUiThread(this::loadKeywordFallback);
+                    return;
+                }
+
+                final Surface surface = surfaceRef.get();
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    try {
+                        drawAndPush(surface, title, true);
+                    } catch (Exception e) {
+                        Log.e(TAG, "Cached fallback draw failed", e);
                         pushErrorWidget();
                     } finally {
                         finish();

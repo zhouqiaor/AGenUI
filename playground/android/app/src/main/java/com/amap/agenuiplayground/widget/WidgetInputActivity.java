@@ -60,6 +60,9 @@ public class WidgetInputActivity extends Activity {
     // Current input source
     private String fileText = null;
     private WidgetVoiceHelper voiceHelper;
+    private WidgetVoskManager voskManager;
+    // 是否使用 Vosk 离线识别;false 表示降级到在线 SpeechRecognizer
+    private boolean useVosk = true;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -130,22 +133,7 @@ public class WidgetInputActivity extends Activity {
         // Voice button
         btnMic.setOnClickListener(v -> {
             if (hasMicPermission()) {
-                if (voiceHelper == null) {
-                    voiceHelper = new WidgetVoiceHelper(this, tvVoiceStatus, tvVoiceResult,
-                            (ImageButton) btnMic, new WidgetVoiceHelper.VoiceCallback() {
-                                @Override
-                                public void onResult(String text) {
-                                    // Enable send button
-                                    btnSend.setEnabled(true);
-                                    btnSend.setAlpha(1.0f);
-                                }
-                                @Override
-                                public void onError(String message) {
-                                    Log.w(TAG, "Voice error: " + message);
-                                }
-                            });
-                }
-                voiceHelper.startListening();
+                startVoiceInput();
             } else {
                 ActivityCompat.requestPermissions(this,
                         new String[]{android.Manifest.permission.RECORD_AUDIO},
@@ -176,6 +164,39 @@ public class WidgetInputActivity extends Activity {
         if (voiceHelper != null) {
             voiceHelper.destroy();
             voiceHelper = null;
+        }
+        if (voskManager != null) {
+            voskManager.destroy();
+            voskManager = null;
+        }
+    }
+
+    private void startVoiceInput() {
+        WidgetVoiceHelper.VoiceCallback cb = new WidgetVoiceHelper.VoiceCallback() {
+            @Override
+            public void onResult(String text) {
+                btnSend.setEnabled(true);
+                btnSend.setAlpha(1.0f);
+            }
+            @Override
+            public void onError(String message) {
+                Log.w(TAG, "Voice error: " + message);
+            }
+        };
+
+        if (useVosk) {
+            if (voskManager == null) {
+                voskManager = new WidgetVoskManager(this, tvVoiceStatus, tvVoiceResult,
+                        (ImageButton) btnMic, cb);
+            }
+            voskManager.startListening();
+        } else {
+            // 在线降级
+            if (voiceHelper == null) {
+                voiceHelper = new WidgetVoiceHelper(this, tvVoiceStatus, tvVoiceResult,
+                        (ImageButton) btnMic, cb);
+            }
+            voiceHelper.startListening();
         }
     }
 
@@ -313,7 +334,7 @@ public class WidgetInputActivity extends Activity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_MIC_PERMISSION) {
             if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                tvVoiceStatus.setText("权限已授予。语音识别需要 Vosk 模型（P2.2 待实现）");
+                tvVoiceStatus.setText("权限已授予,点击麦克风开始");
             } else {
                 tvVoiceStatus.setText("需要录音权限才能使用语音输入");
             }
