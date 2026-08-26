@@ -330,12 +330,7 @@ public class AGenUIWidgetRenderService extends JobIntentService {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.a2ui_widget_content);
 
         views.setTextViewText(R.id.widgetTitle, title);
-
-        // Show ImageView, hide loading/empty/error states
-        views.setViewVisibility(R.id.widgetImageView, View.VISIBLE);
-        views.setViewVisibility(R.id.widgetLoading, View.GONE);
-        views.setViewVisibility(R.id.widgetEmpty, View.GONE);
-        views.setViewVisibility(R.id.widgetError, View.GONE);
+        WidgetStateController.setState(views, WidgetStateController.STATE_CONTENT);
 
         // Compress if too large for Binder transaction (800KB limit)
         if (bitmap.getByteCount() > 800_000) {
@@ -363,12 +358,7 @@ public class AGenUIWidgetRenderService extends JobIntentService {
         AppWidgetManager awm = AppWidgetManager.getInstance(context);
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.a2ui_widget_content);
         views.setTextViewText(R.id.widgetTitle, "AGenUI · " + errorMessage);
-        // Show error TextView, hide ImageView + loading
-        views.setViewVisibility(R.id.widgetImageView, View.GONE);
-        views.setViewVisibility(R.id.widgetLoading, View.GONE);
-        views.setViewVisibility(R.id.widgetEmpty, View.GONE);
-        views.setViewVisibility(R.id.widgetError, View.VISIBLE);
-        views.setTextViewText(R.id.widgetError, errorMessage);
+        WidgetStateController.setError(views, errorMessage);
 
         WidgetButtonWiring.wireRefreshOnly(context, views, appWidgetId);
 
