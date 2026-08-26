@@ -170,4 +170,103 @@ TEST(ConcurrencyTest, CT008_MeasurementManager_RegisterMeasure_Concurrent) {
     for (auto& t : threads) t.join();
 }
 
+// =============================================================================
+// Additional concurrency tests (R71-75)
+// =============================================================================
+
+// R71: Concurrent receiveTextChunk from 2 threads on same surface
+TEST(ConcurrencyTest, CT071_ConcurrentReceiveChunk_SameSurface_NoCrash) {
+    ::agenui::testing::ScopedSurfaceManager sm;
+    ASSERT_TRUE(sm);
+    const char* createJson = R"({"version":"v0.9","createSurface":{"surfaceId":"ct71","catalogId":"x","theme":{},"sendDataModel":false,"animated":false}})";
+
+    sm->beginTextStream();
+    sm->receiveTextChunk(createJson);
+    sm->endTextStream();
+    ::agenui::testing::WaitForWorkerIdle(2000);
+
+    std::vector<std::thread> threads;
+    for (int i = 0; i < kSpawnedThreads; ++i) {
+        threads.emplace_back([&]() {
+            for (int k = 0; k < kIterations; ++k) {
+                std::string json = R"({"version":"v0.9","updateComponents":{"surfaceId":"ct71","components":[{"id":"c)" + std::to_string(k) + R"(","type":"Text","properties":{"text":"hi"}}]}})";
+                sm->beginTextStream();
+                sm->receiveTextChunk(json);
+                sm->endTextStream();
+            }
+        });
+    }
+    for (auto& t : threads) t.join();
+    ::agenui::testing::WaitForWorkerIdle(3000);
+}
+
+// R72: Rapid begin/end with no data
+TEST(ConcurrencyTest, CT072_RapidBeginEnd_NoData_NoCrash) {
+    ::agenui::testing::ScopedSurfaceManager sm;
+    ASSERT_TRUE(sm);
+    std::vector<std::thread> threads;
+    for (int i = 0; i < kSpawnedThreads; ++i) {
+        threads.emplace_back([&]() {
+            for (int k = 0; k < kIterations; ++k) {
+                sm->beginTextStream();
+                sm->endTextStream();
+            }
+        });
+    }
+    for (auto& t : threads) t.join();
+    ::agenui::testing::WaitForWorkerIdle(2000);
+}
+
+// R73: Concurrent listener add/remove + receiveTextChunk
+TEST(ConcurrencyTest, CT073_ConcurrentListenerAndChunk_NoCrash) {
+    ::agenui::testing::ScopedSurfaceManager sm;
+    ASSERT_TRUE(sm);
+    std::vector<::agenui::testing::MockMessageListener> listeners(kSpawnedThreads);
+
+    std::vector<std::thread> threads;
+    threads.emplace_back([&]() {
+        for (int k = 0; k < kIterations; ++k) {
+            sm->beginTextStream();
+            sm->receiveTextChunk(R"({"version":"v0.9","createSurface":{"surfaceId":"ct73","catalogId":"x","theme":{},"sendDataModel":false,"animated":false}})");
+            sm->endTextStream();
+        }
+    });
+    for (int i = 0; i < kSpawnedThreads; ++i) {
+        threads.emplace_back([&, i]() {
+            for (int k = 0; k < kIterations; ++k) {
+                sm->addSurfaceEventListener(&listeners[i]);
+                sm->removeSurfaceEventListener(&listeners[i]);
+            }
+        });
+    }
+    for (auto& t : threads) t.join();
+    ::agenui::testing::WaitForWorkerIdle(3000);
+}
+
+// R74: Single-thread burst — 100 rapid chunks
+TEST(ConcurrencyTest, CT074_Burst100Chunks_NoCrash) {
+    ::agenui::testing::ScopedSurfaceManager sm;
+    ASSERT_TRUE(sm);
+    sm->beginTextStream();
+    for (int i = 0; i < 100; ++i) {
+        std::string json = R"({"version":"v0.9","updateComponents":{"surfaceId":"ct74","components":[{"id":"c)" + std::to_string(i) + R"(","type":"Text","properties":{"text":")" + std::to_string(i) + R"("}}]}})";
+        sm->receiveTextChunk(json);
+    }
+    sm->endTextStream();
+    ::agenui::testing::WaitForWorkerIdle(5000);
+}
+
+// R75: Worker thread idle check after rapid operations
+TEST(ConcurrencyTest, CT075_WorkerIdle_AfterRapidOps_NoDeadlock) {
+    ::agenui::testing::ScopedSurfaceManager sm;
+    ASSERT_TRUE(sm);
+    for (int i = 0; i < 20; ++i) {
+        sm->beginTextStream();
+        sm->receiveTextChunk(R"({"version":"v0.9","createSurface":{"surfaceId":"ct75","catalogId":"x","theme":{},"sendDataModel":false,"animated":false}})");
+        sm->endTextStream();
+    }
+    bool idle = ::agenui::testing::WaitForWorkerIdle(5000);
+    EXPECT_TRUE(idle);
+}
+
 }  // namespace
