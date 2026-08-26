@@ -181,7 +181,12 @@ class GlanceRenderWorker(
         }
         rootComponentReady.await(SURFACE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
 
-        val surface = surfaceRef.get()!!
+        val surface = surfaceRef.get()
+        if (surface == null) {
+            Log.e(TAG, "Surface became null after creation await")
+            cleanup(surfaceManager)
+            return Result.retry()
+        }
         val bitmapResult = AtomicReference<Bitmap?>(null)
         val drawDone = CountDownLatch(1)
 

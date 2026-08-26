@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.glance.state.PreferencesGlanceStateDefinition
+import androidx.glance.appwidget.state.updateAppWidgetState
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -85,6 +86,17 @@ object A2UIGlanceStateDefinition {
     suspend fun setViewMode(context: Context, viewMode: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_VIEW_MODE] = viewMode
+            prefs[KEY_ERROR_MSG] = ""  // atomic: clear error on mode switch
+        }
+    }
+
+    /**
+     * Atomically updates viewMode and clears any error in a single DataStore transaction.
+     */
+    suspend fun setViewModeAndClearError(context: Context, viewMode: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_VIEW_MODE] = viewMode
+            prefs[KEY_ERROR_MSG] = ""
         }
     }
 

@@ -1,0 +1,50 @@
+{
+  "description": "Settings panel dark mode: verify dark theme tokens apply correctly",
+  "surfaceId": "test-surf-settings-05",
+  "messages": [
+    {
+      "version": "v0.9",
+      "createSurface": {
+        "surfaceId": "test-surf-settings-05",
+        "theme": {
+          "primaryColor": "#3D9BFF",
+          "textColor": "#E6E6E6",
+          "backgroundColor": "#1F1F22"
+        }
+      }
+    },
+    {
+      "version": "v0.9",
+      "updateComponents": {
+        "surfaceId": "test-surf-settings-05",
+        "components": [
+          {
+            "id": "root",
+            "component": "Column",
+            "align": "stretch",
+            "styles": { "background-color": "#1F1F22" },
+            "children": ["title", "body-text"]
+          },
+          {
+            "id": "title",
+            "component": "Text",
+            "text": "设置",
+            "variant": "h3",
+            "styles": { "font-size": "42px", "color": "#E6E6E6", "font-weight": "500" }
+          },
+          {
+            "id": "body-text",
+            "component": "Text",
+            "text": "暗色模式下的设置内容",
+            "variant": "body",
+            "styles": { "font-size": "28px", "color": "#B0B3B8" }
+          }
+        ]
+      }
+    }
+  ],
+  "expect": {
+    "componentCount": 3,
+    "componentIds": ["root", "title", "body-text"]
+  }
+}

@@ -82,7 +82,11 @@ class A2UIGlanceWidget : GlanceAppWidget() {
                 }
             } else null
 
-            GlanceContent(state, bitmap ?: initialBitmap)
+            // Use freshly loaded bitmap; fall back to initial only if path hasn't changed
+            val displayBitmap = bitmap ?: initialBitmap?.takeIf {
+                state.bitmapPath == initialState.bitmapPath
+            }
+            GlanceContent(state, displayBitmap)
         }
     }
 

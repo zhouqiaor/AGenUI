@@ -280,6 +280,8 @@ public abstract class A2UIComponent {
         if (view != null) {
             // Re-layout + common styles only when styles changed
             if (changedProps.containsKey("styles")) {
+                // Invalidate styles cache so extractStyles re-parses the new JSON
+                stylesCache = null;
                 applyYogaLayout(view, changedProps, null, true);
                 applyCommonStyles(view, changedProps);
             }

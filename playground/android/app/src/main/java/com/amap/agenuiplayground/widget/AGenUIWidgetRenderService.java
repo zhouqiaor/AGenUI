@@ -336,7 +336,7 @@ public class AGenUIWidgetRenderService extends JobIntentService {
                                            Bitmap bitmap, String title, String currentTemplate) {
         if (appWidgetId < 0) return; // prerender pass — no widget to push to
         AppWidgetManager awm = AppWidgetManager.getInstance(context);
-        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.a2ui_widget_content);
+        RemoteViews views = WidgetRemoteViewsPool.obtainWidgetLayout(context);
 
         views.setTextViewText(R.id.widgetTitle, title);
         WidgetStateController.setState(views, WidgetStateController.STATE_CONTENT);
@@ -383,7 +383,7 @@ public class AGenUIWidgetRenderService extends JobIntentService {
         }
 
         AppWidgetManager awm = AppWidgetManager.getInstance(context);
-        RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.a2ui_widget_content);
+        RemoteViews views = WidgetRemoteViewsPool.obtainWidgetLayout(context);
         views.setTextViewText(R.id.widgetTitle, "AGenUI · " + errorMessage);
         WidgetStateController.setError(views, errorMessage);
 
