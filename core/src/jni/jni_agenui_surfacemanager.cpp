@@ -77,20 +77,14 @@ static void jni_removeEventListener(JNIEnv* env, jclass clazz, jint instanceId, 
         AGENUI_LOG("%d does not exist", instanceId);
         return;
     }
-    
-    // Find bridge
-    auto* bridge = ListenerBridgeManager::getInstance().findBridge(env, javaListener);
-    if (bridge == nullptr) {
-        AGENUI_LOG("[JNI] removeEventListener: bridge not found");
-        return;
-    }
-    
-    // Remove from SurfaceManager
-    surfaceManager->removeSurfaceEventListener(bridge);
-    
-    // Clean up
-    ListenerBridgeManager::getInstance().removeMapping(env, javaListener);
-    SAFELY_DELETE(bridge);
+
+    // Atomically find, remove, and delete the bridge.
+    // This prevents use-after-free and double-free when multiple threads
+    // concurrently destroy the same SurfaceManager.
+    ListenerBridgeManager::getInstance().findAndRemoveBridge(env, javaListener,
+        [surfaceManager](JNIMessageListenerBridge* bridge) {
+            surfaceManager->removeSurfaceEventListener(bridge);
+        });
 }
 
 static void jni_submitUIAction(JNIEnv* env, jclass clazz, jint instanceId, jstring jSurfaceId, jstring jSourceComponentId, jstring jContextJson) {
