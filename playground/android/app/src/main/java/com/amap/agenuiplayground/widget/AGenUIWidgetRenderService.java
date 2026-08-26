@@ -143,6 +143,15 @@ public class AGenUIWidgetRenderService extends JobIntentService {
             return;
         }
 
+        // Validate template JSON structure before feeding to engine
+        WidgetTemplateValidator.ValidationResult validation =
+                WidgetTemplateValidator.validate(templateJson);
+        if (!validation.valid) {
+            Log.e(TAG, "Template validation failed for " + template + ": " + validation.error);
+            pushErrorWidget(context, appWidgetId, "模板格式错误", template);
+            return;
+        }
+
         // For the agenda template, optionally trim the weekly meeting blocks
         // based on the persisted view mode.
         if ("agenda".equals(template) && appWidgetId >= 0) {

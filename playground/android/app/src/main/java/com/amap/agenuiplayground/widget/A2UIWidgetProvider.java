@@ -35,7 +35,7 @@ public class A2UIWidgetProvider extends AppWidgetProvider {
             AGenUIWidgetRenderService.prerenderAll(context);
         }
         for (int appWidgetId : appWidgetIds) {
-            String template = WidgetProtocolCache.getTemplate(context, appWidgetId);
+            String template = WidgetConfig.getTemplate(context, appWidgetId);
             renderWidget(context, appWidgetId, template);
         }
     }
@@ -49,7 +49,7 @@ public class A2UIWidgetProvider extends AppWidgetProvider {
         if (ACTION_REFRESH.equals(action)) {
             int appWidgetId = intent.getIntExtra(EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
             if (appWidgetId != AppWidgetManager.INVALID_APPWIDGET_ID) {
-                String template = WidgetProtocolCache.getTemplate(context, appWidgetId);
+                String template = WidgetConfig.getTemplate(context, appWidgetId);
                 renderWidget(context, appWidgetId, template);
             }
         } else if (ACTION_SWITCH_TEMPLATE.equals(action)) {
