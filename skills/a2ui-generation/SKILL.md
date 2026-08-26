@@ -231,6 +231,7 @@ Only truly irreplaceable business invariants that scripts cannot fully substitut
   - "BarChart" / "LineChart" / "DonutChart" → use `Chart` with `chartType: "bar" | "line" | "donut" | "bar_grouped"`
 - **Template components must use relative paths**: all `{"path": "..."}` bindings inside a template component (i.e., the component referenced by `children.componentId`) must be relative paths (e.g. `text`, `userName`, `author/name`). Absolute paths such as `/children/xxx` or `/item/xxx` are forbidden. Relative paths are plain field names; use `/` to separate nested fields — dot notation is not allowed
 - **Horizontal layout max 3 children**: `Row` and `List(direction=horizontal)` must not contain more than 3 direct children. More than 3 items in a single horizontal row risks overflow and clipping on mobile narrow screens. If more items are needed, switch to vertical layout, use a scrollable `List(direction=horizontal)` with template-driven dynamic children, or split into multiple rows
+- **Root component must stay transparent**: never set a solid `background-color` / `background` / `background-image` on the `id=="root"` component. The root is the transparent canvas; paint the page background on a child `Column`/`Card` instead. A solid root background fails A2UI validation (`root should not set a solid background-color`) and breaks cross-theme (dark/light) rendering.
 
 ## Resources
 

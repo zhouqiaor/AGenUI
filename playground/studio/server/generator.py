@@ -16,6 +16,7 @@ Generation loop (see plan Part B5):
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Generator
@@ -36,6 +37,175 @@ from .providers import OpenAICompatProvider, ProviderError
 
 # Repo root / skills / a2ui-generation (shared read-only with the benchmark).
 SKILL_DIR = Path(__file__).resolve().parents[3] / "skills" / "a2ui-generation"
+
+
+# --- A2UI compliance auto-fix ---------------------------------------------
+# Best-effort fixups so generated protocols pass validate_a2ui.py without
+# manual edits. The authoritative whitelist lives in
+# skills/a2ui-generation/scripts/validate_a2ui.py; we import it so the two
+# never drift apart, and fall back to a hardcoded copy if the import fails.
+_SKILL_SCRIPTS = SKILL_DIR / "scripts"
+if str(_SKILL_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SKILL_SCRIPTS))
+try:  # pragma: no cover - the real dependency is always present locally
+    from validate_a2ui import (  # type: ignore[import-not-found]
+        ALLOWED_COMMON_STYLE_KEYS,
+        ALLOWED_TEXT_STYLE_KEYS,
+        ALLOWED_ICON_NAMES,
+    )
+except Exception:  # noqa: BLE001 - fallback only, keeps the module importable
+    ALLOWED_COMMON_STYLE_KEYS = {
+        "width", "height", "padding", "padding-inline-start", "padding-left",
+        "padding-inline-end", "padding-right", "padding-block-start",
+        "padding-top", "padding-block-end", "padding-bottom", "margin",
+        "margin-inline-start", "margin-left", "margin-inline-end",
+        "margin-right", "margin-block-start", "margin-top", "margin-block-end",
+        "margin-bottom", "background", "background-color", "background-image",
+        "border-radius", "border-color", "border-style", "border-width",
+        "opacity", "overflow", "display", "visibility", "flex-grow",
+        "flex-shrink", "flex-wrap", "justify-content", "align-items",
+        "align-content", "align-self", "aspect-ratio", "filter", "box-shadow",
+    }
+    ALLOWED_TEXT_STYLE_KEYS = {
+        "color", "font-size", "font-weight", "font-family", "line-height",
+        "text-align", "line-clamp", "text-overflow", "text-decoration",
+        "text-decoration-line", "text-decoration-style",
+        "text-decoration-color", "text-decoration-thickness",
+    }
+    ALLOWED_ICON_NAMES = {
+        "accountCircle", "add", "arrowBack", "arrowForward", "attachFile",
+        "calendarToday", "call", "camera", "check", "close", "delete",
+        "download", "edit", "error", "event", "favorite", "favoriteOff",
+        "folder", "help", "home", "info", "locationOn", "lock", "lockOpen",
+        "mail", "menu", "moreHoriz", "moreVert", "notifications",
+        "notificationsOff", "payment", "person", "phone", "photo", "print",
+        "refresh", "search", "send", "settings", "share", "shoppingCart",
+        "star", "starHalf", "starOff", "upload", "visibility",
+        "visibilityOff", "warning",
+    }
+
+# Map common invalid (e.g. Material weather) icon names to an allowed one.
+_ICON_FALLBACK_MAP = {
+    "wbsunny": "favorite",
+    "wb_sunny": "favorite",
+    "wbcloudy": "info",
+    "sunny": "favorite",
+    "cloud": "info",
+    "cloudy": "info",
+    "rainy": "info",
+    "thunderstorm": "warning",
+    "snow": "info",
+}
+_ICON_FALLBACK_DEFAULT = "info"
+
+
+def _autofix_components(
+    comp_dict: dict | None, data_dict: dict | None = None
+) -> dict | None:
+    """Mutate a parsed protocol in place to satisfy A2UI validation rules.
+
+    Returns the same dict (or None when the input is unusable). The cleaned
+    payload is what gets saved and rendered, so the Studio UI never shows a
+    spurious "validation failed" for mistakes the validator can fix itself.
+
+    Fixes applied (mirroring skills/a2ui-generation/scripts/validate_a2ui.py):
+      * root must stay a transparent canvas -> drop solid background fills
+      * only Text/RichText may use text-only style keys (e.g. `color`)
+      * unknown style keys (e.g. `gap`) -> drop them (not in the whitelist)
+      * Icon `name` not in the allowed set -> replace with a valid fallback
+      * padding/margin shorthand -> expand to 4 values
+      * border-radius/border-width -> collapse to single px value
+      * binding path outside dataModel root -> prepend root prefix
+    """
+    if not isinstance(comp_dict, dict):
+        return comp_dict
+    # Resolve the dataModel root path for binding-path fixup.
+    data_root = ""
+    if isinstance(data_dict, dict):
+        dm = data_dict.get("updateDataModel", {})
+        if isinstance(dm, dict):
+            rp = dm.get("path")
+            if isinstance(rp, str) and rp:
+                data_root = rp
+
+    components = comp_dict.get("updateComponents", {}).get("components")
+    if not isinstance(components, list):
+        return comp_dict
+    for comp in components:
+        if not isinstance(comp, dict):
+            continue
+        cid = comp.get("id")
+        ctype = comp.get("component")
+        styles = comp.get("styles")
+        if not isinstance(styles, dict):
+            styles = {}
+            comp["styles"] = styles
+
+        if cid == "root":
+            # root is a transparent canvas; solid fills and text-only keys
+            # are forbidden, and unknown style keys are not allowed either.
+            for k in {"background-color", "background", "background-image"}:
+                styles.pop(k, None)
+            for k in [k for k in styles if k in ALLOWED_TEXT_STYLE_KEYS]:
+                styles.pop(k, None)
+            for k in [k for k in styles if k not in ALLOWED_COMMON_STYLE_KEYS]:
+                styles.pop(k, None)
+            continue
+
+        if ctype == "Icon":
+            name = comp.get("name")
+            if isinstance(name, str) and name not in ALLOWED_ICON_NAMES:
+                comp["name"] = _ICON_FALLBACK_MAP.get(
+                    name.strip().lower(), _ICON_FALLBACK_DEFAULT
+                )
+            # fall through to the non-Text style cleanup below
+
+        if ctype in ("Text", "RichText"):
+            allowed = ALLOWED_COMMON_STYLE_KEYS | ALLOWED_TEXT_STYLE_KEYS
+        else:
+            allowed = ALLOWED_COMMON_STYLE_KEYS
+            # text-only style keys belong on Text components only.
+            for k in [k for k in styles if k in ALLOWED_TEXT_STYLE_KEYS]:
+                styles.pop(k, None)
+        # drop any unknown style key (e.g. `gap`).
+        for k in [k for k in styles if k not in allowed]:
+            styles.pop(k, None)
+        # expand padding/margin shorthand to 4 values (validator requires 4).
+        for sk in ("padding", "margin"):
+            sv = styles.get(sk)
+            if isinstance(sv, str):
+                parts = sv.split()
+                if len(parts) == 1:
+                    styles[sk] = f"{parts[0]} {parts[0]} {parts[0]} {parts[0]}"
+                elif len(parts) == 2:
+                    styles[sk] = f"{parts[0]} {parts[1]} {parts[0]} {parts[1]}"
+                elif len(parts) == 3:
+                    styles[sk] = f"{parts[0]} {parts[1]} {parts[2]} {parts[1]}"
+        # collapse border-radius/border-width to single px (validator requires 1).
+        for sk in ("border-radius", "border-width"):
+            sv = styles.get(sk)
+            if isinstance(sv, str):
+                parts = sv.split()
+                if len(parts) > 1:
+                    styles[sk] = parts[0]
+        # fix binding paths outside dataModel root (validator line 223-227).
+        if data_root and data_root != "/":
+            _fix_binding_paths(comp, data_root)
+    return comp_dict
+
+
+def _fix_binding_paths(node, data_root: str) -> None:
+    """Recursively fix absolute binding paths that fall outside data_root."""
+    if isinstance(node, dict):
+        for key, val in list(node.items()):
+            if key == "path" and isinstance(val, str):
+                if val.startswith("/") and val != data_root and not val.startswith(f"{data_root}/"):
+                    node[key] = f"{data_root}{val}"
+            else:
+                _fix_binding_paths(val, data_root)
+    elif isinstance(node, list):
+        for item in node:
+            _fix_binding_paths(item, data_root)
 
 
 # Instruction wrapped around the user message on refinement turns (i.e. when a
@@ -125,6 +295,8 @@ def _attempt(full_text: str) -> dict[str, Any]:
             "raw": full_text,
         }
 
+    validation = validate_payloads(comp_dict, data_dict)
+    comp_dict = _autofix_components(comp_dict, data_dict)
     validation = validate_payloads(comp_dict, data_dict)
     return {
         "components": comp_dict,
