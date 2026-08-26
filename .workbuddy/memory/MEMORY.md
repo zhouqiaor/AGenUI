@@ -25,3 +25,12 @@
 - 4K Theme: tequ-4k-theme.json (颜色+字体+间距+圆角+阴影+断点)
 - 架构检视: docs/ARCHITECTURE-REVIEW.md (C++ 102.h+87.cpp, Android 149.java)
 - 业界对比: AGenUI 唯一原生流式渲染, C++ 单引擎三端, 差距在组件规模+测试维度
+
+## 性能优化 (R29-R35, main 分支)
+- List 垂直虚拟化: ListComponent 统一 RecyclerView, 移除 YogaAbsoluteLayout eager path
+- Yoga removeNode: O(pool) → O(childCount) via YGNodeGetContext back-pointer
+- calculateLayoutWithAdjust: 无 Tabs 时跳过两遍布局 fast path
+- 跨 chunk 16ms coalescing: StreamingContentParser _pendingUpdates + tryCrossChunkCoalesce
+- 流式 Coalescing 测试: streaming_coalescing_test.cpp (SC001-SC007)
+- ListComponent 测试: ListVirtualizationTest.java (3 cases)
+- E2E fixtures: 08-12 (empty_list/single_item/nested/theme_switch/dynamic_add_remove)
