@@ -19,6 +19,8 @@ import org.junit.runner.RunWith;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -109,6 +111,7 @@ public class WidgetRenderTest extends AGenUIBaseTest {
 
     /**
      * 渲染指定模板并返回 Surface。
+     * Uses sendAndWaitForRender to ensure components are fully populated.
      */
     private Surface renderTemplate(String templateName) throws Exception {
         String surfaceId = "test_" + templateName + "_" + System.currentTimeMillis();
@@ -118,7 +121,29 @@ public class WidgetRenderTest extends AGenUIBaseTest {
         // Use sendMessagesAndWaitForSurface (per-message begin/receive/end)
         JSONArray messages = new JSONArray(envelopeJson);
         Surface surface = sendMessagesAndWaitForSurface(messages, surfaceId);
-        waitForMainThread();
+
+        // Poll for component count stability (like sendAndWaitForRender)
+        long deadline = System.currentTimeMillis() + TIMEOUT_MS;
+        int stableCount = 0;
+        int lastCount = -1;
+        while (System.currentTimeMillis() < deadline) {
+            Thread.sleep(50);
+            final int[] count = {-1};
+            CountDownLatch barrier = new CountDownLatch(1);
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                count[0] = surface.getComponentCount();
+                barrier.countDown();
+            });
+            barrier.await(TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
+            if (count[0] > 0 && count[0] == lastCount) {
+                stableCount++;
+                if (stableCount >= 3) break;
+            } else {
+                stableCount = 0;
+                lastCount = count[0];
+            }
+        }
+
         return surface;
     }
 

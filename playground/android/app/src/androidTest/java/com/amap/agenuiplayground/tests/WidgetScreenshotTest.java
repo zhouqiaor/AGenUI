@@ -3,10 +3,9 @@ package com.amap.agenuiplayground.tests;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.View;
 
+import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 
@@ -18,6 +17,7 @@ import com.amap.agenuiplayground.A2UIPlaygroundActivity;
 import org.json.JSONArray;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -45,48 +45,39 @@ import static org.junit.Assert.assertTrue;
 @RunWith(AndroidJUnit4.class)
 public class WidgetScreenshotTest {
 
+    @Rule
+    public ActivityScenarioRule<A2UIPlaygroundActivity> activityRule =
+            new ActivityScenarioRule<>(A2UIPlaygroundActivity.class);
+
     private Activity activity;
     private SurfaceManager surfaceManager;
     private static final long TIMEOUT_MS = 10000;
 
     @Before
     public void setUp() throws InterruptedException {
-        // 获取 Activity
         final CountDownLatch latch = new CountDownLatch(1);
-        final AtomicReference<Activity> ref = new AtomicReference<>();
-        new Handler(Looper.getMainLooper()).post(() -> {
-            // 用 instrumentation 启动 Activity
-            try {
-                androidx.test.core.app.ActivityScenario<A2UIPlaygroundActivity> scenario =
-                    androidx.test.core.app.ActivityScenario.launch(A2UIPlaygroundActivity.class);
-                scenario.onActivity(a -> {
-                    ref.set(a);
-                    if (!AGenUI.getInstance().isInitialized()) {
-                        AGenUI.getInstance().initialize(a.getApplicationContext());
-                    }
-                    surfaceManager = new SurfaceManager(a);
-                    latch.countDown();
-                });
-            } catch (Exception e) {
-                latch.countDown();
+        activityRule.getScenario().onActivity(a -> {
+            activity = a;
+            if (!AGenUI.getInstance().isInitialized()) {
+                AGenUI.getInstance().initialize(a.getApplicationContext());
             }
+            surfaceManager = new SurfaceManager(a);
+            latch.countDown();
         });
-        assertTrue("Activity launch timeout", latch.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
-        activity = ref.get();
+        assertTrue("Activity setup timeout", latch.await(TIMEOUT_MS, TimeUnit.MILLISECONDS));
         assertNotNull("Activity should not be null", activity);
     }
 
     @After
     public void tearDown() {
         if (surfaceManager != null) {
-            final CountDownLatch latch = new CountDownLatch(1);
-            new Handler(Looper.getMainLooper()).post(() -> {
-                try {
-                    surfaceManager.destroy();
-                } catch (Exception ignored) {}
-                latch.countDown();
-            });
-            try { latch.await(3000, TimeUnit.MILLISECONDS); } catch (InterruptedException ignored) {}
+            try {
+                activityRule.getScenario().onActivity(a -> {
+                    try {
+                        surfaceManager.destroy();
+                    } catch (Exception ignored) {}
+                });
+            } catch (Exception ignored) {}
         }
     }
 
@@ -157,7 +148,7 @@ public class WidgetScreenshotTest {
 
         // Wait for main thread to complete component rendering
         final CountDownLatch barrier = new CountDownLatch(1);
-        new Handler(Looper.getMainLooper()).post(barrier::countDown);
+        activityRule.getScenario().onActivity(a -> barrier.countDown());
         barrier.await(TIMEOUT_MS, TimeUnit.MILLISECONDS);
         Thread.sleep(200); // extra time for render
 
@@ -168,7 +159,7 @@ public class WidgetScreenshotTest {
         final AtomicReference<Bitmap> bmpRef = new AtomicReference<>();
         final CountDownLatch latch = new CountDownLatch(1);
 
-        new Handler(Looper.getMainLooper()).post(() -> {
+        activityRule.getScenario().onActivity(a -> {
             try {
                 View container = surface.getContainer();
                 assertNotNull("Container should not be null", container);
@@ -343,7 +334,7 @@ public class WidgetScreenshotTest {
         surfaceManager.removeListener(listener2);
 
         final CountDownLatch barrier = new CountDownLatch(1);
-        new Handler(Looper.getMainLooper()).post(barrier::countDown);
+        activityRule.getScenario().onActivity(a -> barrier.countDown());
         barrier.await(TIMEOUT_MS, TimeUnit.MILLISECONDS);
         Thread.sleep(200);
 

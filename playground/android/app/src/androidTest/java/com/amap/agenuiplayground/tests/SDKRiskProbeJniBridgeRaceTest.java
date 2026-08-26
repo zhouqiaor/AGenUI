@@ -62,6 +62,12 @@ public class SDKRiskProbeJniBridgeRaceTest {
     @After
     public void tearDown() {
         Log.i(TAG, "=== RISK35 Test Teardown ===");
+        // Best-effort re-init if engine was destroyed during testRISK35_bridgeRaceWithEngineDestroy
+        try {
+            AGenUI.getInstance().initialize(activity.getApplicationContext());
+        } catch (Throwable ignored) {
+            // Re-init may fail; in separated batch runs each destructive test gets a fresh process.
+        }
     }
 
     /**
