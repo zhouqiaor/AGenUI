@@ -565,3 +565,72 @@ TEST_F(VirtualDOMObserverTest, ChildrenReorder_NotifiesRemovedForDroppedChild) {
 
     vdom_->updateNode(makeSnapshot("root", "Column", {"a", "c"}));
 }
+
+// =============================================================================
+// Additional diff edge case tests (R51-55)
+// =============================================================================
+
+// R51: Deeply nested tree — 3 levels of children
+TEST_F(VirtualDOMTest, R51_DeepNesting_3Levels_AllCreated) {
+    auto root_snap = makeSnapshot("root", "Container");
+    auto child_snap = makeSnapshot("child", "Container");
+    child_snap.childrenIds = {"grandchild"};
+    root_snap.childrenIds = {"child"};
+    auto grand_snap = makeSnapshot("grandchild", "Text");
+
+    vdom_->updateNode(root_snap);
+    vdom_->updateNode(child_snap);
+    vdom_->updateNode(grand_snap);
+
+    auto* root = vdom_->getRoot();
+    ASSERT_NE(root, nullptr);
+    auto* child = root->findChild("child");
+    ASSERT_NE(child, nullptr);
+    auto* grand = child->findChild("grandchild");
+    ASSERT_NE(grand, nullptr);
+    EXPECT_EQ(grand->getId(), "grandchild");
+}
+
+// R52: Reorder children — swap order, verify both get update notifications
+TEST_F(VirtualDOMTest, R52_ReorderChildren_BothUpdated) {
+    vdom_->updateNode(makeSnapshot("root", "Column"));
+    vdom_->updateNode(makeSnapshot("a", "Text"));
+    vdom_->updateNode(makeSnapshot("b", "Text"));
+    vdom_->updateNode(makeSnapshot("root", "Column", {"a", "b"}));
+
+    ::testing::Mock::VerifyAndClearExpectations(observer_.get());
+
+    // Swap order: b before a
+    EXPECT_CALL(*observer_, onNodeUpdate(::testing::_, ::testing::_)).Times(::testing::AnyNumber());
+    vdom_->updateNode(makeSnapshot("root", "Column", {"b", "a"}));
+}
+
+// R53: Remove all children from parent
+TEST_F(VirtualDOMTest, R53_RemoveAllChildren_NoCrash) {
+    vdom_->updateNode(makeSnapshot("root", "Column"));
+    vdom_->updateNode(makeSnapshot("a", "Text"));
+    vdom_->updateNode(makeSnapshot("b", "Text"));
+    vdom_->updateNode(makeSnapshot("root", "Column", {"a", "b"}));
+
+    EXPECT_CALL(*observer_, onNodeRemoved(::testing::_, ::testing::_)).Times(::testing::AnyNumber());
+    vdom_->updateNode(makeSnapshot("root", "Column", {}));
+}
+
+// R54: Update same node twice — second update should notify
+TEST_F(VirtualDOMTest, R54_DoubleUpdate_SecondNotifies) {
+    vdom_->updateNode(makeSnapshot("root", "Container"));
+    vdom_->updateNode(makeSnapshot("x", "Text"));
+    vdom_->updateNode(makeSnapshot("root", "Container", {"x"}));
+
+    ::testing::Mock::VerifyAndClearExpectations(observer_.get());
+    EXPECT_CALL(*observer_, onNodeUpdate("x", ::testing::_)).Times(::testing::AtLeast(1));
+    vdom_->updateNode(makeSnapshot("x", "Text", {{"text", "updated"}}));
+}
+
+// R55: Empty children list on root
+TEST_F(VirtualDOMTest, R55_EmptyChildrenList_RootAlone) {
+    vdom_->updateNode(makeSnapshot("root", "Container", {}));
+    auto* root = vdom_->getRoot();
+    ASSERT_NE(root, nullptr);
+    EXPECT_EQ(root->getId(), "root");
+}

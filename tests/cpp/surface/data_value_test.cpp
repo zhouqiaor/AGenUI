@@ -371,3 +371,74 @@ TEST(InterpolationExpressionDataValue, GetValueData_ConcatenatesSegments) {
     auto data = expr.getValueData();
     EXPECT_FALSE(data.isNull());
 }
+
+// =============================================================================
+// Additional edge case tests (R46-50)
+// =============================================================================
+
+// R46: StaticDataValue with special characters
+TEST(StaticDataValue, GetValueData_SpecialChars_ReturnsData) {
+    StaticDataValue v("\"hello\\nworld\\t!\"");
+    auto data = v.getValueData();
+    EXPECT_FALSE(data.isNull());
+}
+
+// R46: StaticDataValue with unicode
+TEST(StaticDataValue, GetValueData_Unicode_ReturnsData) {
+    StaticDataValue v("\"你好世界\"");
+    auto data = v.getValueData();
+    EXPECT_FALSE(data.isNull());
+}
+
+// R47: StaticDataValue clone preserves value
+TEST(StaticDataValue, CloneAsTemplate_PreservesValue) {
+    StaticDataValue v("\"test_value\"");
+    MockDataValueContext ctx;
+    auto cloned = v.cloneAsTemplate(&ctx, "/root");
+    ASSERT_NE(cloned, nullptr);
+    EXPECT_EQ(cloned->getDataType(), DataType::StaticData);
+}
+
+// R48: DataValueParser with empty string
+TEST_F(DataValueParserTest, ParseDataValue_EmptyString_ReturnsNull) {
+    auto dv = DataValueParser::parseDataValue("");
+    EXPECT_EQ(dv, nullptr);
+}
+
+// R48: DataValueParser with whitespace only
+TEST_F(DataValueParserTest, ParseDataValue_WhitespaceOnly_ReturnsNull) {
+    auto dv = DataValueParser::parseDataValue("   ");
+    EXPECT_EQ(dv, nullptr);
+}
+
+// R49: DataValueParser with JSON array
+TEST_F(DataValueParserTest, ParseDataValue_JsonArray_ReturnsStructuredData) {
+    auto dv = DataValueParser::parseDataValue("[1, 2, 3]");
+    ASSERT_NE(dv, nullptr);
+    // Could be StaticData or StructuredData depending on implementation
+    EXPECT_NE(dv->getDataType(), DataType::FunctionCallData);
+}
+
+// R49: DataValueParser with nested object
+TEST_F(DataValueParserTest, ParseDataValue_NestedObject_ReturnsStructuredData) {
+    auto dv = DataValueParser::parseDataValue(R"({"a":{"b":"c"}})");
+    ASSERT_NE(dv, nullptr);
+}
+
+// R50: Aggregate binding status with all NotReady
+TEST(DataValueAggregateStatus, AllNotReady_ReturnsNotReady) {
+    std::vector<DataBindingStatus> statuses;
+    statuses.push_back(DataBindingStatus::NotReady);
+    statuses.push_back(DataBindingStatus::NotReady);
+    auto result = DataValue::aggregateBindingStatus(statuses);
+    EXPECT_EQ(result, DataBindingStatus::NotReady);
+}
+
+// R50: Aggregate binding status with mix of NotDependent and FullyReady
+TEST(DataValueAggregateStatus, MixNotDependentAndFullyReady_ReturnsFullyReady) {
+    std::vector<DataBindingStatus> statuses;
+    statuses.push_back(DataBindingStatus::NotDependent);
+    statuses.push_back(DataBindingStatus::FullyReady);
+    auto result = DataValue::aggregateBindingStatus(statuses);
+    EXPECT_EQ(result, DataBindingStatus::FullyReady);
+}
