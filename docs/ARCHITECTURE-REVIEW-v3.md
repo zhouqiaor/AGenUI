@@ -4,12 +4,13 @@
 
 After 2 cycles of 40 total iterations, the AGenUI widget subsystem has evolved from a 599-line monolithic service into 11 focused classes totaling ~1,550 lines, with 5 P0 and 5 P1 architecture issues resolved.
 
-## Current Architecture (40 Java files, 6,875 lines total)
+## Current Architecture (42 Java files, 7,127 lines total)
 
 ### Rendering Pipeline
 ```
 A2UIWidgetProvider (broadcast receiver)
   → WidgetConfig.getTemplate() — per-instance config + registry validation
+  → showLoadingState() — optimistic UI, shows ProgressBar immediately
   → AGenUIWidgetRenderService.renderSync()
     → WidgetSizeDetector.resolve() — Android 12+ getWidgetSizes()
     → WidgetBitmapCache.get() — LRU cache with recycle safety
@@ -20,8 +21,10 @@ A2UIWidgetProvider (broadcast receiver)
     → SurfaceManager (pool: WidgetSurfacePool)
     → WidgetBitmapRenderer.drawSurfaceToBitmap() — theme-aware
     → WidgetStateController.setState() — content/loading/empty/error
+    → WidgetRemoteViewsPool.obtainWidgetLayout() — reuse RemoteViews
     → WidgetButtonWiring.wireAll() — PendingIntent wiring
     → WidgetRenderMetrics.recordRender() — performance tracking
+    → pushErrorWidget() → last-good bitmap fallback if available
 ```
 
 ### Class Inventory (Widget Package: 40 files)
@@ -38,6 +41,8 @@ A2UIWidgetProvider (broadcast receiver)
 | WidgetStateController | 80 | UI state management | Cycle 2 R16 |
 | WidgetTemplateValidator | 125 | Runtime template JSON validation | Cycle 2 R17 |
 | WidgetConfig | 74 | Per-instance widget config | Cycle 2 R19 |
+| WidgetRemoteViewsPool | 75 | RemoteViews reuse pool | Cycle 3 R22 |
+| WidgetConfigActivity | ~90 | Widget placement config UI | Cycle 3 R23 |
 | WidgetProtocolTemplates | 81 | Template loading (delegates to registry) | Original (refactored) |
 | WidgetBitmapCache | ~140 | LRU bitmap cache with lifecycle safety | Original (enhanced) |
 | WidgetSurfacePool | ~60 | SurfaceManager pool | Original |
