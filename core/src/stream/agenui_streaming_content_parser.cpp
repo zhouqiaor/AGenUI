@@ -44,33 +44,95 @@ namespace agenui {
         AGENUI_LOG("%s", data.c_str());
         _extractor.appendData(data);
         auto results = _extractor.driveParser();
+
+        // Cross-chunk coalescing: try to merge with pending results from
+        // the previous chunk if within the 16ms frame window.
+        tryCrossChunkCoalesce(results);
+
         dispatchParseResultsBatched(results);
+
+        // Record timestamp for the next chunk's coalescing decision.
+        _lastChunkTime = std::chrono::steady_clock::now();
 
         AGENUI_PERFORMANCE_LOG("stream_assembling_end", "");
     }
 
     void StreamingContentParser::processDataEnding() {
         AGENUI_LOG("processing end");
+        // Flush any pending coalesced updates before resetting.
+        flushPendingUpdates();
         resetState();
-        
+
         AGENUI_PERFORMANCE_LOG("stream_end", "");
     }
 
+    void StreamingContentParser::tryCrossChunkCoalesce(
+            std::vector<ProtocolStreamExtractor::ParseResult>& results) {
+        if (_pendingUpdates.empty()) {
+            return;
+        }
+
+        // Check if we're still within the coalescing window.
+        auto now = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now - _lastChunkTime).count();
+
+        if (elapsed > COALESCE_WINDOW_MS) {
+            // Window expired — flush pending and don't coalesce.
+            flushPendingUpdates();
+            return;
+        }
+
+        // Check if current results start with ComponentUpdate for the same surfaceId.
+        if (results.empty()) {
+            return;
+        }
+
+        const auto& first = results[0];
+        if (first.type != ProtocolStreamExtractor::ParseResult::Type::ComponentUpdate) {
+            // NormalEvent interrupts — flush pending first.
+            flushPendingUpdates();
+            return;
+        }
+
+        if (first.surfaceId != _pendingSurfaceId) {
+            // Different surfaceId — flush pending.
+            flushPendingUpdates();
+            return;
+        }
+
+        // Merge: prepend pending updates to the current results vector.
+        // The pending results are all ComponentUpdate for the same surfaceId.
+        // After merge, dispatchParseResultsBatched will see them as contiguous
+        // and batch them into one updateComponents call.
+        results.insert(results.begin(), _pendingUpdates.begin(), _pendingUpdates.end());
+        _pendingUpdates.clear();
+        _pendingSurfaceId.clear();
+    }
+
+    void StreamingContentParser::flushPendingUpdates() {
+        if (_pendingUpdates.empty()) {
+            return;
+        }
+        // Dispatch the pending results as a batch.
+        dispatchParseResultsBatched(_pendingUpdates);
+        _pendingUpdates.clear();
+        _pendingSurfaceId.clear();
+    }
+
     void StreamingContentParser::dispatchParseResultsBatched(const std::vector<ProtocolStreamExtractor::ParseResult>& results) {
-        // Find component protocols sharing the same surfaceId from streaming parse results,
-        // merge them into a single batch for component parsing, layout calculation, etc.
-        // This reduces overhead of protocol component parsing, JSON deserialization and layout computation.
         size_t resultCursor = 0;
         const size_t resultCount = results.size();
         while (resultCursor < resultCount) {
             const auto& head = results[resultCursor];
             if (head.type == ProtocolStreamExtractor::ParseResult::Type::NormalEvent) {
+                // NormalEvent flushes any pending coalesced updates first.
+                flushPendingUpdates();
                 processNormalEvent(head);
                 ++resultCursor;
                 continue;
             }
-            // Collect contiguous ComponentUpdate results with the same surfaceId into one batch.
-            // (Logically allows receiving and parsing two updateComponents events with different surfaceIds.)
+            // Collect contiguous ComponentUpdate results with the same surfaceId.
             size_t batchIndex = resultCursor + 1;
             while (batchIndex < resultCount) {
                 const auto& cur = results[batchIndex];
@@ -82,8 +144,33 @@ namespace agenui {
                 }
                 ++batchIndex;
             }
-            if (batchIndex - resultCursor == 1) {
-                // Fast path: keep behavior identical to legacy single-component path.
+
+            // Check if the tail of this batch is the last group in results.
+            // If so, buffer them as pending for potential cross-chunk coalescing
+            // instead of dispatching immediately. But only if there are more
+            // than 1 result in the contiguous run (otherwise fast path is fine
+            // to dispatch immediately).
+            //
+            // Actually, for cross-chunk coalescing to work, we need to hold
+            // back the LAST contiguous run of ComponentUpdate results if they're
+            // at the end of the current chunk. The next chunk's tryCrossChunkCoalesce
+            // will then merge them with the next chunk's leading ComponentUpdates.
+            bool isLastRun = (batchIndex >= resultCount);
+            size_t runSize = batchIndex - resultCursor;
+
+            if (isLastRun && runSize > 0) {
+                // Buffer the last run as pending for cross-chunk coalescing.
+                // But if there's only this run (resultCursor == 0), still buffer
+                // it — the next chunk or endTextStream will flush it.
+                _pendingUpdates.assign(
+                    results.begin() + resultCursor,
+                    results.begin() + batchIndex);
+                _pendingSurfaceId = head.surfaceId;
+                resultCursor = batchIndex;
+                continue;
+            }
+
+            if (runSize == 1) {
                 const auto& singleContent = results[resultCursor];
                 sendSingleComponentUpdate(singleContent.componentJson, singleContent.surfaceId, singleContent.version);
             } else {
@@ -101,7 +188,6 @@ namespace agenui {
         }
         const auto& first = results[start];
         std::string updateJson;
-        // Pre-reserve a reasonable capacity; component JSONs can be large.
         size_t reserveBytes = 64 + first.surfaceId.size() + first.version.size();
         for (size_t cursor = start; cursor < end; ++cursor) {
             reserveBytes += results[cursor].componentJson.size() + 2;
