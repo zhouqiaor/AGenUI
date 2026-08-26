@@ -20,4 +20,9 @@
         android:title="@string/action_edit"
         app:showAsAction="always" />
 
+    <item
+        android:id="@+id/action_widget_preview"
+        android:title="Widget Preview"
+        app:showAsAction="always" />
+
 </menu>

@@ -39,17 +39,7 @@ public class WidgetLLMClient {
     }
 
     /**
-     * Starts a streaming chat request with full failover chain.
-     *
-     * Failover order: turbo (qwen-turbo, fast) → plus (qwen3.7-plus, quality)
-     * → doubao (doubao-1.5-pro, vendor fallback).
-     *
-     * Each tier runs an independent {@link #doStreamRequest}. On failure
-     * (network / HTTP error / parse error before any content is emitted),
-     * {@link WidgetLLMConfig#switchToNext()} advances to the next tier and
-     * the request is retried. The chain stops as soon as a tier completes
-     * successfully OR all tiers are exhausted.
-     *
+     * Starts a streaming chat request.
      * Runs on the calling thread (should be a background thread).
      * Calls callback methods on the same thread.
      *
@@ -58,64 +48,34 @@ public class WidgetLLMClient {
      * @param callback Stream callback
      */
     public void streamChat(String systemPrompt, String userText, StreamCallback callback) {
-        streamChat(systemPrompt, userText, null, callback);
-    }
-
-    /**
-     * Starts a streaming chat request with full failover chain and optional
-     * dynamic few-shot messages.
-     *
-     * <p>If {@param messagesJson} is non-null, it overrides the default
-     * system+user two-message format. This is used by Phase 3A's dynamic
-     * few-shot feature ({@link WidgetPromptBuilder#buildMessagesWithHistory})
-     * to inject prior successful examples into the prompt.
-     *
-     * <p>Failover chain is identical to the simpler overload.
-     *
-     * @param systemPrompt System prompt (used only when messagesJson is null)
-     * @param userText User input text (used only when messagesJson is null)
-     * @param messagesJson Pre-built messages JSON array string (may be null)
-     * @param callback Stream callback
-     */
-    public void streamChat(String systemPrompt, String userText,
-                           String messagesJson, StreamCallback callback) {
-        // Always start the chain from the fast tier (turbo) so a previous
-        // failure's persisted state (e.g. stuck on doubao) does not poison
-        // the next user request.
-        config.resetToPrimary();
-
-        int attempt = 0;
-        boolean success = false;
-        while (attempt < WidgetLLMConfig.FAILOVER_TIERS.length) {
-            attempt++;
-            String endpoint = config.getEndpoint();
-            String apiKey = config.getApiKey();
-            String model = config.getModel();
-            Log.i(TAG, "Attempt " + attempt + "/" + WidgetLLMConfig.FAILOVER_TIERS.length
-                    + ": model=" + model + ", endpoint=" + endpoint
-                    + (messagesJson != null ? ", few-shot=on" : ""));
-
-            success = doStreamRequest(endpoint, apiKey, model,
-                    systemPrompt, userText, messagesJson, callback);
-
-            if (success) {
-                Log.i(TAG, "Stream succeeded with model=" + model + " on attempt " + attempt);
+        // Multi-tier failover: iterate FAILOVER_TIERS starting from current model
+        String currentModel = config.getModel();
+        int startIndex = 0;
+        for (int i = 0; i < WidgetLLMConfig.FAILOVER_TIERS.length; i++) {
+            if (WidgetLLMConfig.FAILOVER_TIERS[i].equals(currentModel)) {
+                startIndex = i;
                 break;
             }
-
-            // Failed — try to advance to the next tier.
-            boolean advanced = config.switchToNext();
-            if (!advanced) {
-                // Chain exhausted (already at doubao).
-                Log.w(TAG, "Failover chain exhausted after " + attempt + " attempts");
-                break;
-            }
-            // Loop continues with the new model/endpoint.
         }
 
-        // Reset persisted state to turbo for the next streamChat() invocation.
-        // The failover state is per-request; we don't want a transient network
-        // blip to permanently pin the user to the slower doubao model.
+        for (int i = startIndex; i < WidgetLLMConfig.FAILOVER_TIERS.length; i++) {
+            String model = WidgetLLMConfig.FAILOVER_TIERS[i];
+            String endpoint = WidgetLLMConfig.getEndpointForModel(model);
+            String apiKey = config.getApiKey(); // All tiers use same key for now
+
+            Log.d(TAG, "Trying model tier " + i + ": " + model + " @ " + endpoint);
+            boolean success = doStreamRequest(endpoint, apiKey, model,
+                    systemPrompt, userText, callback);
+            if (success) {
+                // Update config to remember which model worked
+                config.save(apiKey, model, endpoint);
+                return;
+            }
+            Log.w(TAG, "Model tier " + i + " (" + model + ") failed, trying next tier");
+        }
+
+        // All tiers exhausted — reset to primary for next attempt
+        Log.e(TAG, "All failover tiers exhausted, resetting to primary");
         config.resetToPrimary();
     }
 
@@ -126,21 +86,6 @@ public class WidgetLLMClient {
      */
     private boolean doStreamRequest(String endpoint, String apiKey, String model,
                                      String systemPrompt, String userText,
-                                     StreamCallback callback) {
-        return doStreamRequest(endpoint, apiKey, model, systemPrompt, userText, null, callback);
-    }
-
-    /**
-     * Performs a single SSE stream request with optional pre-built messages.
-     *
-     * @param messagesJson Pre-built messages JSON array string. If non-null,
-     *                     overrides the system+user format built from
-     *                     {@code systemPrompt}/{@code userText}. Used by
-     *                     Phase 3A few-shot.
-     */
-    private boolean doStreamRequest(String endpoint, String apiKey, String model,
-                                     String systemPrompt, String userText,
-                                     String messagesJson,
                                      StreamCallback callback) {
         HttpURLConnection conn = null;
         try {
@@ -155,9 +100,7 @@ public class WidgetLLMClient {
             conn.setReadTimeout(READ_TIMEOUT_MS);
 
             // Build request body
-            String body = (messagesJson != null)
-                    ? buildRequestBodyFromMessages(model, messagesJson)
-                    : buildRequestBody(model, systemPrompt, userText);
+            String body = buildRequestBody(model, systemPrompt, userText);
             Log.d(TAG, "Request: model=" + model + ", body length=" + body.length());
 
             try (OutputStream os = conn.getOutputStream()) {
@@ -239,26 +182,6 @@ public class WidgetLLMClient {
             body.put("enable_thinking", false);
         } catch (Exception e) {
             Log.e(TAG, "Failed to build request body", e);
-        }
-        return body.toString();
-    }
-
-    /**
-     * Builds the request body from a pre-built messages JSON array string.
-     * Used by Phase 3A dynamic few-shot — the messages array already contains
-     * the system prompt, few-shot user/assistant pairs, and the final user
-     * message.
-     */
-    private String buildRequestBodyFromMessages(String model, String messagesJson) {
-        JSONObject body = new JSONObject();
-        try {
-            body.put("model", model);
-            body.put("messages", new org.json.JSONArray(messagesJson));
-            body.put("stream", true);
-            body.put("temperature", 0.2);
-            body.put("enable_thinking", false);
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to build request body from messages JSON", e);
         }
         return body.toString();
     }

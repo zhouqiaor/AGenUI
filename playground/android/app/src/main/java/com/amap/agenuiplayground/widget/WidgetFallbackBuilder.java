@@ -53,7 +53,19 @@ public class WidgetFallbackBuilder {
                     case "updateComponents": {
                         JSONObject updateComponents = new JSONObject();
                         updateComponents.put("surfaceId", surfaceId);
-                        updateComponents.put("components", item.optJSONArray("components"));
+                        // Convert component field names: type → component (Phase 1 → v0.9)
+                        // Flatten nested children into a flat components array with ID references
+                        JSONArray components = item.optJSONArray("components");
+                        if (components != null) {
+                            JSONArray flatComponents = new JSONArray();
+                            for (int j = 0; j < components.length(); j++) {
+                                JSONObject comp = components.optJSONObject(j);
+                                if (comp != null) {
+                                    flattenComponent(comp, flatComponents);
+                                }
+                            }
+                            updateComponents.put("components", flatComponents);
+                        }
                         converted.put("updateComponents", updateComponents);
                         result.add(converted.toString());
                         break;
@@ -76,6 +88,71 @@ public class WidgetFallbackBuilder {
             Log.e(TAG, "Failed to convert template to version format", e);
         }
         return result;
+    }
+
+    /**
+     * Flattens a nested component tree into a flat array of component objects.
+     * Converts "type" → "component" field name and replaces inline child objects
+     * with string ID references.
+     *
+     * Phase 1 format: {"id":"root","type":"Card","children":[{"id":"c0","type":"Column",...}]}
+     * v0.9 format:    {"id":"root","component":"Card","children":["c0"]}
+     *                 + separate entry: {"id":"c0","component":"Column",...}
+     *
+     * @param comp The component object (may have nested children)
+     * @param outFlat The flat output array to append to
+     */
+    private static void flattenComponent(JSONObject comp, JSONArray outFlat) {
+        try {
+            JSONObject flat = new JSONObject();
+
+            // Copy all fields except "type" and "children"
+            JSONArray keys = comp.names();
+            if (keys != null) {
+                for (int i = 0; i < keys.length(); i++) {
+                    String key = keys.getString(i);
+                    if ("type".equals(key)) {
+                        // Rename type → component
+                        flat.put("component", comp.getString("type"));
+                    } else if ("children".equals(key)) {
+                        // Handle children separately below
+                    } else {
+                        flat.put(key, comp.get(key));
+                    }
+                }
+            }
+
+            // If no "component" but has "type" already renamed, just use existing
+            if (!flat.has("component") && comp.has("component")) {
+                flat.put("component", comp.getString("component"));
+            }
+
+            // Process children: replace inline objects with ID strings, flatten child objects
+            JSONArray children = comp.optJSONArray("children");
+            if (children != null) {
+                JSONArray childIds = new JSONArray();
+                for (int i = 0; i < children.length(); i++) {
+                    Object child = children.get(i);
+                    if (child instanceof JSONObject) {
+                        JSONObject childObj = (JSONObject) child;
+                        String childId = childObj.optString("id", "child_" + System.nanoTime());
+                        childIds.put(childId);
+                        // Recursively flatten this child
+                        flattenComponent(childObj, outFlat);
+                    } else {
+                        // Already a string ID reference
+                        childIds.put(child);
+                    }
+                }
+                flat.put("children", childIds);
+            }
+
+            outFlat.put(flat);
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to flatten component", e);
+            // Fallback: just add the original
+            outFlat.put(comp);
+        }
     }
 
     /**

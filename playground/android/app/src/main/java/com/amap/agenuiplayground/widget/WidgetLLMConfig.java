@@ -2,77 +2,49 @@ package com.amap.agenuiplayground.widget;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.util.Log;
 
 /**
  * LLM configuration backed by SharedPreferences.
  *
  * Keys: llm_api_key, llm_model, llm_endpoint.
- * Provides a three-tier model failover chain: turbo → plus → doubao.
- *
- * Tier semantics:
- *  - TURBO  (qwen-turbo)   : fast first-token latency (~1-2s), default model
- *  - PLUS   (qwen3.7-plus) : higher quality, slower
- *  - DOUBAO (doubao-1.5-pro): ByteDance fallback when Alibaba bailian fails
- *
- * All three tiers currently share the same Alibaba DashScope endpoint
- * (qwen-turbo / qwen3.7-plus are both served there). Only doubao requires
- * the Volcengine Ark endpoint.
+ * Provides multi-tier failover: qwen3.7-plus → qwen3.7-max → doubao-seed-2.1-pro.
  */
 public class WidgetLLMConfig {
 
-    private static final String TAG = "WidgetLLMConfig";
     private static final String PREFS_NAME = "a2ui_widget_prefs";
     private static final String KEY_API_KEY = "llm_api_key";
     private static final String KEY_MODEL = "llm_model";
     private static final String KEY_ENDPOINT = "llm_endpoint";
 
-    // ===== Model constants =====
-    /** Fast tier: low first-token latency, default model. */
-    public static final String MODEL_TURBO = "qwen-turbo";
-    /** Quality tier: higher quality, slower. */
+    // ===== Model name constants =====
     public static final String MODEL_PLUS = "qwen3.7-plus";
-    /** Fallback tier: ByteDance doubao, different vendor/endpoint. */
-    public static final String MODEL_DOUBAO = "doubao-1.5-pro";
+    public static final String MODEL_MAX = "qwen3.7-max";
+    public static final String MODEL_DOUBAO = "doubao-seed-2.1-pro";
+    public static final String MODEL_GLM = "glm-5.2"; // 智谱，需单独 Key，暂不启用
 
-    // ===== Default primary: Alibaba bailian qwen-turbo (fast) =====
-    public static final String DEFAULT_PRIMARY_MODEL = MODEL_TURBO;
-    public static final String DEFAULT_PRIMARY_ENDPOINT =
+    // ===== Failover tiers: try in order =====
+    public static final String[] FAILOVER_TIERS = {MODEL_PLUS, MODEL_MAX, MODEL_DOUBAO};
+
+    // ===== Endpoints =====
+    public static final String ENDPOINT_DASHSCOPE =
             "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
-
-    // ===== Quality backup: qwen3.7-plus (same DashScope endpoint) =====
-    public static final String QUALITY_BACKUP_MODEL = MODEL_PLUS;
-    public static final String QUALITY_BACKUP_ENDPOINT =
-            "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions";
-
-    // ===== Default fallback: ByteDance doubao =====
-    public static final String DEFAULT_FALLBACK_MODEL = MODEL_DOUBAO;
-    public static final String DEFAULT_FALLBACK_ENDPOINT =
+    public static final String ENDPOINT_ARK =
             "https://ark.cn-beijing.volces.com/api/v3/chat/completions";
+
+    // ===== Defaults (backward compatible) =====
+    public static final String DEFAULT_PRIMARY_MODEL = MODEL_PLUS;
+    public static final String DEFAULT_PRIMARY_ENDPOINT = ENDPOINT_DASHSCOPE;
+    public static final String DEFAULT_FALLBACK_MODEL = MODEL_DOUBAO;
+    public static final String DEFAULT_FALLBACK_ENDPOINT = ENDPOINT_ARK;
 
     // ===== Test API key — MUST REPLACE before production use =====
     // 用户在使用前需要替换为自己的真实 API Key
     public static final String DEFAULT_API_KEY = "sk-ws-H.EHLPPMY.QJz8.MEYCIQCk200amtQ7U7w9eXryCE3aARf7q2M58Xd2gXJmQOke6QIhAMJ9mBKcqvUG_d-5ePJFrIQFB7NirlVnAs-SxdAyWKkU";
 
-    /**
-     * Failover tiers in priority order. Index 0 is tried first.
-     * turbo (fast) → plus (quality) → doubao (vendor fallback).
-     */
-    public static final String[] FAILOVER_TIERS = {
-            MODEL_TURBO,
-            MODEL_PLUS,
-            MODEL_DOUBAO,
-    };
-
     private final SharedPreferences prefs;
 
     public WidgetLLMConfig(Context context) {
         this.prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        // Ensure defaults are persisted on first construction so switchToNext()
-        // can rely on reading back the endpoint alongside the model.
-        if (!prefs.contains(KEY_MODEL)) {
-            resetToPrimary();
-        }
     }
 
     public String getApiKey() {
@@ -96,67 +68,20 @@ public class WidgetLLMConfig {
     }
 
     /**
-     * Returns the endpoint URL for the given model name.
-     * qwen-turbo and qwen3.7-plus share the DashScope endpoint;
-     * doubao uses the Volcengine Ark endpoint.
+     * Returns the API endpoint for a given model name.
+     * Doubao uses ByteDance Ark; all qwen models use Alibaba DashScope.
      */
-    public String getEndpointForModel(String model) {
+    public static String getEndpointForModel(String model) {
         if (MODEL_DOUBAO.equals(model)) {
-            return DEFAULT_FALLBACK_ENDPOINT;
+            return ENDPOINT_ARK;
         }
-        // All qwen variants share the DashScope endpoint.
-        return DEFAULT_PRIMARY_ENDPOINT;
+        // Default: DashScope (covers MODEL_PLUS, MODEL_MAX, and unknown)
+        return ENDPOINT_DASHSCOPE;
     }
 
     /**
-     * Returns the index into FAILOVER_TIERS for the currently persisted model,
-     * or 0 if the current model is not in the chain (in which case the next
-     * switchToNext() will restart from the top).
-     */
-    public int getCurrentTierIndex() {
-        String current = getModel();
-        for (int i = 0; i < FAILOVER_TIERS.length; i++) {
-            if (FAILOVER_TIERS[i].equals(current)) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    /**
-     * Advances the persisted model to the next tier in the failover chain.
-     * turbo → plus → doubao. Returns true if a next tier was applied, false
-     * if the current model is already the last tier (doubao) — in that case
-     * the caller should treat the whole chain as exhausted.
-     *
-     * Also persists the matching endpoint for the new model.
-     */
-    public boolean switchToNext() {
-        int idx = getCurrentTierIndex();
-        if (idx < 0) {
-            // Unknown model — restart from the top (turbo) so a subsequent
-            // streamChat() call begins a fresh chain.
-            Log.w(TAG, "Current model '" + getModel() + "' not in failover chain; resetting to turbo");
-            resetToPrimary();
-            return true;
-        }
-        if (idx >= FAILOVER_TIERS.length - 1) {
-            // Already at last tier (doubao). Chain exhausted.
-            Log.w(TAG, "Failover chain exhausted at " + FAILOVER_TIERS[idx]);
-            return false;
-        }
-        String nextModel = FAILOVER_TIERS[idx + 1];
-        String nextEndpoint = getEndpointForModel(nextModel);
-        Log.i(TAG, "Failover: " + FAILOVER_TIERS[idx] + " → " + nextModel);
-        prefs.edit()
-                .putString(KEY_MODEL, nextModel)
-                .putString(KEY_ENDPOINT, nextEndpoint)
-                .apply();
-        return true;
-    }
-
-    /**
-     * Switches directly to the fallback model configuration (doubao).
+     * Switches to the fallback model configuration (doubao).
+     * Kept for backward compatibility; new code should use FAILOVER_TIERS.
      */
     public void switchToFallback() {
         prefs.edit()
@@ -166,7 +91,7 @@ public class WidgetLLMConfig {
     }
 
     /**
-     * Resets to primary model configuration (qwen-turbo, fast).
+     * Resets to primary model configuration (qwen3.7-plus).
      */
     public void resetToPrimary() {
         prefs.edit()
@@ -177,12 +102,5 @@ public class WidgetLLMConfig {
 
     public boolean isUsingFallback() {
         return DEFAULT_FALLBACK_MODEL.equals(getModel());
-    }
-
-    /**
-     * Returns true if the current model is the fast turbo tier.
-     */
-    public boolean isUsingTurbo() {
-        return MODEL_TURBO.equals(getModel());
     }
 }

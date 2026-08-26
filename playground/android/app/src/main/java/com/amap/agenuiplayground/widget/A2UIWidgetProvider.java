@@ -64,27 +64,21 @@ public class A2UIWidgetProvider extends AppWidgetProvider {
 
     private void launchInputActivity(Context context, int appWidgetId) {
         Log.d(TAG, "launchInputActivity: id=" + appWidgetId);
-        // Android 10+ BAL 限制:不能从 broadcast receiver 直接启动 Activity。
-        // 改用 ForegroundService 中介 — Service 中 startActivity 不受 BAL 限制。
-        Intent svcIntent = new Intent(context, WidgetInputLaunchService.class);
-        svcIntent.putExtra(EXTRA_APPWIDGET_ID, appWidgetId);
+        Intent inputIntent = new Intent(context, WidgetInputActivity.class);
+        inputIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        inputIntent.putExtra(EXTRA_APPWIDGET_ID, appWidgetId);
+
+        int flags = android.app.PendingIntent.FLAG_UPDATE_CURRENT
+                | android.app.PendingIntent.FLAG_IMMUTABLE;
         try {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                context.startForegroundService(svcIntent);
-            } else {
-                context.startService(svcIntent);
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to start WidgetInputLaunchService, fallback to direct start", e);
-            // 降级:直接 start Activity(低版本可用)
-            Intent inputIntent = new Intent(context, WidgetInputActivity.class);
-            inputIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            inputIntent.putExtra(EXTRA_APPWIDGET_ID, appWidgetId);
-            try {
-                context.startActivity(inputIntent);
-            } catch (Exception ex) {
-                Log.e(TAG, "Direct startActivity also failed", ex);
-            }
+            android.app.PendingIntent pi = android.app.PendingIntent.getActivity(
+                    context, appWidgetId, inputIntent, flags);
+            pi.send();
+        } catch (android.app.PendingIntent.CanceledException e) {
+            Log.e(TAG, "Failed to launch WidgetInputActivity", e);
+            // Fallback: direct start (may fail on Android 10+ from background)
+            inputIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            context.startActivity(inputIntent);
         }
     }
 
@@ -93,7 +87,8 @@ public class A2UIWidgetProvider extends AppWidgetProvider {
         AppWidgetManager awm = AppWidgetManager.getInstance(context);
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.a2ui_widget_placeholder);
         awm.updateAppWidget(appWidgetId, views);
-        AGenUIWidgetRenderService.startRender(context, appWidgetId, template);
+        // Direct async render — bypasses JobScheduler delays and BAL restriction
+        AGenUIWidgetRenderService.renderAsync(context, appWidgetId, template);
     }
 
     public static void updateAllWidgets(Context context) {

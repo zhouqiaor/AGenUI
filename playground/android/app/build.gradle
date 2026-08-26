@@ -135,8 +135,14 @@ android {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
-    testOptions {
-        execution 'ANDROIDX_TEST_ORCHESTRATOR'
+    // F4: Test Orchestrator disabled — it kills the main process after each test class,
+    // interfering with manual widget/LLM testing on the device.
+    // Re-enable with -PagenuiEnableOrchestrator=true if batch test isolation is needed.
+    def orchestratorEnabled = providers.gradleProperty('agenuiEnableOrchestrator').getOrElse('false').toBoolean()
+    if (orchestratorEnabled) {
+        testOptions {
+            execution 'ANDROIDX_TEST_ORCHESTRATOR'
+        }
     }
 }
 
@@ -187,13 +193,6 @@ dependencies {
 
     // PDF text extraction (P2.3 file import)
     implementation 'com.tom-roush:pdfbox-android:2.0.27.0'
-
-    // Room — SQLite 持久化 widget 历史(Phase 3B)
-    implementation 'androidx.room:room-runtime:2.6.1'
-    annotationProcessor 'androidx.room:room-compiler:2.6.1'
-
-    // Vosk 离线语音识别(Phase 3B,F3)
-    implementation 'com.alphacephei:vosk-android:0.3.70'
     
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit

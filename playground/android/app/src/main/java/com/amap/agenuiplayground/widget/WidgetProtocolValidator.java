@@ -181,14 +181,87 @@ public final class WidgetProtocolValidator {
         }
 
         // Remove trailing commas (common LLM error)
-        // Matches: , followed by optional whitespace then } or ]
-        result = result.replaceAll(",\\s*}", "}");
-        result = result.replaceAll(",\\s*]", "]");
+        // Manual implementation to avoid Android ICU regex issues with \s and character classes
+        result = removeTrailingCommas(result);
 
-        // Remove control characters that break JSON parsing
-        result = result.replaceAll("[\\x00-\\x1f]", "");
+        // Collapse consecutive commas (common LLM error: ,, → ,)
+        result = removeConsecutiveCommas(result);
+
+        // Remove trailing commas again after collapsing (,, → , may create new ,}/,] cases)
+        result = removeTrailingCommas(result);
+
+        // Remove control characters that break JSON parsing (manual, no regex)
+        result = removeControlChars(result);
 
         return result;
+    }
+
+    /**
+     * Removes trailing commas before } or ] (common LLM JSON error).
+     * Manual string scan to avoid Android ICU regex quirks with \s.
+     */
+    private static String removeTrailingCommas(String json) {
+        StringBuilder sb = new StringBuilder(json);
+        int i = 0;
+        while (i < sb.length()) {
+            if (sb.charAt(i) == ',') {
+                // Look ahead for optional whitespace then } or ]
+                int j = i + 1;
+                while (j < sb.length() && (sb.charAt(j) == ' ' || sb.charAt(j) == '\t'
+                        || sb.charAt(j) == '\n' || sb.charAt(j) == '\r')) {
+                    j++;
+                }
+                if (j < sb.length() && (sb.charAt(j) == '}' || sb.charAt(j) == ']')) {
+                    sb.deleteCharAt(i);
+                    continue; // don't increment i, re-check at same position
+                }
+            }
+            i++;
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Collapses consecutive commas (,, → ,) that LLMs sometimes produce.
+     * Also handles ,\s, → , (comma, optional whitespace, comma → single comma).
+     * Manual scan, no regex.
+     */
+    private static String removeConsecutiveCommas(String json) {
+        StringBuilder sb = new StringBuilder(json);
+        int i = 0;
+        while (i < sb.length() - 1) {
+            if (sb.charAt(i) == ',') {
+                // Check if next non-whitespace char is also a comma
+                int j = i + 1;
+                while (j < sb.length() && (sb.charAt(j) == ' ' || sb.charAt(j) == '\t'
+                        || sb.charAt(j) == '\n' || sb.charAt(j) == '\r')) {
+                    j++;
+                }
+                if (j < sb.length() && sb.charAt(j) == ',') {
+                    // Delete the whitespace + second comma, keep first comma
+                    sb.delete(i + 1, j + 1);
+                    continue; // re-check at same i — handles 3+ consecutive commas
+                }
+            }
+            i++;
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Removes ASCII control characters (0x00-0x1F) except \t \n \r.
+     * Manual char scan, no regex.
+     */
+    private static String removeControlChars(String json) {
+        StringBuilder sb = new StringBuilder(json.length());
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (c < 0x20 && c != '\t' && c != '\n' && c != '\r') {
+                continue; // skip control char
+            }
+            sb.append(c);
+        }
+        return sb.toString();
     }
 
     /**

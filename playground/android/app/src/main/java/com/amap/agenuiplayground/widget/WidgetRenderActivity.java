@@ -23,7 +23,6 @@ import com.amap.agenuiplayground.R;
 
 import org.json.JSONArray;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -68,14 +67,6 @@ public class WidgetRenderActivity extends Activity {
     private WidgetPartialParser partialParser;
     private long streamStartTimeMs = 0;
     private WidgetHistoryRepository historyRepository;
-
-    // F4: reusable bitmap for streaming refresh — only reallocated on size change.
-    private Bitmap streamBitmap;
-    // F3: cached widget target width in pixels (0 until first measured).
-    private int widgetTargetWidthPx = 0;
-    // F3: min/max widget width in a2ui virtual pixels (vp) — clamped after density conversion.
-    private static final int WIDGET_MIN_WIDTH_PX = 280;
-    private static final int WIDGET_MAX_WIDTH_PX = 400;
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -243,35 +234,16 @@ public class WidgetRenderActivity extends Activity {
         WidgetLLMClient client = new WidgetLLMClient(this);
         final StringBuilder fullContent = new StringBuilder();
 
-        // Phase 3A — F5: build messages with dynamic few-shot from history.
-        String messagesJson = WidgetPromptBuilder.buildMessagesWithHistory(
-                WidgetPromptBuilder.SYSTEM_PROMPT, userText, historyRepository);
-
         client.streamChat(WidgetPromptBuilder.SYSTEM_PROMPT, userText,
-                messagesJson,
                 new WidgetLLMClient.StreamCallback() {
                     @Override
                     public void onChunk(String delta) {
                         if (delta == null || delta.isEmpty()) return;
                         fullContent.append(delta);
                         try {
-                            // 1. Feed the chunk to the top-level parser — this
-                            //    returns a complete JSON only when the entire
-                            //    top-level object closes (the final LLM output).
                             List<String> jsonObjects = partialParser.feed(delta);
                             for (String json : jsonObjects) {
                                 surfaceManager.receiveTextChunk(json);
-                            }
-
-                            // 2. Progressive render: even before the top-level
-                            //    object closes, extract any fully-closed
-                            //    component objects from the "components" array
-                            //    and push them as an updateComponents chunk so
-                            //    the user sees incremental UI during streaming.
-                            String progressive = partialParser.extractCompletedComponents();
-                            if (progressive != null) {
-                                surfaceManager.receiveTextChunk(progressive);
-                                Log.d(TAG, "Progressive update pushed: " + progressive.length() + " chars");
                             }
                         } catch (Exception e) {
                             Log.w(TAG, "receiveTextChunk failed for chunk", e);
@@ -371,40 +343,12 @@ public class WidgetRenderActivity extends Activity {
     }
 
     /**
-     * Fallback 链路(优先级):
-     * 1. 从历史取上次成功的 A2UI JSON(断网缓存)
-     * 2. 关键词匹配的 Phase 1 模板
-     * 3. notecard 通用降级卡片
-     *
-     * 用 WidgetFallbackBuilder 发送 version-format JSON 到新的 SurfaceManager。
+     * Fallback: keyword-matched template or notecard.
+     * Uses WidgetFallbackBuilder to send version-format JSON to the existing SurfaceManager.
      */
     private void loadFallback() {
         Log.d(TAG, "Loading fallback template");
 
-        final String cachedJson = historyRepository != null
-                ? historyRepository.getLastSuccessfulJson() : null;
-
-        if (cachedJson != null && !cachedJson.isEmpty()) {
-            // 优先使用断网缓存:上次成功渲染的 A2UI JSON
-            Log.d(TAG, "Using offline cached JSON");
-            new Thread(() -> {
-                try {
-                    pushCachedFallback(cachedJson, "AGenUI · 离线缓存");
-                } catch (Exception e) {
-                    Log.e(TAG, "Offline cache fallback failed", e);
-                    runOnUiThread(this::loadKeywordFallback);
-                }
-            }).start();
-            return;
-        }
-
-        loadKeywordFallback();
-    }
-
-    /**
-     * 关键词模板 + notecard 降级链路(原 loadFallback 的主体逻辑)。
-     */
-    private void loadKeywordFallback() {
         String matchedTemplate = matchKeywordTemplate(userText);
         boolean matched = matchedTemplate != null;
         if (!matched) {
@@ -494,83 +438,6 @@ public class WidgetRenderActivity extends Activity {
     }
 
     /**
-     * 用缓存的 A2UI JSON 推送降级渲染。
-     * 缓存可能是 LLM 原始输出(含 markdown 代码块),需先用 WidgetProtocolValidator 提取。
-     */
-    private void pushCachedFallback(String cachedContent, String title) {
-        // 提取并校验
-        String a2uiJson = WidgetProtocolValidator.extractA2UIJson(cachedContent);
-        if (a2uiJson == null) {
-            // 可能本身就是裸 JSON
-            a2uiJson = cachedContent;
-        }
-
-        // 转成 version-format chunks
-        List<String> chunks;
-        try {
-            // 尝试作为完整 A2UI 模板数组解析
-            chunks = WidgetFallbackBuilder.convertToVersionFormat(a2uiJson, "ai-generated");
-        } catch (Exception e) {
-            chunks = new ArrayList<>();
-        }
-        if (chunks == null || chunks.isEmpty()) {
-            // 无法转换,走 notecard
-            chunks = WidgetFallbackBuilder.buildNoteCard("ai-generated",
-                    "离线缓存", "缓存内容解析失败");
-        }
-
-        // 销毁旧 surfaceManager,新建并推送
-        try {
-            if (surfaceManager != null) {
-                surfaceManager.destroy();
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "Failed to destroy old surfaceManager", e);
-        }
-
-        surfaceManager = new SurfaceManager(this);
-        final CountDownLatch surfaceCreated = new CountDownLatch(1);
-        final AtomicReference<Surface> surfaceRef = new AtomicReference<>(null);
-        registerSurfaceListener(surfaceManager, surfaceRef, surfaceCreated);
-
-        try {
-            surfaceManager.beginTextStream();
-            for (String chunk : chunks) {
-                surfaceManager.receiveTextChunk(chunk);
-            }
-            surfaceManager.endTextStream();
-        } catch (Exception e) {
-            Log.e(TAG, "Cached fallback stream failed", e);
-            runOnUiThread(this::loadKeywordFallback);
-            return;
-        }
-
-        new Thread(() -> {
-            try {
-                boolean created = surfaceCreated.await(SURFACE_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-                if (!created || surfaceRef.get() == null) {
-                    runOnUiThread(this::loadKeywordFallback);
-                    return;
-                }
-
-                final Surface surface = surfaceRef.get();
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    try {
-                        drawAndPush(surface, title, true);
-                    } catch (Exception e) {
-                        Log.e(TAG, "Cached fallback draw failed", e);
-                        pushErrorWidget();
-                    } finally {
-                        finish();
-                    }
-                });
-            } catch (InterruptedException e) {
-                runOnUiThread(this::finish);
-            }
-        }).start();
-    }
-
-    /**
      * Matches user text keywords to a known template.
      * @return template name, or null if no match.
      */
@@ -610,13 +477,9 @@ public class WidgetRenderActivity extends Activity {
 
     private void doRefresh() {
         lastRefreshMs = System.currentTimeMillis();
-        if (streamSurface == null) {
-            Log.d(TAG, "doRefresh: streamSurface is null, skipping");
-            return;
-        }
+        if (streamSurface == null) return;
         try {
             drawOnly(streamSurface);
-            Log.d(TAG, "doRefresh: components drawn, bitmap pushed");
         } catch (Exception e) {
             Log.w(TAG, "doRefresh draw failed", e);
         }
@@ -625,20 +488,12 @@ public class WidgetRenderActivity extends Activity {
     /**
      * Draws the surface to a bitmap and pushes to widget (no title update).
      * Used during streaming refresh.
-     *
-     * Phase 3A: reuses {@link #streamBitmap} across calls — only allocates a
-     * new Bitmap when the measured size changes. This avoids per-chunk
-     * Bitmap allocation during streaming (F4).
      */
     private void drawOnly(Surface surface) {
         View container = surface.getContainer();
-        if (container == null) {
-            Log.w(TAG, "drawOnly: container is null");
-            return;
-        }
+        if (container == null) return;
 
-        int targetWidth = getWidgetTargetWidthPx();
-        int widthSpec = View.MeasureSpec.makeMeasureSpec(targetWidth, View.MeasureSpec.EXACTLY);
+        int widthSpec = View.MeasureSpec.makeMeasureSpec(300, View.MeasureSpec.EXACTLY);
         int heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
         container.measure(widthSpec, heightSpec);
 
@@ -648,26 +503,12 @@ public class WidgetRenderActivity extends Activity {
 
         container.layout(0, 0, w, h);
 
-        // F4: reuse streamBitmap if size matches; otherwise reallocate.
-        if (streamBitmap == null
-                || streamBitmap.getWidth() != w
-                || streamBitmap.getHeight() != h
-                || streamBitmap.isRecycled()) {
-            if (streamBitmap != null && !streamBitmap.isRecycled()) {
-                streamBitmap.recycle();
-            }
-            streamBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-            Log.d(TAG, "drawOnly: allocated new bitmap " + w + "x" + h);
-        } else {
-            // Reuse — clear the canvas to white before redrawing.
-            streamBitmap.eraseColor(android.graphics.Color.WHITE);
-        }
-
-        Canvas canvas = new Canvas(streamBitmap);
+        Bitmap bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
         canvas.drawColor(android.graphics.Color.WHITE);
         container.draw(canvas);
 
-        pushBitmapToWidget(streamBitmap, "AGenUI · 生成中...");
+        pushBitmapToWidget(bitmap, "AGenUI · 生成中...");
     }
 
     // ===== Common draw + push =====
@@ -679,8 +520,7 @@ public class WidgetRenderActivity extends Activity {
             return;
         }
 
-        int targetWidth = getWidgetTargetWidthPx();
-        int widthSpec = View.MeasureSpec.makeMeasureSpec(targetWidth, View.MeasureSpec.EXACTLY);
+        int widthSpec = View.MeasureSpec.makeMeasureSpec(300, View.MeasureSpec.EXACTLY);
         int heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED);
         container.measure(widthSpec, heightSpec);
 
@@ -691,29 +531,13 @@ public class WidgetRenderActivity extends Activity {
 
         container.layout(0, 0, w, h);
 
-        // F4: reuse streamBitmap across drawAndPush and drawOnly — only
-        // reallocate when size changes. After final draw this bitmap is
-        // handed to RemoteViews (which copies it into a PendingIntent for
-        // widget update), so we can keep using it for subsequent draws.
-        if (streamBitmap == null
-                || streamBitmap.getWidth() != w
-                || streamBitmap.getHeight() != h
-                || streamBitmap.isRecycled()) {
-            if (streamBitmap != null && !streamBitmap.isRecycled()) {
-                streamBitmap.recycle();
-            }
-            streamBitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-            Log.d(TAG, "drawAndPush: allocated new bitmap " + w + "x" + h);
-        } else {
-            streamBitmap.eraseColor(android.graphics.Color.WHITE);
-        }
-
-        Canvas canvas = new Canvas(streamBitmap);
+        Bitmap bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas canvas = new Canvas(bitmap);
         canvas.drawColor(android.graphics.Color.WHITE);
         container.draw(canvas);
-        Log.d(TAG, "Bitmap: " + w + "x" + h + ", bytes=" + streamBitmap.getByteCount());
+        Log.d(TAG, "Bitmap: " + w + "x" + h + ", bytes=" + bitmap.getByteCount());
 
-        pushBitmapToWidget(streamBitmap, title);
+        pushBitmapToWidget(bitmap, title);
     }
 
     private void pushBitmapToWidget(Bitmap bitmap, String title) {
@@ -755,10 +579,10 @@ public class WidgetRenderActivity extends Activity {
                         android.app.PendingIntent.FLAG_UPDATE_CURRENT
                                 | android.app.PendingIntent.FLAG_IMMUTABLE));
 
-        // Template buttons
+        // Template buttons — only wire as many buttons as the layout provides
         String[] templates = WidgetProtocolTemplates.AVAILABLE_TEMPLATES;
         int[] buttonIds = {R.id.btnTemplateWeather, R.id.btnTemplateAgenda, R.id.btnTemplateTodo};
-        for (int i = 0; i < templates.length; i++) {
+        for (int i = 0; i < buttonIds.length && i < templates.length; i++) {
             Intent tmplIntent = new Intent(this, A2UIWidgetProvider.class);
             tmplIntent.setAction(A2UIWidgetProvider.ACTION_SWITCH_TEMPLATE);
             tmplIntent.putExtra(A2UIWidgetProvider.EXTRA_APPWIDGET_ID, appWidgetId);
@@ -767,17 +591,16 @@ public class WidgetRenderActivity extends Activity {
                     android.app.PendingIntent.getBroadcast(this, appWidgetId * 10 + 3 + i, tmplIntent,
                             android.app.PendingIntent.FLAG_UPDATE_CURRENT
                                     | android.app.PendingIntent.FLAG_IMMUTABLE));
-            int color = templates[i].equals(currentTemplate) ? 0xFF6200EE : 0xFF666666;
+            int color = templates[i].equals(currentTemplate) ? 0xFF007DFF : 0xFF999999;
             views.setTextColor(buttonIds[i], color);
         }
 
-        // AI input button — 直接用 getActivity 啟動 WidgetInputActivity，繞過 BAL 限制。
-        // （Android 12+ 從 widget PendingIntent.getActivity 有 BAL 豁免；getBroadcast → startActivity 則被擋）
-        Intent aiInputIntent = new Intent(this, WidgetInputActivity.class);
+        // AI input button
+        Intent aiInputIntent = new Intent(this, A2UIWidgetProvider.class);
+        aiInputIntent.setAction(A2UIWidgetProvider.ACTION_AI_INPUT);
         aiInputIntent.putExtra(A2UIWidgetProvider.EXTRA_APPWIDGET_ID, appWidgetId);
-        aiInputIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         views.setOnClickPendingIntent(R.id.btnAiInput,
-                android.app.PendingIntent.getActivity(this, appWidgetId * 10 + 4, aiInputIntent,
+                android.app.PendingIntent.getBroadcast(this, appWidgetId * 10 + 4, aiInputIntent,
                         android.app.PendingIntent.FLAG_UPDATE_CURRENT
                                 | android.app.PendingIntent.FLAG_IMMUTABLE));
 
@@ -824,95 +647,15 @@ public class WidgetRenderActivity extends Activity {
 
             @Override
             public SurfaceSize surfaceSize(String sid) {
-                // F3: return widget's actual size in pixels — SurfaceSize
-                // constructor will convert px → a2ui vp internally via
-                // StyleHelper.pxToA2ui (px / density * 2).
-                int[] wh = getWidgetSizePx();
-                int widthPx = wh[0];
-                int heightPx = wh[1];
-                Log.d(TAG, "surfaceSize: " + sid + " → " + widthPx + "x" + heightPx + "px");
-                return new SurfaceSize(widthPx, heightPx);
+                return new SurfaceSize(300, 0);
             }
         });
-    }
-
-    /**
-     * F3: Returns the widget's actual size in screen pixels using
-     * {@link AppWidgetManager#getAppWidgetOptions(int)}.
-     *
-     * The returned Bundle has portrait/landscape keys depending on orientation:
-     * - OPTION_APPWIDGET_MIN_WIDTH / OPTION_APPWIDGET_MAX_WIDTH
-     * - OPTION_APPWIDGET_MIN_HEIGHT / OPTION_APPWIDGET_MAX_HEIGHT
-     *
-     * We use the smaller of portrait width vs. landscape width as the
-     * target width (since the widget host cell is generally the limiting
-     * dimension), clamped to [280, 400].
-     *
-     * @return int[2] = {widthPx, heightPx}. Falls back to {300, 0} if the
-     *         AppWidgetManager / options are unavailable.
-     */
-    private int[] getWidgetSizePx() {
-        int widthPx = 300;  // sensible fallback
-        int heightPx = 0;   // 0 = no constraint on height
-        try {
-            AppWidgetManager awm = AppWidgetManager.getInstance(this);
-            if (awm == null) return new int[]{widthPx, heightPx};
-            android.os.Bundle options = awm.getAppWidgetOptions(appWidgetId);
-            if (options == null) return new int[]{widthPx, heightPx};
-
-            int portraitMinW = options.getInt(
-                    AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0);
-            int portraitMaxW = options.getInt(
-                    AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0);
-            int portraitMinH = options.getInt(
-                    AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0);
-            int portraitMaxH = options.getInt(
-                    AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0);
-
-            // The portrait min width is the most common "current width"
-            // reported by the host. Use it; fall back to max if absent.
-            int candidateW = portraitMinW > 0 ? portraitMinW
-                    : (portraitMaxW > 0 ? portraitMaxW : widthPx);
-            int candidateH = portraitMinH > 0 ? portraitMinH
-                    : (portraitMaxH > 0 ? portraitMaxH : heightPx);
-
-            // Clamp width to [min, max]
-            if (candidateW < WIDGET_MIN_WIDTH_PX) candidateW = WIDGET_MIN_WIDTH_PX;
-            if (candidateW > WIDGET_MAX_WIDTH_PX) candidateW = WIDGET_MAX_WIDTH_PX;
-
-            widthPx = candidateW;
-            heightPx = candidateH;
-        } catch (Exception e) {
-            Log.w(TAG, "getWidgetSizePx failed, using fallback 300x0", e);
-        }
-        return new int[]{widthPx, heightPx};
-    }
-
-    /**
-     * F3: Returns the target width in screen pixels for measuring the surface
-     * container. Cached after the first call within an Activity instance.
-     */
-    private int getWidgetTargetWidthPx() {
-        if (widgetTargetWidthPx <= 0) {
-            widgetTargetWidthPx = getWidgetSizePx()[0];
-        }
-        return widgetTargetWidthPx;
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         refreshHandler.removeCallbacks(refreshRunnable);
-        // F4: recycle the reusable bitmap to avoid OOM on repeated generations.
-        try {
-            if (streamBitmap != null && !streamBitmap.isRecycled()) {
-                streamBitmap.recycle();
-                streamBitmap = null;
-                Log.d(TAG, "onDestroy: streamBitmap recycled");
-            }
-        } catch (Exception e) {
-            Log.w(TAG, "onDestroy: bitmap recycle failed", e);
-        }
         try {
             if (surfaceManager != null) {
                 surfaceManager.destroy();

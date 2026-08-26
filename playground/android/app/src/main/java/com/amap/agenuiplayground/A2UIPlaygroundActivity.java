@@ -233,6 +233,18 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
                 renderGalleryFromAsset();
             }, 500);
         }
+
+        // Support --ez autoWidgetPreview true: auto-render a widget template on launch
+        // Usage: adb shell am start -n <package>/.A2UIPlaygroundActivity --ez autoWidgetPreview true --es widgetTemplate weather
+        boolean autoWidgetPreview = getIntent().getBooleanExtra("autoWidgetPreview", false);
+        if (autoWidgetPreview) {
+            String template = getIntent().getStringExtra("widgetTemplate");
+            if (template == null) template = "weather";
+            final String finalTemplate = template;
+            new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                showWidgetPreview(finalTemplate);
+            }, 800);
+        }
     }
 
     /**
@@ -488,9 +500,152 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
             // Click the "Scan" button to launch QR code scanning
             startQrCodeScan();
             return true;
+        } else if (id == R.id.action_widget_preview) {
+            // Widget Preview: render weather template and show bitmap in renderContent
+            showWidgetPreview();
+            return true;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    /**
+     * Widget Preview: renders the weather template via AGenUIWidgetRenderService
+     * and displays the resulting bitmap directly in renderContent.
+     * Bypasses the need for a desktop Widget binding.
+     */
+    private void showWidgetPreview() {
+        showWidgetPreview("weather");
+    }
+
+    private void showWidgetPreview(String templateName) {
+        android.util.Log.d("A2UIPlayground", "showWidgetPreview: rendering " + templateName + " template");
+
+        // Clear existing surface
+        if (surfaceManager != null) {
+            try {
+                surfaceManager.destroy();
+                surfaceManager = null;
+            } catch (Exception e) {
+                android.util.Log.w("A2UIPlayground", "destroy old SM failed", e);
+            }
+        }
+
+        // Load template and render
+        String surfaceId = "preview_" + System.currentTimeMillis();
+        String templateJson = com.amap.agenuiplayground.widget.WidgetProtocolTemplates
+                .loadTemplate(this, templateName, surfaceId);
+
+        if (templateJson == null) {
+            android.widget.Toast.makeText(this, "Template not found", android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Convert to v0.9 format
+        java.util.List<String> chunks = com.amap.agenuiplayground.widget.WidgetFallbackBuilder
+                .convertToVersionFormat(templateJson, surfaceId);
+
+        if (chunks.isEmpty()) {
+            android.widget.Toast.makeText(this, "Template conversion failed", android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Initialize AGenUI
+        aGenUI = AGenUI.getInstance();
+        aGenUI.initialize(getApplicationContext());
+        aGenUI.setDebug(true);
+
+        // Create SurfaceManager
+        surfaceManager = new SurfaceManager(this);
+        currentSurfaceId = surfaceId;
+
+        final java.util.concurrent.CountDownLatch surfaceReady = new java.util.concurrent.CountDownLatch(1);
+        final java.util.concurrent.atomic.AtomicReference<com.amap.agenui.render.surface.Surface> surfaceRef =
+                new java.util.concurrent.atomic.AtomicReference<>(null);
+
+        surfaceManager.addListener(new com.amap.agenui.render.surface.ISurfaceManagerListener() {
+            @Override
+            public void onCreateSurface(com.amap.agenui.render.surface.Surface surface) {
+                android.util.Log.d("A2UIPlayground", "onCreateSurface: " + surface.getSurfaceId());
+                surfaceRef.set(surface);
+            }
+
+            @Override
+            public void onDeleteSurface(com.amap.agenui.render.surface.Surface surface) {}
+
+            @Override
+            public void onReceiveActionEvent(String event) {}
+
+            @Override
+            public void onRootComponentUpdate(com.amap.agenui.render.surface.Surface surface, Map<String, String> props) {
+                android.util.Log.d("A2UIPlayground", "onRootComponentUpdate: " + surface.getSurfaceId());
+                surfaceRef.set(surface);
+                // Wait 100ms for child views to mount
+                new Handler(Looper.getMainLooper()).postDelayed(surfaceReady::countDown, 100);
+            }
+
+            @Override
+            public void onError(com.amap.agenui.render.surface.Surface surface, int code, String message) {
+                android.util.Log.e("A2UIPlayground", "Surface error: code=" + code + ", msg=" + message);
+                surfaceReady.countDown();
+            }
+
+            @Override
+            public void onBlankCheckResult(com.amap.agenui.render.surface.Surface surface, boolean isBlank) {}
+
+            @Override
+            public void onComponentAppeared(com.amap.agenui.render.surface.Surface surface, String parentComponentId,
+                                             String parentType, Map<String, Object> properties) {}
+
+            @Override
+            public com.amap.agenui.render.surface.SurfaceSize surfaceSize(String sid) {
+                return new com.amap.agenui.render.surface.SurfaceSize(300, 400);
+            }
+        });
+
+        // Stream chunks
+        try {
+            surfaceManager.beginTextStream();
+            for (String chunk : chunks) {
+                surfaceManager.receiveTextChunk(chunk);
+            }
+            surfaceManager.endTextStream();
+        } catch (Exception e) {
+            android.util.Log.e("A2UIPlayground", "Stream failed", e);
+            android.widget.Toast.makeText(this, "Stream failed: " + e.getMessage(), android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Wait on background, then mount on UI
+        new Thread(() -> {
+            try {
+                boolean ready = surfaceReady.await(5, java.util.concurrent.TimeUnit.SECONDS);
+                if (!ready || surfaceRef.get() == null) {
+                    runOnUiThread(() -> android.widget.Toast.makeText(this,
+                            "Surface timeout", android.widget.Toast.LENGTH_SHORT).show());
+                    return;
+                }
+
+                final com.amap.agenui.render.surface.Surface surface = surfaceRef.get();
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    // Mount the surface container directly into renderContent
+                    renderContent.removeAllViews();
+                    android.view.ViewGroup container = surface.getContainer();
+                    // Force measure + layout
+                    int wSpec = android.view.View.MeasureSpec.makeMeasureSpec(300, android.view.View.MeasureSpec.EXACTLY);
+                    int hSpec = android.view.View.MeasureSpec.makeMeasureSpec(400, android.view.View.MeasureSpec.AT_MOST);
+                    container.measure(wSpec, hSpec);
+                    container.layout(0, 0, container.getMeasuredWidth(),
+                            container.getMeasuredHeight() > 0 ? container.getMeasuredHeight() : 400);
+
+                    renderContent.addView(container);
+                    android.util.Log.d("A2UIPlayground", "Widget preview mounted: "
+                            + container.getMeasuredWidth() + "x" + container.getMeasuredHeight());
+                });
+            } catch (InterruptedException e) {
+                android.util.Log.e("A2UIPlayground", "Wait interrupted", e);
+            }
+        }).start();
     }
 
     /**

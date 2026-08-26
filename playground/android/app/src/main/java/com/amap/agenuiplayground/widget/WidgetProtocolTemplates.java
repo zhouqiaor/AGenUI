@@ -15,7 +15,7 @@ public class WidgetProtocolTemplates {
     private static final String TAG = "WidgetProtocolTemplates";
     private static final String TEMPLATES_DIR = "widget_templates";
 
-    public static final String[] AVAILABLE_TEMPLATES = {"weather", "agenda", "todo"};
+    public static final String[] AVAILABLE_TEMPLATES = {"weather", "agenda", "todo", "calendar", "poll", "note", "notecard"};
     public static final String DEFAULT_TEMPLATE = "weather";
 
     public static String loadTemplate(Context context, String template, String surfaceId) {
