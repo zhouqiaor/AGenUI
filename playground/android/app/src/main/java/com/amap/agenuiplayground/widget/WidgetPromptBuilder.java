@@ -1,17 +1,34 @@
 package com.amap.agenuiplayground.widget;
 
+import android.util.Log;
+
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Builds the System Prompt for LLM-based A2UI generation.
  *
  * Ported from A2UIPrompt.kt (agenui-demo) to Java.
  * Includes A2UI v0.9 protocol essentials, component catalog, and few-shot examples.
+ *
+ * Phase 3A: supports dynamic few-shot from generation history —
+ * {@link #buildMessagesWithHistory} appends up to 3 prior successful
+ * examples (classified by keyword: weather / todo / agenda / general)
+ * so the LLM is more likely to produce valid JSON.
  */
 public final class WidgetPromptBuilder {
 
+    private static final String TAG = "WidgetPromptBuilder";
     private static final String TRIPLE_BACKTICK = "```";
     private static final String DOLLAR = "$";
 
     public static final String SYSTEM_PROMPT = buildSystemPrompt();
+
+    /** Keyword categories used to match few-shot examples to the user request. */
+    private static final String CATEGORY_WEATHER = "weather";
+    private static final String CATEGORY_TODO = "todo";
+    private static final String CATEGORY_AGENDA = "agenda";
+    private static final String CATEGORY_GENERAL = "general";
 
     private WidgetPromptBuilder() {
         // utility class
@@ -102,6 +119,110 @@ public final class WidgetPromptBuilder {
         String escapedUser = escapeJson(userText);
         return "[{\"role\":\"system\",\"content\":\"" + escapedSystem + "\"},"
                 + "{\"role\":\"user\",\"content\":\"" + escapedUser + "\"}]";
+    }
+
+    /**
+     * Phase 3A: Builds the messages array with dynamic few-shot examples
+     * taken from the generation history.
+     *
+     * <p>Layout: [system, …few-shot user/assistant pairs, user]. The
+     * few-shot examples are selected by matching the current userText's
+     * keyword category (weather / todo / agenda / general) against prior
+     * successful generations; up to 3 examples are appended.
+     *
+     * <p>If history is null or has no successful records, falls back to the
+     * plain two-message format (system + user).
+     *
+     * @param systemPrompt System prompt (typically {@link #SYSTEM_PROMPT})
+     * @param userText User input text for this request
+     * @param history Repository to source few-shot examples from (may be null)
+     * @return JSON messages array string
+     */
+    public static String buildMessagesWithHistory(String systemPrompt, String userText,
+                                                   WidgetHistoryRepository history) {
+        if (history == null) {
+            return buildMessagesJson(systemPrompt, userText);
+        }
+
+        String category = classifyCategory(userText);
+        List<WidgetHistoryRepository.FewShotExample> all =
+                history.getRecentSuccessfulExamples(20);
+        if (all.isEmpty()) {
+            return buildMessagesJson(systemPrompt, userText);
+        }
+
+        // Filter examples by keyword category, then top up with general ones.
+        List<WidgetHistoryRepository.FewShotExample> selected = selectByCategory(all, category, 3);
+        if (selected.isEmpty()) {
+            // No category matches — fall back to plain format to avoid
+            // polluting the prompt with off-domain examples.
+            Log.d(TAG, "No category-matching few-shot examples; using plain prompt");
+            return buildMessagesJson(systemPrompt, userText);
+        }
+
+        Log.d(TAG, "Few-shot: category=" + category + ", examples=" + selected.size());
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("[");
+        sb.append("{\"role\":\"system\",\"content\":\"").append(escapeJson(systemPrompt)).append("\"}");
+        for (WidgetHistoryRepository.FewShotExample ex : selected) {
+            sb.append(",");
+            sb.append("{\"role\":\"user\",\"content\":\"")
+                    .append(escapeJson(ex.prompt)).append("\"}");
+            sb.append(",");
+            sb.append("{\"role\":\"assistant\",\"content\":\"")
+                    .append(escapeJson(ex.a2uiJson)).append("\"}");
+        }
+        sb.append(",");
+        sb.append("{\"role\":\"user\",\"content\":\"").append(escapeJson(userText)).append("\"}");
+        sb.append("]");
+        return sb.toString();
+    }
+
+    /**
+     * Classifies a user prompt into one of the keyword categories used for
+     * few-shot selection.
+     */
+    private static String classifyCategory(String text) {
+        if (text == null) return CATEGORY_GENERAL;
+        String lower = text.toLowerCase();
+        if (lower.contains("天气") || lower.contains("weather") || lower.contains("气温")) {
+            return CATEGORY_WEATHER;
+        }
+        if (lower.contains("待办") || lower.contains("todo") || lower.contains("清单")
+                || lower.contains("任务")) {
+            return CATEGORY_TODO;
+        }
+        if (lower.contains("议程") || lower.contains("日程") || lower.contains("agenda")
+                || lower.contains("schedule")) {
+            return CATEGORY_AGENDA;
+        }
+        return CATEGORY_GENERAL;
+    }
+
+    /**
+     * Selects up to {@code limit} examples whose prompt matches the given
+     * category. If fewer than {@code limit} category-matches are found, the
+     * remainder is filled with general (uncategorized) examples.
+     */
+    private static List<WidgetHistoryRepository.FewShotExample> selectByCategory(
+            List<WidgetHistoryRepository.FewShotExample> all, String category, int limit) {
+        List<WidgetHistoryRepository.FewShotExample> matched = new ArrayList<>();
+        List<WidgetHistoryRepository.FewShotExample> general = new ArrayList<>();
+        for (WidgetHistoryRepository.FewShotExample ex : all) {
+            String cat = classifyCategory(ex.prompt);
+            if (category.equals(cat)) {
+                if (matched.size() < limit) matched.add(ex);
+            } else if (CATEGORY_GENERAL.equals(cat)) {
+                if (general.size() < limit) general.add(ex);
+            }
+        }
+        // Top up with general examples if we don't have enough matched ones.
+        for (WidgetHistoryRepository.FewShotExample ex : general) {
+            if (matched.size() >= limit) break;
+            matched.add(ex);
+        }
+        return matched;
     }
 
     private static String escapeJson(String s) {
