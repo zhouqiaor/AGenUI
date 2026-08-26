@@ -145,9 +145,10 @@ for CLASS in "${SEPARATE_CLASSES[@]}"; do
 
   echo "  [$P2_IDX/${#SEPARATE_CLASSES[@]}] $SHORT_NAME ..."
 
-  # Force-stop the app before each destructive test to get a fresh process
+  # Force-stop both app and test processes to get a fresh state
   adb -s "$DEVICE" shell am force-stop "$APP_PKG" 2>/dev/null
-  sleep 1
+  adb -s "$DEVICE" shell am force-stop "$TEST_PKG" 2>/dev/null
+  sleep 2
 
   adb -s "$DEVICE" shell am instrument -w -r \
     -e class "$CLASS" \
@@ -173,9 +174,10 @@ for CLASS in "${SEPARATE_CLASSES[@]}"; do
   TOTAL_FAIL=$((TOTAL_FAIL + D_FAIL))
   TOTAL_SKIP=$((TOTAL_SKIP + D_SKIP))
 
-  # force-stop between destructive tests
+  # force-stop both app and test processes between destructive tests
   adb -s "$DEVICE" shell am force-stop "$APP_PKG" 2>/dev/null
-  sleep 1
+  adb -s "$DEVICE" shell am force-stop "$TEST_PKG" 2>/dev/null
+  sleep 2
 done
 
 # ============ Summary ============

@@ -1,0 +1,47 @@
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeListenerSelfUnregDeadlockTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stream=
+com.amap.agenuiplayground.tests.SDKRiskProbeListenerSelfUnregDeadlockTest:
+INSTRUMENTATION_STATUS: test=testRISK30_destroySMInsideCallback
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeListenerSelfUnregDeadlockTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: DEADLOCK: destroy() inside listener callback caused worker thread deadlock
+	at org.junit.Assert.fail(Assert.java:89)
+	at com.amap.agenuiplayground.tests.SDKRiskProbeListenerSelfUnregDeadlockTest.testRISK30_destroySMInsideCallback(SDKRiskProbeListenerSelfUnregDeadlockTest.java:359)
+
+INSTRUMENTATION_STATUS: stream=
+Error in testRISK30_destroySMInsideCallback(com.amap.agenuiplayground.tests.SDKRiskProbeListenerSelfUnregDeadlockTest):
+java.lang.AssertionError: DEADLOCK: destroy() inside listener callback caused worker thread deadlock
+	at org.junit.Assert.fail(Assert.java:89)
+	at com.amap.agenuiplayground.tests.SDKRiskProbeListenerSelfUnregDeadlockTest.testRISK30_destroySMInsideCallback(SDKRiskProbeListenerSelfUnregDeadlockTest.java:359)
+
+INSTRUMENTATION_STATUS: test=testRISK30_destroySMInsideCallback
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeListenerSelfUnregDeadlockTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testRISK30_listenerSelfUnregisterDeadlock
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeListenerSelfUnregDeadlockTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=testRISK30_listenerSelfUnregisterDeadlock
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amap.agenuiplayground.tests.SDKRiskProbeListenerSelfUnregDeadlockTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=3
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=testRISK30_listenerSelfUnregisterOnUpdate
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_RESULT: shortMsg=Process crashed.
+INSTRUMENTATION_CODE: 0
