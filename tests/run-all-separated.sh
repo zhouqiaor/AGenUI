@@ -100,10 +100,13 @@ adb -s "$DEVICE" shell am instrument -w -r \
   -e class "$CLASS_ARG" \
   "$TEST_PKG/$RUNNER" 2>&1 | tee "$PHASE1_FILE"
 
-# Parse Phase 1 results
-P1_PASS=$(grep -c "INSTRUMENTATION_STATUS_CODE: 0" "$PHASE1_FILE" 2>/dev/null || echo 0)
-P1_FAIL=$(grep -c "INSTRUMENTATION_STATUS_CODE: -2" "$PHASE1_FILE" 2>/dev/null || echo 0)
-P1_SKIP=$(grep -c "INSTRUMENTATION_STATUS_CODE: -3" "$PHASE1_FILE" 2>/dev/null || echo 0)
+# Parse Phase 1 results (use || true to avoid double-output)
+P1_PASS=$(grep -c "INSTRUMENTATION_STATUS_CODE: 0" "$PHASE1_FILE" 2>/dev/null || true)
+P1_FAIL=$(grep -c "INSTRUMENTATION_STATUS_CODE: -2" "$PHASE1_FILE" 2>/dev/null || true)
+P1_SKIP=$(grep -c "INSTRUMENTATION_STATUS_CODE: -3" "$PHASE1_FILE" 2>/dev/null || true)
+P1_PASS=${P1_PASS:-0}
+P1_FAIL=${P1_FAIL:-0}
+P1_SKIP=${P1_SKIP:-0}
 
 # Check for crash
 if grep -q "Process crashed" "$PHASE1_FILE" 2>/dev/null; then
@@ -139,10 +142,13 @@ for CLASS in "${DESTRUCTIVE_CLASSES[@]}"; do
     -e class "$CLASS" \
     "$TEST_PKG/$RUNNER" 2>&1 | tee "$FILE"
 
-  # Parse results
-  D_PASS=$(grep -c "INSTRUMENTATION_STATUS_CODE: 0" "$FILE" 2>/dev/null || echo 0)
-  D_FAIL=$(grep -c "INSTRUMENTATION_STATUS_CODE: -2" "$FILE" 2>/dev/null || echo 0)
-  D_SKIP=$(grep -c "INSTRUMENTATION_STATUS_CODE: -3" "$FILE" 2>/dev/null || echo 0)
+  # Parse results (use || true to avoid double-output when grep finds 0 matches)
+  D_PASS=$(grep -c "INSTRUMENTATION_STATUS_CODE: 0" "$FILE" 2>/dev/null || true)
+  D_FAIL=$(grep -c "INSTRUMENTATION_STATUS_CODE: -2" "$FILE" 2>/dev/null || true)
+  D_SKIP=$(grep -c "INSTRUMENTATION_STATUS_CODE: -3" "$FILE" 2>/dev/null || true)
+  D_PASS=${D_PASS:-0}
+  D_FAIL=${D_FAIL:-0}
+  D_SKIP=${D_SKIP:-0}
 
   if grep -q "Process crashed" "$FILE" 2>/dev/null; then
     echo "    CRASHED (native crash or SIGKILL)"
