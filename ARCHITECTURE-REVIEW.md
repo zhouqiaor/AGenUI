@@ -185,3 +185,40 @@ processDataAssembling(chunk):
 - **延迟**: 最后一个 ComponentUpdate 段被缓冲到下一个 chunk 或 endTextStream, 最坏 1 帧 (16ms) 延迟
 - **收益**: 高频小 chunk (如 LLM 逐 token 输出) 下, N 次 updateComponents → 1 次, 减少 N-1 次全树 Yoga 布局
 - **风险**: 如果 endTextStream 未被调用, pending 永远不 flush — 但这不可能发生 (endTextStream 是协议合约)
+
+## 9. 路线图与遗留项
+
+### 9.1 P0 — 阻塞设备验证
+| 项目 | 描述 | 前置条件 |
+|------|------|---------|
+| APK 重建 | AV 锁 native-platform.dll 阻塞 Gradle | 需关闭 360/Defender 或配置 AV 排除 |
+| E2E-02/03 验证 | sendMessagesAndWaitForRender 修复需打包 | APK 重建 |
+| E2E-05 首次验证 | 多消息 DataModel 更新 | APK 重建 |
+
+### 9.2 P1 — 测试基础设施
+| 项目 | 描述 |
+|------|------|
+| C++ 编译环境 | 需配置 CMake + gtest + Yoga 依赖 |
+| 性能基准 | 100 项 List 创建延迟 before/after virtualization |
+| iOS/HarmonyOS 端到端 | 无测试覆盖 |
+
+### 9.3 P2 — 性能优化
+| 项目 | 描述 |
+|------|------|
+| Tabs 增量布局 | 只对受影响子树计算, 不全量 YGNodeCalculateLayout |
+| List 垂直虚拟化压测 | 500/1000/5000 项, 测量 FPS + 内存 |
+| 跨 chunk coalescing 延迟测量 | 实测 16ms 窗口对 LLM 流式渲染的影响 |
+
+### 9.4 P3 — 架构演进
+| 项目 | 描述 |
+|------|------|
+| 组件规模 | 当前 22 内置组件, 需对标 Litho(40+)/Epoxy(30+) |
+| 测试维度 | 无 fuzzing/property-based/visual regression |
+| 多 Surface 并发 | 无压力测试 (当前仅单 Surface) |
+
+### 9.5 迭代历史
+| 轮次 | 内容 | 提交 |
+|------|------|------|
+| R1-20 | Settings panel 基础 + 3 组件 + E2E + 4 fixture + 架构检视 v1-v2 | cafb8aa |
+| R21-30 | Widget fallback/reuse/config/optimistic UI + 性能分析 | ff78c88..610108c |
+| R29-42 | List 虚拟化 + Yoga 优化 + coalescing + 12 fixture + 测试报告 | f69e5ea..33f72b8 |
