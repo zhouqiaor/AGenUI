@@ -51,16 +51,18 @@ void YogaNodeManager::removeNode(const std::string& nodeId) {
             node->_hasOwner = false;
         }
 
-        // Detach all children BEFORE erase triggers ~YogaNode.
-        // YGNodeRemoveAllChildren clears each child's owner_ on the Yoga side,
-        // but the wrapper-side `_hasOwner` flag would otherwise stay stale.
-        // Walk the manager's pool and reset `_hasOwner` for any sibling whose
-        // current Yoga owner is this node, keeping the two views in sync.
-        for (auto& kv : _nodes) {
-            YogaNode* sib = kv.second.get();
-            if (sib && sib != node && sib->get() &&
-                YGNodeGetOwner(sib->get()) == ygNode) {
-                sib->_hasOwner = false;
+        // Reset _hasOwner for direct children only.
+        // Uses YGNodeGetContext (which stores YogaNode* back-pointer) for
+        // O(childCount) instead of O(pool) full scan.
+        // Previously this iterated the entire _nodes map checking
+        // YGNodeGetOwner for each — O(n) where n = total nodes in the pool.
+        uint32_t childCount = YGNodeGetChildCount(ygNode);
+        for (uint32_t i = 0; i < childCount; ++i) {
+            YGNodeRef childYG = YGNodeGetChild(ygNode, i);
+            if (!childYG) continue;
+            auto* childWrapper = static_cast<YogaNode*>(YGNodeGetContext(childYG));
+            if (childWrapper) {
+                childWrapper->_hasOwner = false;
             }
         }
         YGNodeRemoveAllChildren(ygNode);
@@ -145,6 +147,14 @@ void YogaNodeManager::calculateLayout(float rootWidth, float rootHeight) {
 bool YogaNodeManager::calculateLayoutWithAdjust(
         std::shared_ptr<VirtualDOMNode> root,
         float surfaceWidth) {
+    // Fast path: if no Tabs components are registered, skip the two-pass
+    // layout entirely. The second pass (updateMinHeightRecursive + re-layout)
+    // only applies when Tabs need their minHeight adjusted after the first
+    // layout pass measures inherent content heights.
+    if (_tabsSelectedIndices.empty()) {
+        calculateLayout(surfaceWidth);
+        return false;
+    }
     calculateLayout(surfaceWidth);
     if (TabsYogaHelper::updateMinHeightRecursive(root, _tabsSelectedIndices, surfaceWidth)) {
         calculateLayout(surfaceWidth);

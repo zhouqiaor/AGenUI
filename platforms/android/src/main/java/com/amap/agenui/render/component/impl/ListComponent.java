@@ -11,23 +11,19 @@ import com.amap.agenui.render.component.A2UIComponent;
 import com.amap.agenui.render.component.A2UILayoutComponent;
 import com.amap.agenui.render.component.impl.list.ComponentAdapter;
 import com.amap.agenui.render.component.impl.list.YogaLayoutManager;
-import com.amap.agenui.render.layout.YogaAbsoluteLayout;
 import com.amap.agenui.render.style.StyleHelper;
 
 import java.util.Map;
 
 /**
- * List component with two rendering strategies based on direction:
+ * List component with virtualized rendering for BOTH directions via RecyclerView.
  *
- * - Vertical: eager rendering via YogaAbsoluteLayout. All children are created
- *   immediately and placed by the standard Yoga layout pipeline. No scrolling,
- *   no virtualization.
+ * Both vertical and horizontal lists use a RecyclerView backed by
+ * {@link YogaLayoutManager} + {@link ComponentAdapter}. Children placement
+ * comes from the engine's Yoga layout (absolute x/y/w/h); scrolling and view
+ * recycling come from RV's standard machinery.
  *
- * - Horizontal: lazy rendering backed by a virtualized RecyclerView. Children
- *   placement comes from the engine's Yoga layout (absolute x/y/w/h); scrolling
- *   and view recycling come from RV's standard machinery.
- *
- * Lazy-load semantics (horizontal only): List children's createView is deferred
+ * Lazy-load semantics (both directions): List children's createView is deferred
  * until they scroll into the visible window (or RV's prefetch cache window).
  * Two pieces cooperate to realize this:
  *   1. {@link #shouldCreateChildView()} returns false → Surface.handleChildComponent
@@ -40,20 +36,22 @@ import java.util.Map;
  * {@link com.amap.agenui.render.component.impl.list.ComponentAdapter#onBindViewHolder}
  * when a position is bound.
  *
- * Frame source (horizontal): ListComponent does NOT cache per-child yoga frames.
+ * Frame source: ListComponent does NOT cache per-child yoga frames.
  * Instead, it hands its live {@code children} list to
  * {@link YogaLayoutManager#setChildren}, and the LayoutManager re-reads each
  * child's current x/y/width/height from {@code child.properties.styles} on every
  * measure/layout/scroll pass. This avoids a staleness bug in DataBinding scenarios
  * where the engine dispatches a card in multiple batches and updates the card's
  * height incrementally (see list-lazy-load-frame-staleness-fix.md).
+ *
+ * History: Previously vertical lists used eager YogaAbsoluteLayout (no scrolling,
+ * no virtualization, O(n) creation). As of R29, vertical lists also use
+ * RecyclerView for virtualization — a 100-item vertical list only creates views
+ * for visible items (~5-10), not all 100.
  */
 public class ListComponent extends A2UILayoutComponent {
 
-    // -- Vertical path fields --
-    private YogaAbsoluteLayout contentContainer;
-
-    // -- Horizontal (lazy) path fields --
+    // -- RecyclerView fields (shared by both directions) --
     private RecyclerView recyclerView;
     private YogaLayoutManager layoutManager;
     private ComponentAdapter adapter;
@@ -84,7 +82,7 @@ public class ListComponent extends A2UILayoutComponent {
     }
 
     /**
-     * Lazy-load gate for List CHILDREN (horizontal only):
+     * Lazy-load gate for List CHILDREN (both directions):
      * Surface.handleChildComponent reads parent.shouldCreateChildView() before
      * deciding whether to create a freshly added child's view at dispatch time.
      * Returning false here means "my children are lazy".
@@ -100,37 +98,27 @@ public class ListComponent extends A2UILayoutComponent {
      *
      * Actual hosting of a child view always happens inside
      * ComponentViewHolder.attach when a position is bound by the RV adapter.
-     *
-     * Vertical lists return the base-class default (true = eager creation).
      */
     @Override
     public boolean shouldCreateChildView() {
-        if (isHorizontal()) {
-            return false;
-        }
-        return super.shouldCreateChildView();
+        return false;
     }
 
     /**
-     * Self-managed child placement (horizontal only): the RecyclerView's
+     * Self-managed child placement (both directions): the RecyclerView's
      * adapter/holder owns where child views go (via
      * ComponentAdapter.onBindViewHolder + ComponentViewHolder.attach).
      * External code (Surface.attachChildView, A2UIComponent.addChild catch-up,
      * createChildViews) must NOT auto-addView our children — RecyclerView
      * rejects external addView calls with UnsupportedOperationException.
-     *
-     * Vertical lists return true so children are added by the framework.
      */
     @Override
     public boolean shouldAutoAddChildView() {
-        if (isHorizontal()) {
-            return false;
-        }
-        return true;
+        return false;
     }
 
     /**
-     * Horizontal: List children are positioned by YogaLayoutManager.layoutDecorated
+     * Both directions: List children are positioned by YogaLayoutManager.layoutDecorated
      * on their shell FrameLayouts. Yoga x/y must NOT be applied as leftMargin/
      * topMargin — that would double-offset the child view (the shell already
      * sits at the yoga position). Width/height are driven by
@@ -143,14 +131,9 @@ public class ListComponent extends A2UILayoutComponent {
      * onComponentsUpdate batch (N children), only the first call triggers;
      * the resulting onLayoutChildren re-reads all frames via
      * currentPxFrames() in one pass.
-     *
-     * Vertical: returns super (true) — standard Yoga layout applies.
      */
     @Override
     public boolean shouldApplyChildYogaLayout(A2UIComponent child) {
-        if (!isHorizontal()) {
-            return super.shouldApplyChildYogaLayout(child);
-        }
         if (layoutManager != null) {
             layoutManager.invalidateFrameCache();
         }
@@ -169,23 +152,10 @@ public class ListComponent extends A2UILayoutComponent {
     protected View onCreateView(Context context) {
         Object directionValue = properties.get("direction");
         direction = directionValue != null ? String.valueOf(directionValue) : "vertical";
-
-        if (isHorizontal()) {
-            return createHorizontalRecyclerView(context);
-        } else {
-            return createVerticalContainer(context);
-        }
+        return createRecyclerView(context);
     }
 
-    private View createVerticalContainer(Context context) {
-        contentContainer = new YogaAbsoluteLayout(context);
-        contentContainer.setLayoutParams(new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
-        return contentContainer;
-    }
-
-    private View createHorizontalRecyclerView(Context context) {
+    private View createRecyclerView(Context context) {
         recyclerView = new RecyclerView(context);
         recyclerView.setLayoutParams(new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -201,7 +171,9 @@ public class ListComponent extends A2UILayoutComponent {
         recyclerView.addOnLayoutChangeListener(mClipBoundsListener);
 
         layoutManager = new YogaLayoutManager();
-        layoutManager.setDirection(YogaLayoutManager.HORIZONTAL);
+        layoutManager.setDirection(isHorizontal()
+                ? YogaLayoutManager.HORIZONTAL
+                : YogaLayoutManager.VERTICAL);
         // Hand the live children list to LM. LM reads each child's current
         // yoga frame on every layout pass — no separate frame cache to keep
         // in sync, no staleness window.
@@ -237,8 +209,7 @@ public class ListComponent extends A2UILayoutComponent {
     @Override
     public void onUpdateProperties(Map<String, Object> changedProps) {
         super.onUpdateProperties(changedProps);
-        if (isHorizontal()
-                && changedProps != null
+        if (changedProps != null
                 && changedProps.containsKey("styles")) {
             Context context = recyclerView != null ? recyclerView.getContext() : null;
             applyContainerPaddingToRecyclerView(context);
@@ -246,7 +217,7 @@ public class ListComponent extends A2UILayoutComponent {
     }
 
     /**
-     * Horizontal lazy contract: RecyclerView's adapter
+     * Lazy contract (both directions): RecyclerView's adapter
      * (ComponentAdapter.onBindViewHolder) is the SOLE trigger for materializing
      * List children. The base class createChildViews would eagerly recurse into
      * every child here — for a 100-card List that means 100x onCreateView +
@@ -261,23 +232,15 @@ public class ListComponent extends A2UILayoutComponent {
      * createChildViews on us — and the base class implementation would
      * eagerly create everything down the tree. This override breaks that
      * recursion at the List boundary.
-     *
-     * Vertical lists fall through to super (eager creation of all children).
      */
     @Override
     protected void createChildViews(Context context) {
-        if (isHorizontal()) {
-            return;
-        }
-        super.createChildViews(context);
+        return;
     }
 
     @Override
     public ViewGroup getChildContainer() {
-        if (isHorizontal()) {
-            return null;
-        }
-        return contentContainer;
+        return null;
     }
 
     @Override
@@ -285,10 +248,6 @@ public class ListComponent extends A2UILayoutComponent {
         // Record tree relationship (always). LM holds a reference to `children`
         // and will re-read frames live — no cache to update here.
         super.addChild(child);
-
-        if (!isHorizontal()) {
-            return;
-        }
 
         // Children list changed — invalidate LM's frame cache so the next
         // layout pass re-reads all frames (including the newly added child).
@@ -310,10 +269,6 @@ public class ListComponent extends A2UILayoutComponent {
         int index = children.indexOf(child);
         super.removeChild(child);
         if (index < 0) return;
-
-        if (!isHorizontal()) {
-            return;
-        }
 
         // Children list changed — invalidate LM's frame cache so stale
         // entries for the removed child are discarded.
@@ -345,6 +300,5 @@ public class ListComponent extends A2UILayoutComponent {
         recyclerView = null;
         layoutManager = null;
         adapter = null;
-        contentContainer = null;
     }
 }

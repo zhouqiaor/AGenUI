@@ -117,3 +117,38 @@
 - **现状**: `updateProperties` 有 diff-aware dirty check ✅
 - **现状**: `appliedYogaLayout` 缓存避免重复布局 ✅
 - **优化**: `extractStyles` 已添加缓存 ✅（本轮完成）
+
+## 7. 实现验证 (R29-R33)
+
+### 7.1 List 垂直虚拟化 ✅ 已实现
+- **变更文件**: `ListComponent.java`
+- **改动**: 统一 vertical + horizontal 走 RecyclerView + YogaLayoutManager + ComponentAdapter
+- **效果**: 100 项垂直列表从 O(100) 全量创建 → O(~5-10) 可视区创建
+- **方法**: 移除 `YogaAbsoluteLayout` eager path，`shouldCreateChildView()` / `shouldAutoAddChildView()` / `createChildViews()` 均统一为 lazy 语义
+- **风险**: 原有 vertical list 消费方如果依赖 eager 创建（如创建后立即读 child view）会失效，需验证
+
+### 7.2 流式 Coalescing 测试 ✅ 已编写
+- **变更文件**: `tests/cpp/integration/streaming_coalescing_test.cpp`
+- **测试数**: 7 个测试用例（SC001-SC007）
+- **覆盖**: 同 chunk 同 surfaceId 合并 / 不同 surfaceId 不合并 / NormalEvent 中断合并 / 单项 fast path / 跨 chunk 不合并 / endTextStream 重置 / 大批量
+
+### 7.3 Yoga 布局优化 ✅ 已实现
+- **变更文件**: `agenui_yoga_node_manager.cpp`
+- **removeNode**: O(pool) → O(childCount)，使用 `YGNodeGetContext()` 反向指针避免全池扫描
+- **calculateLayoutWithAdjust**: `_tabsSelectedIndices.empty()` 时跳过两遍布局 fast path
+
+### 7.4 测试 Fixture 扩充 ✅ 已完成
+- **新增**: 5 个 fixture（08-12）
+  - 08_empty_list: 空列表 + 提示文案
+  - 09_single_item: 单项列表
+  - 10_nested_containers: 嵌套容器 + 多 section
+  - 11_theme_switch: 主题切换（${theme} 绑定）
+  - 12_dynamic_add_remove: 动态增删改组件
+
+### 7.5 未实现项（遗留）
+| 项目 | 描述 | 优先级 |
+|------|------|--------|
+| 跨 chunk 16ms 时间窗 coalescing | 需要 C++ StreamingContentParser 改造 | P2 |
+| List 垂直虚拟化设备验证 | 需 rebuild APK + 设备测试 | P1 |
+| E2E-02/03 设备验证 | `sendMessagesAndWaitForRender` 修复未打包进 APK | P0 |
+| Yoga 只对受影响子树计算 | Tabs 场景的增量布局 | P3 |

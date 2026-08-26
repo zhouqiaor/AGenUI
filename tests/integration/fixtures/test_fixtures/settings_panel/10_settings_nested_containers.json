@@ -1,0 +1,135 @@
+{
+  "messages": [
+    {
+      "type": "createSurface",
+      "surfaceId": "settings-nested",
+      "catalogId": "settings",
+      "theme": {
+        "colors": {
+          "bg-primary": "#F5F5F7",
+          "bg-card": "#FFFFFF",
+          "text-primary": "#1F1F22",
+          "text-secondary": "#8A8A8E",
+          "divider": "#E5E5E7"
+        }
+      },
+      "sendDataModel": false,
+      "animated": false
+    },
+    {
+      "type": "updateComponents",
+      "surfaceId": "settings-nested",
+      "components": [
+        {
+          "id": "root",
+          "type": "Container",
+          "properties": {
+            "styles": {
+              "width": "100%",
+              "height": "100%",
+              "backgroundColor": "#F5F5F7",
+              "flexDirection": "column",
+              "padding": "16px"
+            }
+          },
+          "children": [
+            {
+              "id": "section-1",
+              "type": "Container",
+              "properties": {
+                "styles": {
+                  "width": "100%",
+                  "height": "wrap",
+                  "backgroundColor": "#FFFFFF",
+                  "borderRadius": "12px",
+                  "flexDirection": "column",
+                  "padding": "16px",
+                  "marginBottom": "12px"
+                }
+              },
+              "children": [
+                {
+                  "id": "section-1-title",
+                  "type": "Text",
+                  "properties": {
+                    "text": "Section 1",
+                    "styles": { "fontSize": "18px", "fontWeight": "bold", "color": "#1F1F22" }
+                  }
+                },
+                {
+                  "id": "section-1-list",
+                  "type": "List",
+                  "properties": {
+                    "styles": { "width": "100%", "height": "wrap", "direction": "vertical" },
+                    "itemTemplate": {
+                      "type": "Container",
+                      "properties": {
+                        "styles": { "flexDirection": "row", "padding": "12px", "borderBottom": "1px solid #E5E5E7" },
+                        "children": [
+                          {
+                            "type": "Text",
+                            "properties": { "text": "${data.label}", "styles": { "flex": 1, "fontSize": "14px" } }
+                          },
+                          {
+                            "type": "Text",
+                            "properties": { "text": "${data.value}", "styles": { "fontSize": "14px", "color": "#8A8A8E" } }
+                          }
+                        ]
+                    }
+                  }
+                }
+              },
+              {
+                "id": "section-2",
+                "type": "Container",
+                "properties": {
+                  "styles": {
+                    "width": "100%",
+                    "height": "wrap",
+                    "backgroundColor": "#FFFFFF",
+                    "borderRadius": "12px",
+                    "flexDirection": "column",
+                    "padding": "16px"
+                  }
+                },
+                "children": [
+                  {
+                    "id": "section-2-title",
+                    "type": "Text",
+                    "properties": {
+                      "text": "Section 2",
+                      "styles": { "fontSize": "18px", "fontWeight": "bold", "color": "#1F1F22" }
+                    }
+                  },
+                  {
+                    "id": "section-2-text",
+                    "type": "Text",
+                    "properties": {
+                      "text": "Some content here",
+                      "styles": { "fontSize": "14px", "color": "#1F1F22", "marginTop": "8px" }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "type": "updateDataModel",
+      "surfaceId": "settings-nested",
+      "data": {
+        "items": [
+          { "label": "Brightness", "value": "50%" },
+          { "label": "Volume", "value": "80%" },
+          { "label": "Contrast", "value": "100%" }
+        ]
+      }
+    }
+  ],
+  "expect": {
+    "componentCount": 8,
+    "components": ["root", "section-1", "section-1-title", "section-1-list", "section-2", "section-2-title", "section-2-text"]
+  }
+}
