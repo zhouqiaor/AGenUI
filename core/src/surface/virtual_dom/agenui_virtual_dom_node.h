@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 #include <limits>
+#include <unordered_map>
 
 // Forward declaration
 namespace agenui {
@@ -228,6 +229,7 @@ private:
     std::shared_ptr<ComponentSnapshot> _snapshot;                                           // Raw component snapshot (before Yoga layout)
     std::shared_ptr<ComponentSnapshot> _snapshotWithLayout;                                 // Component snapshot (with Yoga layout info filled in)
     std::vector<std::shared_ptr<VirtualDOMNode>> _children;                                 // Child node list
+    std::unordered_map<std::string, size_t> _childIndex;                                    // O(1) child ID→index lookup (R91)
     IVirtualDOMObserver* _observer;                                                         // Virtual DOM observer
     IOrphanSnapshotFetcher* _orphanFetcher;                                                 // Orphan snapshot fetcher
     ::agenui::IMeasurementManager* _measurementManager = nullptr;                          // Component measurement manager (non-owning)

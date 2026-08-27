@@ -29,6 +29,8 @@ object GlanceBitmapCache {
     private const val FILE_SUFFIX = ".webp"
     private const val TEMP_SUFFIX = ".tmp"
     private const val WEBP_QUALITY = 90
+    private const val MAX_CACHE_FILES = 10
+    private const val MAX_CACHE_SIZE_BYTES = 20L * 1024 * 1024 // 20 MB
 
     private fun getDir(context: Context): File {
         val dir = File(context.filesDir, DIR_NAME)
@@ -72,6 +74,7 @@ object GlanceBitmapCache {
             }
 
             Log.d(TAG, "save: widget=$appWidgetId, file=${file.absolutePath}, size=${file.length()}")
+            evictIfNeeded(context)
             file.absolutePath
         } catch (e: Exception) {
             Log.e(TAG, "save failed: widget=$appWidgetId", e)
@@ -139,6 +142,30 @@ object GlanceBitmapCache {
         return getFile(context, appWidgetId).exists()
     }
 
+    /**
+     * Returns total cache size in bytes across all widget cache files.
+     */
+    fun getCacheSize(context: Context): Long {
+        return try {
+            val dir = getDir(context)
+            dir.listFiles()?.filter { it.isFile }?.sumOf { it.length() } ?: 0L
+        } catch (e: Exception) {
+            0L
+        }
+    }
+
+    /**
+     * Returns the number of cache files.
+     */
+    fun getCacheFileCount(context: Context): Int {
+        return try {
+            val dir = getDir(context)
+            dir.listFiles()?.filter { it.isFile }?.size ?: 0
+        } catch (e: Exception) {
+            0
+        }
+    }
+
     fun getPath(context: Context, appWidgetId: Int): String {
         return getFile(context, appWidgetId).absolutePath
     }
@@ -162,6 +189,33 @@ object GlanceBitmapCache {
             Log.d(TAG, "clearAll: done")
         } catch (e: Exception) {
             Log.e(TAG, "clearAll failed", e)
+        }
+    }
+
+    /**
+     * Evicts oldest cache files if count or total size exceeds limits.
+     * Sorts by lastModified ascending; deletes oldest first until under both thresholds.
+     */
+    private fun evictIfNeeded(context: Context) {
+        try {
+            val dir = getDir(context)
+            val files = dir.listFiles()?.filter { it.isFile } ?: return
+            if (files.isEmpty()) return
+
+            val sorted = files.sortedBy { it.lastModified() }
+            var totalSize = sorted.sumOf { it.length() }
+
+            // Delete oldest until under both count and size limits
+            for (f in sorted) {
+                if (files.size <= MAX_CACHE_FILES && totalSize <= MAX_CACHE_SIZE_BYTES) break
+                val sz = f.length()
+                if (f.delete()) {
+                    totalSize -= sz
+                    Log.d(TAG, "evictIfNeeded: deleted ${f.name} (${sz} bytes)")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "evictIfNeeded failed", e)
         }
     }
 

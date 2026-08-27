@@ -19,6 +19,7 @@ object GlanceActionCallbacks {
 
     /**
      * Toggle between current and forecast view modes.
+     * Uses updateStateViaGlance for atomic, framework-blessed state update.
      */
     class ToggleViewModeAction : ActionCallback {
         override suspend fun onAction(
@@ -27,16 +28,16 @@ object GlanceActionCallbacks {
             parameters: ActionParameters
         ) {
             Log.d(TAG, "ToggleViewModeAction: id=$glanceId")
-            val state = A2UIGlanceStateDefinition.getWidgetState(context)
 
-            val newMode = if (state.viewMode == A2UIGlanceStateDefinition.VIEW_MODE_CURRENT) {
-                A2UIGlanceStateDefinition.VIEW_MODE_FORECAST
-            } else {
-                A2UIGlanceStateDefinition.VIEW_MODE_CURRENT
+            A2UIGlanceStateDefinition.updateStateViaGlance(context, glanceId) { state ->
+                val newMode = if (state.viewMode == A2UIGlanceStateDefinition.VIEW_MODE_CURRENT) {
+                    A2UIGlanceStateDefinition.VIEW_MODE_FORECAST
+                } else {
+                    A2UIGlanceStateDefinition.VIEW_MODE_CURRENT
+                }
+                Log.d(TAG, "ToggleViewModeAction: ${state.viewMode} -> $newMode")
+                state.copy(viewMode = newMode, errorMsg = "")
             }
-
-            A2UIGlanceStateDefinition.setViewMode(context, newMode)
-            Log.d(TAG, "ToggleViewModeAction: ${state.viewMode} -> $newMode")
             GlanceRenderWorker.renderNow(context)
         }
     }
@@ -57,6 +58,7 @@ object GlanceActionCallbacks {
 
     /**
      * Clear widget content and return to empty state.
+     * Uses updateStateViaGlance for atomic, framework-blessed state reset.
      */
     class ClearContentAction : ActionCallback {
         override suspend fun onAction(
@@ -65,7 +67,9 @@ object GlanceActionCallbacks {
             parameters: ActionParameters
         ) {
             Log.d(TAG, "ClearContentAction: id=$glanceId")
-            A2UIGlanceStateDefinition.setWidgetState(context, A2UIGlanceState())
+            A2UIGlanceStateDefinition.updateStateViaGlance(context, glanceId) {
+                A2UIGlanceState() // reset to default empty state
+            }
             GlanceBitmapCache.delete(context, A2UIGlanceWidget.DEFAULT_CACHE_WIDGET_ID)
             A2UIGlanceWidgetReceiver.updateAll(context)
         }

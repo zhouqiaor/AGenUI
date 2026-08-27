@@ -93,6 +93,7 @@ VirtualDOMNode::~VirtualDOMNode() {
 
     // Destroy children first so their destructors can detach from a still-live parent YGNode
     _children.clear();
+    _childIndex.clear();
 
     if (_layoutDelegate && !_yogaKey.empty()) {
         _layoutDelegate->removeNode(_yogaKey);
@@ -415,6 +416,16 @@ const std::vector<std::shared_ptr<VirtualDOMNode> >& VirtualDOMNode::getChildren
 }
 
 std::shared_ptr<VirtualDOMNode> VirtualDOMNode::findChild(const std::string& id) const {
+    // O(1) lookup via _childIndex map (R91 optimization).
+    // Falls back to linear scan if map is stale (shouldn't happen, but safe).
+    auto it = _childIndex.find(id);
+    if (it != _childIndex.end() && it->second < _children.size()) {
+        auto& child = _children[it->second];
+        if (child && child->getId() == id) {
+            return child;
+        }
+    }
+    // Fallback: linear scan (defensive — handles any map staleness)
     for (const auto& child : _children) {
         if (child && child->getId() == id) {
             return child;

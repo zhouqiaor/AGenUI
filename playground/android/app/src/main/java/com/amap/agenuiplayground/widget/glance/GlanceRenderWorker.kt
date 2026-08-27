@@ -55,6 +55,7 @@ class GlanceRenderWorker(
         private const val PERIODIC_WORK_NAME = "a2ui_glance_render_periodic"
         private const val PERIODIC_INTERVAL_MIN = 15L
         private const val WORKER_TOTAL_TIMEOUT_MS = 30_000L
+        private const val ROOT_COMPONENT_SETTLE_DELAY_MS = 100L
 
         fun schedulePeriodic(context: Context) {
             val request = PeriodicWorkRequestBuilder<GlanceRenderWorker>(PERIODIC_INTERVAL_MIN, TimeUnit.MINUTES)
@@ -92,6 +93,9 @@ class GlanceRenderWorker(
             }
         } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
             Log.e(TAG, "doWork: total timeout exceeded ${WORKER_TOTAL_TIMEOUT_MS}ms", e)
+            // Set error state + update widget BEFORE returning retry.
+            // WorkManager will re-enqueue after backoff; the error state
+            // ensures the widget shows ErrorContent immediately.
             A2UIGlanceStateDefinition.setError(applicationContext, "渲染超时")
             A2UIGlanceWidgetReceiver.updateAll(applicationContext)
             Result.retry()
@@ -104,6 +108,7 @@ class GlanceRenderWorker(
     }
 
     private suspend fun doRenderWork(context: Context): Result {
+        val renderStartMs = System.currentTimeMillis()
         val state = A2UIGlanceStateDefinition.getWidgetState(context)
 
         val templateName = if (state.template.isNotEmpty()) state.template
@@ -147,7 +152,7 @@ class GlanceRenderWorker(
             override fun onRootComponentUpdate(surface: Surface, props: Map<String, String>) {
                 Log.d(TAG, "onRootComponentUpdate: ${surface.surfaceId}")
                 surfaceRef.set(surface)
-                Handler(Looper.getMainLooper()).postDelayed({ rootComponentReady.countDown() }, 100)
+                Handler(Looper.getMainLooper()).postDelayed({ rootComponentReady.countDown() }, ROOT_COMPONENT_SETTLE_DELAY_MS)
             }
             override fun onError(surface: Surface?, code: Int, message: String?) {
                 Log.e(TAG, "Surface error: code=$code, msg=$message")
@@ -160,6 +165,9 @@ class GlanceRenderWorker(
                 parentType: String?, properties: Map<String, Any>?
             ) {}
             override fun surfaceSize(sid: String): SurfaceSize {
+                // TODO R87: query per-widget dimensions from GlanceAppWidgetManager
+                // to support multi-instance with different sizes. Currently all
+                // instances share the same render dimensions.
                 return SurfaceSize(WIDGET_WIDTH.toFloat(), WIDGET_HEIGHT.toFloat())
             }
         }
@@ -211,6 +219,8 @@ class GlanceRenderWorker(
 
         val appWidgetId = A2UIGlanceWidget.DEFAULT_CACHE_WIDGET_ID
         val bitmapPath = GlanceBitmapCache.save(context, appWidgetId, bitmap)
+        // Free the in-memory bitmap now that it's persisted to file cache
+        bitmap.recycle()
         if (bitmapPath == null) {
             Log.e(TAG, "Bitmap cache save failed")
             cleanup(surfaceManager)
@@ -224,10 +234,10 @@ class GlanceRenderWorker(
             hasContent = true,
             lastUpdateTs = System.currentTimeMillis()
         )
+        // setWidgetState already writes errorMsg="" (data class default), so no separate clearError needed
         A2UIGlanceStateDefinition.setWidgetState(context, newState)
-        A2UIGlanceStateDefinition.clearError(context)
 
-        Log.d(TAG, "doWork: render complete, bitmap=${bitmap.width}x${bitmap.height}")
+        Log.d(TAG, "doWork: render complete, bitmap=${bitmap.width}x${bitmap.height}, elapsed=${System.currentTimeMillis() - renderStartMs}ms")
 
         A2UIGlanceWidgetReceiver.updateAll(context)
         cleanup(surfaceManager)
@@ -256,32 +266,12 @@ class GlanceRenderWorker(
         val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.drawColor(android.graphics.Color.WHITE)
-        drawViewTree(container, canvas)
+        // ViewGroup.draw() already dispatches to children via dispatchDraw();
+        // manual recursion would double-draw each child.
+        container.draw(canvas)
         Log.d(TAG, "Bitmap: ${w}x${h}, bytes=${bitmap.byteCount}")
 
         return bitmap
-    }
-
-    private fun drawViewTree(view: View?, canvas: Canvas) {
-        if (view == null || view.width <= 0 || view.height <= 0) return
-
-        val saveCount = canvas.save()
-        val parent = view.parent
-        val scrollX = if (parent is android.view.ViewGroup) parent.scrollX else 0
-        val scrollY = if (parent is android.view.ViewGroup) parent.scrollY else 0
-        canvas.translate(
-            (view.left - scrollX).toFloat(),
-            (view.top - scrollY).toFloat()
-        )
-        canvas.clipRect(0, 0, view.width, view.height)
-        view.draw(canvas)
-
-        if (view is android.view.ViewGroup) {
-            for (i in 0 until view.childCount) {
-                drawViewTree(view.getChildAt(i), canvas)
-            }
-        }
-        canvas.restoreToCount(saveCount)
     }
 
     private fun cleanup(surfaceManager: SurfaceManager) {

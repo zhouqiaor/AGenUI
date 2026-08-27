@@ -71,18 +71,28 @@ object A2UIGlanceStateDefinition {
         }
     }
 
+    /**
+     * Writes an error message to widget state. Triggers widget refresh to show ErrorContent.
+     */
     suspend fun setError(context: Context, msg: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_ERROR_MSG] = msg
         }
     }
 
+    /**
+     * Clears the error message. Called after a successful render or user action.
+     */
     suspend fun clearError(context: Context) {
         context.dataStore.edit { prefs ->
             prefs[KEY_ERROR_MSG] = ""
         }
     }
 
+    /**
+     * Sets the view mode and atomically clears any previous error.
+     * Single DataStore edit ensures both changes succeed or fail together.
+     */
     suspend fun setViewMode(context: Context, viewMode: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_VIEW_MODE] = viewMode

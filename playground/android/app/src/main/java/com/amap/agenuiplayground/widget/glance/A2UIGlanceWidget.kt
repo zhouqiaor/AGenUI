@@ -34,6 +34,8 @@ import androidx.glance.layout.padding
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 /**
  * Glance Widget for AGenUI — Evolution version.
@@ -63,6 +65,43 @@ class A2UIGlanceWidget : GlanceAppWidget() {
         )
     )
     override val stateDefinition: androidx.glance.state.GlanceStateDefinition<*> = A2UIGlanceStateDefinition.delegate
+
+    /**
+     * Called when composition encounters an error. Logs the error and writes
+     * it to widget state so the ErrorContent composable can display it.
+     * Note: this is NOT a suspend function per Glance 1.1.0+ API.
+     */
+    override fun onCompositionError(
+        context: Context,
+        glanceId: GlanceId,
+        appWidgetId: Int,
+        compositionError: Throwable
+    ) {
+        Log.e(TAG, "onCompositionError: id=$glanceId, widgetId=$appWidgetId", compositionError)
+        // Fire-and-forget coroutine to write error state; composition session is closing
+        kotlinx.coroutines.GlobalScope.launch {
+            A2UIGlanceStateDefinition.setError(context, "组合错误: ${compositionError.message ?: "未知"}")
+        }
+    }
+
+    /**
+     * Provides a lightweight preview for the widget picker.
+     * Shows a static preview bitmap if available, otherwise the empty state.
+     */
+    override suspend fun providePreview(
+        context: Context,
+        widgetCategory: Int
+    ) {
+        val state = A2UIGlanceStateDefinition.getWidgetState(context)
+        val previewBitmap = if (state.hasBitmap) {
+            GlanceBitmapCache.load(context, DEFAULT_CACHE_WIDGET_ID)
+        } else {
+            null
+        }
+        provideContent {
+            GlanceContent(state, previewBitmap)
+        }
+    }
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         Log.d(TAG, "provideGlance: id=$id")
@@ -101,7 +140,14 @@ class A2UIGlanceWidget : GlanceAppWidget() {
         when {
             state.hasError -> ErrorContent(state)
             !state.hasContent -> EmptyContent()
-            bitmap == null -> LoadingContent()
+            bitmap == null -> {
+                // Distinguish "loading" (recent render, path just set) from "corrupted" (path set but file missing)
+                if (state.lastUpdateTs > 0 && state.bitmapPath.isNotEmpty()) {
+                    CorruptedContent(state)
+                } else {
+                    LoadingContent()
+                }
+            }
             isCompact -> CompactContent(state, bitmap)
             isExpanded -> ExpandedContent(state, bitmap)
             else -> StandardContent(state, bitmap)
@@ -236,6 +282,39 @@ class A2UIGlanceWidget : GlanceAppWidget() {
                     fontSize = 12.sp
                 )
             )
+        }
+    }
+
+    /**
+     * Shown when bitmapPath is set (content was rendered) but file can't be loaded.
+     * Indicates cache corruption rather than initial loading.
+     */
+    @Composable
+    private fun CorruptedContent(state: A2UIGlanceState) {
+        Box(
+            modifier = GlanceModifier.fillMaxSize().padding(12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "缓存损坏",
+                    style = TextStyle(
+                        color = GlanceTheme.colors.error,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+                Spacer(modifier = GlanceModifier.height(8.dp))
+                Text(
+                    text = "重新生成",
+                    style = TextStyle(
+                        color = GlanceTheme.colors.primary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    modifier = GlanceModifier.clickable(refreshAction())
+                )
+            }
         }
     }
 
