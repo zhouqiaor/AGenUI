@@ -587,6 +587,14 @@ void VirtualDOMNode::updateChildren() {
         }
         _children.erase(_children.begin() + i);
     }
+
+    // Rebuild child index map for O(1) findChild (R91)
+    _childIndex.clear();
+    for (size_t k = 0; k < _children.size(); ++k) {
+        if (_children[k]) {
+            _childIndex[_children[k]->getId()] = k;
+        }
+    }
 }
 
 void VirtualDOMNode::refreshChildrenRecursively() {
