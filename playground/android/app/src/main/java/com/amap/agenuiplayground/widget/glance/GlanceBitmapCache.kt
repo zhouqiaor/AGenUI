@@ -172,6 +172,16 @@ object GlanceBitmapCache {
         }
     }
 
+    /**
+     * Returns a diagnostic summary of the cache state.
+     */
+    fun getCacheInfo(context: Context): String {
+        val count = getCacheFileCount(context)
+        val size = getCacheSize(context)
+        val sizeKB = size / 1024
+        return "files=$count, size=${sizeKB}KB"
+    }
+
     fun getPath(context: Context, appWidgetId: Int): String {
         return getFile(context, appWidgetId).absolutePath
     }

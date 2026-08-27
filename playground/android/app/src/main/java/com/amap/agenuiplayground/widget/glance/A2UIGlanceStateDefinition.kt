@@ -136,7 +136,7 @@ object A2UIGlanceStateDefinition {
     suspend fun updateStateViaGlance(
         context: Context,
         glanceId: androidx.glance.GlanceId,
-        update: suspend (A2UIGlanceState) -> A2UIGlanceState
+        update: (A2UIGlanceState) -> A2UIGlanceState
     ) {
         updateAppWidgetState(context, glanceId) { prefs ->
             val current = A2UIGlanceState(

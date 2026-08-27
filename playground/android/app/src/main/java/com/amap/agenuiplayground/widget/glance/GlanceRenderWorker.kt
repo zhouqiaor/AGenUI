@@ -63,7 +63,7 @@ class GlanceRenderWorker(
                 .build()
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 PERIODIC_WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
+                ExistingPeriodicWorkPolicy.UPDATE,
                 request
             )
             Log.d(TAG, "schedulePeriodic: every ${PERIODIC_INTERVAL_MIN}min")
@@ -167,7 +167,7 @@ class GlanceRenderWorker(
                 surfaceCreated.countDown()
                 rootComponentReady.countDown()
                 // Capture error for doRenderWork to report
-                surfaceErrorRef.set("Surface error: $code/$${message ?: "unknown"}")
+                surfaceErrorRef.set("Surface error: $code/${message ?: "unknown"}")
             }
             override fun onBlankCheckResult(surface: Surface?, isBlank: Boolean) {}
             override fun onComponentAppeared(
@@ -187,7 +187,12 @@ class GlanceRenderWorker(
         createSurfaceJson?.let { surfaceManager.receiveTextChunk(it) }
         filteredComponentsJson?.let { surfaceManager.receiveTextChunk(it) }
         updateDataModelJson?.let {
-            if (!it.contains("\"value\":{}")) surfaceManager.receiveTextChunk(it)
+            // Skip empty data model (value:{} means no data)
+            val dataObj = org.json.JSONObject(it)
+            val value = dataObj.optJSONObject("value")
+            if (value != null && value.length() > 0) {
+                surfaceManager.receiveTextChunk(it)
+            }
         }
         surfaceManager.endTextStream()
 
@@ -238,6 +243,9 @@ class GlanceRenderWorker(
 
         val appWidgetId = A2UIGlanceWidget.DEFAULT_CACHE_WIDGET_ID
         val bitmapPath = GlanceBitmapCache.save(context, appWidgetId, bitmap)
+        // Record dimensions BEFORE recycle (accessing after recycle throws)
+        val bitmapW = bitmap.width
+        val bitmapH = bitmap.height
         // Free the in-memory bitmap now that it's persisted to file cache
         bitmap.recycle()
         if (bitmapPath == null) {
@@ -256,7 +264,7 @@ class GlanceRenderWorker(
         // setWidgetState already writes errorMsg="" (data class default), so no separate clearError needed
         A2UIGlanceStateDefinition.setWidgetState(context, newState)
 
-        Log.d(TAG, "doWork: render complete, bitmap=${bitmap.width}x${bitmap.height}, elapsed=${System.currentTimeMillis() - renderStartMs}ms")
+        Log.d(TAG, "doWork: render complete, bitmap=${bitmapW}x${bitmapH}, elapsed=${System.currentTimeMillis() - renderStartMs}ms")
 
         A2UIGlanceWidgetReceiver.updateAll(context)
         cleanup(surfaceManager)
@@ -292,7 +300,7 @@ class GlanceRenderWorker(
         // ViewGroup.draw() already dispatches to children via dispatchDraw();
         // manual recursion would double-draw each child.
         container.draw(canvas)
-        Log.d(TAG, "Bitmap: ${w}x${h}, bytes=${bitmap.byteCount}")
+        Log.d(TAG, "Bitmap: ${renderW}x${h}, bytes=${bitmap.byteCount}")
 
         return bitmap
     }

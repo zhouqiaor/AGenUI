@@ -1,0 +1,33 @@
+{
+  "messages": [
+    {
+      "type": "createSurface",
+      "surfaceId": "layout-2",
+      "catalogId": "test",
+      "sendDataModel": false,
+      "animated": false
+    },
+    {
+      "type": "updateComponents",
+      "surfaceId": "layout-2",
+      "components": [
+        {
+          "id": "layout-root-2",
+          "type": "Container",
+          "properties": {
+            "styles": {
+              "width": "100%",
+              "height": "100%",
+              "flexDirection": "column",
+              "padding": "16px"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "componentCount": 1
+  },
+  "category": "layout"
+}

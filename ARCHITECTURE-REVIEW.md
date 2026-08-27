@@ -222,3 +222,28 @@ processDataAssembling(chunk):
 | R1-20 | Settings panel 基础 + 3 组件 + E2E + 4 fixture + 架构检视 v1-v2 | cafb8aa |
 | R21-30 | Widget fallback/reuse/config/optimistic UI + 性能分析 | ff78c88..610108c |
 | R29-42 | List 虚拟化 + Yoga 优化 + coalescing + 12 fixture + 测试报告 | f69e5ea..33f72b8 |
+| R43-45 | Adapter recycling test + 路线图 | cb6f703 |
+| R46-55 | DataValue + VirtualDOM diff 边缘测试 | 9bf8b5f |
+| R56-70 | TokenParser + Engine lifecycle + FunctionCall 边缘测试 | 956ecfa |
+| R71-80 | 并发压力 + Android 组件边缘测试 | 3edf273 |
+| R81-90 | 10 组件 fixtures (13-22) | 2d6685b |
+| R91 | VirtualDOM findChild O(1) 查找优化 | 1168c03 |
+| R92-R100 | 28 stress fixtures (23-50) | 729c315 |
+| R101-R120 | 文档批次 (API 参考 + 流式指南 + 性能调优) | - |
+| R121-R140 | 20 advanced fixtures + 10 streaming edge tests | - |
+| R141-R150 | 30 protocol fixtures + 5 parser stress tests | - |
+| R151-R170 | 10 message parser edge tests | 3eab544 |
+| R171-R245 | 75 categorized fixtures (layout/binding/actions/theme/stress) | - |
+
+## 10. 最终代码指标
+
+| 指标 | 数量 |
+|------|------|
+| Git 提交 | ~30 |
+| C++ 测试文件 | 77 |
+| Java 测试文件 | 56 |
+| JSON Fixtures | 133+ |
+| 内置组件 | 22 |
+| 核心引擎 | 102 .h + 87 .cpp |
+| Android 平台层 | 149 .java + 1 .kt |
+| 文档 | ARCHITECTURE-REVIEW + TEST-SUMMARY + API-REFERENCE + STREAMING-GUIDE + PERF-GUIDE |
