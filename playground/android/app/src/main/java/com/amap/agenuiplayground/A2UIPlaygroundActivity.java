@@ -1270,11 +1270,26 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
         AGenUI.getInstance().registerComponent("Lottie", new LottieComponentFactory());
         AGenUI.getInstance().registerComponent("Chart", new ChartComponentFactory());
 
-        // 6. Register custom fonts from assets
-        AGenUI.getInstance().registerFontFromAsset("Nunito", "fonts/Nunito-Regular.ttf");
-        AGenUI.getInstance().registerFontFromAsset("PlayfairDisplay", "fonts/PlayfairDisplay-Regular.ttf");
-        AGenUI.getInstance().registerFontFromAsset("FiraCode", "fonts/FiraCode-Regular.ttf");
-        addLog("Custom fonts registered: Nunito, PlayfairDisplay, FiraCode");
+        // 6. Register custom fonts from assets (skip if font files are missing)
+        try {
+            java.io.File fontsDir = new java.io.File(getFilesDir(), "fonts");
+            boolean hasFonts = false;
+            String[] assetFonts = {"fonts/Nunito-Regular.ttf", "fonts/PlayfairDisplay-Regular.ttf", "fonts/FiraCode-Regular.ttf"};
+            for (String fontPath : assetFonts) {
+                try {
+                    getAssets().open(fontPath).close();
+                    AGenUI.getInstance().registerFontFromAsset(
+                            fontPath.replaceAll("fonts/", "").replaceAll("-Regular\\.ttf", ""),
+                            fontPath);
+                    hasFonts = true;
+                } catch (java.io.IOException e) {
+                    // Font asset not packaged — skip silently
+                }
+            }
+            addLog(hasFonts ? "Custom fonts registered" : "No custom font assets found, using system fonts");
+        } catch (Exception e) {
+            addLog("Font registration skipped: " + e.getMessage());
+        }
 
         addLog("A2UI Framework initialized successfully");
     }

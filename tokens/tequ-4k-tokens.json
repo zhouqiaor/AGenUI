@@ -1,0 +1,69 @@
+{
+  "designTokens": {
+    "brand": {
+      "type": "color",
+      "light": "#007DFF",
+      "dark": "#3D9BFF"
+    },
+    "brand_pressed": {
+      "type": "color",
+      "light": "#0069D6",
+      "dark": "#2B82E6"
+    },
+    "brand_surface": {
+      "type": "color",
+      "light": "#E8F3FF",
+      "dark": "#123A5C"
+    },
+    "success": {
+      "type": "color",
+      "light": "#2E7D32",
+      "dark": "#4CAF50"
+    },
+    "warning": {
+      "type": "color",
+      "light": "#F5A623",
+      "dark": "#FFB84D"
+    },
+    "danger": {
+      "type": "color",
+      "light": "#FF3B30",
+      "dark": "#FF6B61"
+    },
+    "text_primary": {
+      "type": "color",
+      "light": "#181818",
+      "dark": "#E6E6E6"
+    },
+    "text_secondary": {
+      "type": "color",
+      "light": "#666666",
+      "dark": "#B0B3B8"
+    },
+    "text_tertiary": {
+      "type": "color",
+      "light": "#999999",
+      "dark": "#8A8D93"
+    },
+    "text_inverse": {
+      "type": "color",
+      "light": "#FFFFFF",
+      "dark": "#1A1A1A"
+    },
+    "surface_primary": {
+      "type": "color",
+      "light": "#FFFFFF",
+      "dark": "#1F1F22"
+    },
+    "surface_muted": {
+      "type": "color",
+      "light": "#F5F6F7",
+      "dark": "#2A2A2E"
+    },
+    "divider": {
+      "type": "color",
+      "light": "#E8EAED",
+      "dark": "#3A3A40"
+    }
+  }
+}

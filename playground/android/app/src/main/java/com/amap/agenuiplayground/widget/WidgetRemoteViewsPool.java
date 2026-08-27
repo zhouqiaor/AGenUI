@@ -7,6 +7,7 @@ import android.widget.RemoteViews;
 import com.amap.agenuiplayground.R;
 
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * LRU-style pool for RemoteViews objects to reduce GC pressure.

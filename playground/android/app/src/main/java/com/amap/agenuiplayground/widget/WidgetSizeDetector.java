@@ -96,7 +96,7 @@ public final class WidgetSizeDetector {
         public final int height;
         public final SizeCategory category;
 
-        WidgetDimensions(int width, int height, SizeCategory category) {
+        public WidgetDimensions(int width, int height, SizeCategory category) {
             this.width = width;
             this.height = height;
             this.category = category;

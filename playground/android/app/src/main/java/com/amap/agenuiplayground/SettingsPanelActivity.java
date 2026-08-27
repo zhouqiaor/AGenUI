@@ -4,8 +4,11 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.View;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -72,6 +75,24 @@ public class SettingsPanelActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // Force fullscreen immersive mode — some devices (e.g. HUAWEI IdeaHub)
+        // constrain app windows to a sub-region of the display by default.
+        getWindow().setFlags(
+                WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        // Request layout across the full display bounds
+        WindowManager.LayoutParams params = getWindow().getAttributes();
+        params.width = WindowManager.LayoutParams.MATCH_PARENT;
+        params.height = WindowManager.LayoutParams.MATCH_PARENT;
+        getWindow().setAttributes(params);
+
         // Full-screen, chrome-free render container
         renderContainer = new FrameLayout(this);
         renderContainer.setClipChildren(false);
@@ -86,6 +107,12 @@ public class SettingsPanelActivity extends AppCompatActivity {
         // Step 1: Initialize AGenUI engine
         AGenUI agenui = AGenUI.getInstance();
         agenui.initialize(getApplicationContext());
+
+        // Log display info for diagnostics
+        DisplayMetrics dm = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getRealMetrics(dm);
+        Log.i(TAG, "Display real: " + dm.widthPixels + "x" + dm.heightPixels
+                + " density=" + dm.densityDpi);
         Log.i(TAG, "AGenUI engine initialized");
 
         // Step 2: Create runtime logger
@@ -106,9 +133,19 @@ public class SettingsPanelActivity extends AppCompatActivity {
         registerCustomComponents(agenui);
 
         // Step 7: Register fonts (consistent with Playground)
-        agenui.registerFontFromAsset("Nunito", "fonts/Nunito-Regular.ttf");
-        agenui.registerFontFromAsset("PlayfairDisplay", "fonts/PlayfairDisplay-Regular.ttf");
-        agenui.registerFontFromAsset("FiraCode", "fonts/FiraCode-Regular.ttf");
+        // Font files may not exist in all build configs; wrap in try-catch
+        String[][] fonts = {
+            {"Nunito", "fonts/Nunito-Regular.ttf"},
+            {"PlayfairDisplay", "fonts/PlayfairDisplay-Regular.ttf"},
+            {"FiraCode", "fonts/FiraCode-Regular.ttf"}
+        };
+        for (String[] font : fonts) {
+            try {
+                agenui.registerFontFromAsset(font[0], font[1]);
+            } catch (Exception e) {
+                Log.w(TAG, "Font not available: " + font[0] + " (" + font[1] + "), engine will use system default");
+            }
+        }
 
         // Step 8: Register Toast function
         agenui.registerFunction(new ToastFunction(this));
@@ -127,20 +164,25 @@ public class SettingsPanelActivity extends AppCompatActivity {
     /**
      * Load 4K Design Token and Theme JSON from assets.
      *
-     * <p>Token file: assets/tokens/tequ-4k-tokens.json
-     * Theme file: assets/themes/tequ-4k-theme.json
+     * <p>Gradle merges assets flat (tokens/ dir → APK root), so:
+     * <ul>
+     *   <li>Token file: "tequ-4k-tokens.json" (not "tokens/tequ-4k-tokens.json")</li>
+     *   <li>Theme file: "tequ-4k-theme.json" (not "themes/tequ-4k-theme.json")</li>
+     * </ul>
      *
      * <p>If files are not in assets, falls back to empty strings (engine uses defaults).
      */
     private void loadDesignTokensAndTheme() {
-        designTokenJson = loadAssetAsString("tokens/tequ-4k-tokens.json");
-        themeJson = loadAssetAsString("themes/tequ-4k-theme.json");
+        // Assets are merged flat by Gradle: tokens/ dir → APK root,
+        // so "tequ-4k-tokens.json" (not "tokens/tequ-4k-tokens.json")
+        designTokenJson = loadAssetAsString("tequ-4k-tokens.json");
+        themeJson = loadAssetAsString("tequ-4k-theme.json");
 
         if (designTokenJson != null && !designTokenJson.isEmpty()) {
             Log.i(TAG, "Loaded TEQU-4K design tokens (" + designTokenJson.length() + " chars)");
         } else {
             Log.w(TAG, "TEQU-4K design tokens not found in assets, using engine defaults");
-            designTokenJson = "{}";
+            designTokenJson = "{\"designTokens\":{}}";
         }
 
         if (themeJson != null && !themeJson.isEmpty()) {
@@ -154,20 +196,22 @@ public class SettingsPanelActivity extends AppCompatActivity {
     /**
      * Load settings panel protocol messages from sample assets.
      *
-     * <p>Files:
+     * <p>Gradle merges assets flat (samples/protocols/ dir → APK root), so:
      * <ul>
-     *   <li>samples/protocols/settings-panel/updateComponents.json</li>
-     *   <li>samples/protocols/settings-panel/updateDataModel.json</li>
+     *   <li>"settings-panel/updateComponents.json"</li>
+     *   <li>"settings-panel/updateDataModel.json"</li>
      * </ul>
      *
      * <p>The createSurface message is constructed programmatically with the
      * loaded theme and design token config.
      */
     private void loadProtocolMessages() {
+        // Assets are merged flat by Gradle: samples/protocols/ dir → APK root,
+        // so "settings-panel/updateComponents.json" (not "samples/protocols/settings-panel/...")
         updateComponentsMsg = loadAssetAsString(
-                "samples/protocols/settings-panel/updateComponents.json");
+                "settings-panel/updateComponents.json");
         updateDataModelMsg = loadAssetAsString(
-                "samples/protocols/settings-panel/updateDataModel.json");
+                "settings-panel/updateDataModel.json");
 
         if (updateComponentsMsg == null || updateComponentsMsg.isEmpty()) {
             Log.e(TAG, "Failed to load updateComponents.json from assets");
@@ -271,13 +315,20 @@ public class SettingsPanelActivity extends AppCompatActivity {
             @Override
             public SurfaceSize surfaceSize(String surfaceId) {
                 // Return the render container's measured size for the engine's
-                // bootstrap layout pass.
+                // bootstrap layout pass. If the container hasn't been measured
+                // yet (width=0), fall back to the real display dimensions to
+                // avoid under-sized layouts on devices that constrain app windows.
                 int widthPx = renderContainer.getWidth();
                 int heightPx = renderContainer.getHeight();
                 if (widthPx > 0 && heightPx > 0) {
+                    Log.d(TAG, "surfaceSize: container=" + widthPx + "x" + heightPx);
                     return new SurfaceSize(widthPx, heightPx);
                 }
-                return null;
+                // Fallback: use real display metrics
+                DisplayMetrics dm = new DisplayMetrics();
+                getWindowManager().getDefaultDisplay().getRealMetrics(dm);
+                Log.d(TAG, "surfaceSize: fallback display=" + dm.widthPixels + "x" + dm.heightPixels);
+                return new SurfaceSize(dm.widthPixels, dm.heightPixels);
             }
         });
     }
