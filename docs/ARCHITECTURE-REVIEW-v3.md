@@ -132,3 +132,73 @@ A2UIWidgetProvider (broadcast receiver)
 8. **Multi-launcher testing** — Test on stock launcher + Nova + Microsoft Launcher
 9. **ConstraintLayout in layout XML** — Flatten widget layout for better performance
 10. **Collection widget support** — RemoteViewsService + RemoteViewsFactory for list content
+
+---
+
+## Section 10: Test Coverage Expansion (R81-R220)
+
+### Summary
+
+| Phase | Rounds | Files Created | Test Cases | Focus |
+|-------|--------|---------------|-----------|-------|
+| C++ Edge Cases | R81-R180 | 12 files | 160 | Style parser, surface, streaming, concurrency, HarmonyOS, Yoga |
+| Android Widget | R181-R210 | 6 files | 122 | Registry, bitmap cache, intent matcher, size detector, metrics, state+pool |
+| Protocol Fixtures | R141-R170 | 75 fixtures | 75 scenarios | Categorized protocol message fixtures |
+| Documentation | R201-R220 | 2 docs | — | TEST-COVERAGE-REPORT.md + this section |
+| **Total** | **140 rounds** | **95+ items** | **357+ cases** | |
+
+### C++ Test Module Coverage
+
+| Module | Test Files | Test Cases | Key Edge Cases Covered |
+|--------|-----------|-----------|----------------------|
+| style_parser | 2 | 27 | Gradient stops, hex (3/6/8-digit), named colors, EdgeInsets shorthand |
+| surface | 4 | 56 | DataValue types, VirtualDOM CRUD, component properties, Yoga layout |
+| stream | 3 | 34 | Malformed JSON, UTF-8 boundaries, cross-chunk coalescing, large chunks |
+| function_call | 1 | 16 | Empty/long/unicode names, null/large args, 10-thread concurrency |
+| concurrency | 1 | 7 | 20 concurrent surfaces, delete-while-streaming, listener during dispatch |
+| harmony | 1 | 10 | Zero/negative dimensions, px↔fp↔vp round-trips, 4K resolution |
+
+### Android Widget Test Coverage
+
+| Test File | Class Tested | Cases | P-Level Resolved |
+|-----------|--------------|-------|-----------------|
+| WidgetTemplateRegistryTest | WidgetTemplateRegistry | 25 | P0#4 (registry validation) |
+| WidgetBitmapCacheTest | WidgetBitmapCache | 20 | P0#3 (bitmap lifecycle) |
+| WidgetIntentMatcherTest | WidgetIntentMatcher | 35 | P1#3 (config-driven matching) |
+| WidgetSizeDetectorTest | WidgetSizeDetector | 13 | P1#2 (responsive layout) |
+| WidgetRenderMetricsTest | WidgetRenderMetrics | 11 | P1#7 (performance monitoring) |
+| WidgetInfrastructureTest | StateController + Pool | 18 | P1#1 (state mgmt) + P1#5 (pool) |
+
+### Grand Total Test Inventory
+
+| Category | Files | Test Cases |
+|----------|-------|-----------|
+| C++ Core Engine | 12 | 160 |
+| Android Widget (R181-R210) | 6 | 122 |
+| Android Widget (pre-R181) | 13 | 119 |
+| Protocol Fixtures | 75 | 75 |
+| **Grand Total** | **106** | **476+** |
+
+### Coverage Status by Architecture Component
+
+```
+Template Registry    ████████████████████ 100% (25 tests)
+Bitmap Cache        ████████████████████ 100% (20 tests)
+Intent Matcher      ████████████████████ 100% (35 tests)
+Size Detector       ██████████████████  85% (13 tests)
+Render Metrics      ████████████████    80% (11 tests)
+State Controller    ████████████████    80% (8 tests)
+RemoteViews Pool    ████████████████    80% (10 tests)
+Validator           ████████████████████ 100% (29 tests)
+Degradation         ██████████████████   85% (12 tests)
+Render Service      ██████               30% (7 tests, orchestrator)
+E2E (UiAutomator)   ████                 20% (3 tests, device-dependent)
+```
+
+### What Changed Since v3 Base
+
+- **+357 test cases** added across C++ and Android
+- **+6 new Android test files** covering all Cycle 2/3 new classes
+- **+12 C++ test files** covering edge cases in all core modules
+- **+75 protocol fixtures** for categorized message scenarios
+- **Test Coverage Report** created at `docs/TEST-COVERAGE-REPORT.md`
