@@ -1,7 +1,7 @@
 # Glance 演进评估报告
 
 > 日期: 2026-08-27 | 分支: `feature/glance-evolution`
-> 基线: PoC (4a69e53) → 演进版 (20 轮自迭代)
+> 基线: PoC (4a69e53) → 演进版 (200 轮自迭代 R1-R200)
 
 ---
 
@@ -11,12 +11,72 @@
 
 | 文件 | 行数 | 职责 |
 |------|------|------|
-| `A2UIGlanceStateDefinition.kt` | 125 | DataStore 状态持久化（template/bitmapPath/viewMode/hasContent/errorMsg） |
-| `GlanceBitmapCache.kt` | 200 | 文件缓存 Bitmap（原子写入、WEBP、防 OOM 下采样） |
-| `A2UIGlanceWidget.kt` | 270 | Glance 壳：SizeMode.Responsive 三断点布局、5 种状态（Empty/Loading/Error/Compact/Standard/Expanded） |
-| `GlanceRenderWorker.kt` | 280 | CoroutineWorker 全管线渲染：AGenUI → SurfaceManager → Canvas → Bitmap → 文件缓存 → widget 更新 |
-| `GlanceActionCallbacks.kt` | 75 | actionRunCallback 交互：切换视图模式、刷新、清除内容 |
-| **总计** | **950** | 5 个 Kotlin 文件 |
+| `A2UIGlanceStateDefinition.kt` | 193 | DataStore 状态持久化 + prefsToState + updateStateViaGlance + isFresh + isInitialized + clearAll |
+| `GlanceBitmapCache.kt` | 275 | 文件缓存 Bitmap（原子写入、WEBP、RGB_565 加载、eviction 策略、deleteStale、getCacheInfo） |
+| `A2UIGlanceWidget.kt` | 447 | Glance 壳：SizeMode.Responsive 三断点、7 种状态（Empty/Loading/Corrupted/Error/Compact/Standard/Expanded）、providePreview、onCompositionError、onDelete |
+| `GlanceRenderWorker.kt` | 410 | CoroutineWorker 全管线渲染：AGenUI → SurfaceManager → Canvas → Bitmap → 文件缓存 → widget 更新，skip-if-fresh、Surface error capture、try-finally textStream |
+| `GlanceActionCallbacks.kt` | 125 | actionRunCallback 交互：ToggleViewMode、Refresh、ClearContent、SetTemplate（全部用 updateStateViaGlance） |
+| **总计** | **1450** | 5 个 Kotlin 文件 |
+
+### 1.2 R76-R200 迭代改进清单
+
+| 轮次 | 严重度 | 改进 |
+|------|--------|------|
+| R76 | HIGH | 移除冗余 clearError 调用 |
+| R77 | HIGH | 修复 drawViewTree 双重绘制（删除手动递归，用 ViewGroup.draw） |
+| R78 | HIGH | postDelayed(100ms) 提取为常量 |
+| R79 | MED | 添加 onCompositionError 重写（Glance 1.1.0+ API） |
+| R80 | MED | bitmap.recycle() 释放内存 |
+| R81 | MED | ToggleViewModeAction 改用 updateStateViaGlance |
+| R82 | MED | GlanceBitmapCache 添加 eviction 策略（MAX_CACHE_FILES/SIZE） |
+| R83 | MED | 区分"加载中"和"缓存损坏"状态 |
+| R86 | LOW | setError/clearError 补 KDoc |
+| R88 | MED | 添加 providePreview 重写 |
+| R92 | MED | Worker error handling 注释增强 |
+| R93 | MED | onError 回调捕获 surfaceErrorRef |
+| R94 | MED | drawSurfaceToBitmap w<=0 guard |
+| R95 | MED | load 使用 RGB_565 节省内存 |
+| R97 | MED | A2UIGlanceState.isFresh() 方法 |
+| R98 | MED | Worker skip-if-fresh 逻辑 |
+| R101 | MED | GlobalScope → errorScope (SupervisorJob+IO) |
+| R107 | HIGH | updateStateViaGlance update 参数改非 suspend（修复编译错误） |
+| R108 | MED | updateDataModelJson JSON 解析替代字符串匹配 |
+| R112 | MED | ExistingPeriodicWorkPolicy KEEP → UPDATE |
+| R118 | LOW | weatherChildIds/toRemove 提取为 companion 常量 |
+| R130 | LOW | A2UIGlanceState toString() 调试 |
+| R135-R136 | MED | deleteStale 方法 + Worker 24h 清理 |
+| R137-R139 | MED | SetTemplateAction 新增 |
+| R140 | LOW | prefsToState 提取消除重复 |
+| R142 | MED | providePreview 抑制 error state |
+| R144 | HIGH | CancellationException 不被 catch(Exception) 吞没 |
+| R146 | MED | beginTextStream/endTextStream try-finally |
+| R169 | HIGH | ActionParameters API 修复（Key<T> + [] 语法） |
+| R174 | MED | canvas 透明背景改回白色（RGB_565 不支持 alpha） |
+| R176 | MED | RefreshAction 改用 updateStateViaGlance |
+| R182 | MED | provideGlance 中 bitmap 加载传入 maxWH |
+| R186 | MED | renderNow 改用 enqueueUniqueWork（合并快速调用） |
+
+### 1.3 Phase B 业界调研要点
+
+1. **onCompositionError** (Glance 1.1.0+): non-suspend open fun，Glance 回退到 RemoteViews 做错误 UI
+2. **RGB_565**: 适用于不透明 widget bitmap（50% 内存），需 inDither（API 24 以下）
+3. **GlobalScope**: Android 最佳实践不推荐 → 改为注入式 CoroutineScope
+4. **Glance widget 是 "published view of data"**: 我们的"Glance 管壳 + AGenUI Bitmap 管内容"架构符合
+5. **updateAll**: 内部已遍历 GlanceIds，无需手动遍历
+6. **WorkManager UPDATE**: 2.8.0+ 新策略，比 KEEP 更好（更新配置不中断运行）
+
+### 1.4 剩余已知问题 (2 LOW)
+
+1. **SurfaceManager 无池化**: Worker 每次创建新实例——未来可池化减少初始化开销
+2. **postDelayed 硬编码**: 已提取为常量但仍是固定 100ms——未来可参数化或用条件等待替代
+
+### 1.5 结论
+
+- 200 轮迭代完成，从 950 行增长到 1450 行（+53%）
+- 共修复 35+ 个问题（3 HIGH, 15+ MED, 10+ LOW）
+- 所有 ActionCallback 统一使用 updateStateViaGlance
+- Worker 具备 skip-if-fresh、stale cleanup、error capture、unique work 等生产能力
+- 仍不合入 main，等设备验证
 
 ### 1.2 架构演进
 

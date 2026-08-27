@@ -34,3 +34,9 @@
 - 流式 Coalescing 测试: streaming_coalescing_test.cpp (SC001-SC007)
 - ListComponent 测试: ListVirtualizationTest.java (3 cases)
 - E2E fixtures: 08-12 (empty_list/single_item/nested/theme_switch/dynamic_add_remove)
+
+## SettingsPanelActivity 空白屏修复 (R36)
+- 根因: Gradle assets srcDirs 平铺合并, Activity 用了带目录前缀的路径 → 全部 asset 加载失败
+- 修复: asset 路径去前缀 + 创建 tequ-4k-tokens.json ({"designTokens":{...}} 格式) + 字体 try-catch
+- 验证: uiautomator dump 确认完整设置面板渲染 (7分类+switch/slider/link列表+版本页脚)
+- 教训: Gradle assets srcDirs 合并是平铺的, 不保留目录前缀; TokenParser 要 {"designTokens":{}} 外层包裹

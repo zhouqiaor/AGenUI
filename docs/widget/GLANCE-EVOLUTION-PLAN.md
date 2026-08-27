@@ -2,7 +2,7 @@
 
 > Worktree: `C:/Code/AGenUI-wt-glance` | 分支: `feature/glance-evolution`
 > 基线: `4a69e53` (Phase 4 PoC) | 制定: 2026-08-26
-> 更新: 2026-08-27 — 20轮自迭代 + 架构检视 + 业界调研 + R21-R40 修复迭代
+> 更新: 2026-08-27 — R1-R200 完成 + R201+ 规划
 
 ---
 
@@ -69,6 +69,64 @@
 | R46 | `A2UIGlanceWidget.kt` | provideGlance 改为 collectAsState 模式 (业界最佳实践) |
 | R47-R48 | `A2UIGlanceStateDefinition.kt` | 添加 `getStateFlow()` 方法 |
 | R49-R50 | `GLANCE-EVOLUTION-PLAN.md` + `EVALUATION.md` | 文档更新 |
+
+### Sprint 7-10: R76-R200 完成 ✅ (详见 EVALUATION.md)
+
+200 轮迭代从 950 行增长到 1436 行，修复 35+ 个问题。
+关键修复: drawViewTree 双重绘制、updateStateViaGlance 编译错误、
+CancellationException 吞没、ActionParameters API 错误、bitmap.recycle 后访问。
+
+---
+
+## R201+ 迭代规划
+
+### Sprint 7: 编译验证 + Manifest 注册 (R201-R210) — CRITICAL
+
+**阻断性问题**: AndroidManifest.xml 未注册 A2UIGlanceWidgetReceiver。
+不注册的话 Glance widget 在桌面上完全不可见。
+
+| 轮次 | 任务 | 说明 |
+|------|------|------|
+| R201 | AndroidManifest 注册 | 添加 `<receiver>` for A2UIGlanceWidgetReceiver + `<meta-data>` 指向 a2ui_glance_widget_info.xml |
+| R202 | Manifest intent-filter | APPWIDGET_UPDATE action + 配置 Activity (如果需要) |
+| R203-R205 | Gradle 编译验证 | `./gradlew assembleDebug` 确认无编译错误，修复所有 lint warning |
+| R206-R207 | Unused import 清理 | 检查所有 5 个文件的 import 是否都被使用 |
+| R208-R210 | Strings 资源补全 | widget_glance_description 等 string 确认存在 |
+
+### Sprint 8: 单元测试 + 集成测试 (R211-R230)
+
+**当前状态**: 零测试覆盖。需要建立测试基础设施。
+
+| 轮次 | 任务 | 说明 |
+|------|------|------|
+| R211-R213 | A2UIGlanceStateDefinition 单测 | 测试 getWidgetState/setWidgetState/setViewMode/isFresh/prefsToState |
+| R214-R216 | GlanceBitmapCache 单测 | 测试 save/load/delete/exists/evictIfNeeded/calculateSampleSize/deleteStale |
+| R217-R218 | GlanceActionCallbacks 单测 | 测试 ToggleViewModeAction/ClearContentAction/SetTemplateAction 的状态变更 |
+| R219-R222 | GlanceRenderWorker 集成测试 | 测试 doRenderWork skip-if-fresh、error handling、surface error capture |
+| R223-R225 | A2UIGlanceWidget Compose 测试 | 测试 GlanceContent 状态切换 (Error/Empty/Loading/Corrupted/Compact/Standard/Expanded) |
+| R226-R230 | 测试基础设施 | build.gradle test dependencies、test runner 配置、CI 脚本 |
+
+### Sprint 9: 深层架构改进 (R231-R255)
+
+| 轮次 | 任务 | 说明 |
+|------|------|------|
+| R231-R235 | SurfaceManager 池化 | Worker 中复用 SurfaceManager 实例，减少初始化开销 |
+| R236-R240 | 多实例缓存 | 从 DEFAULT_CACHE_WIDGET_ID=0 改为按 GlanceId 分文件缓存 |
+| R241-R243 | postDelayed 参数化 | 用条件等待（CountDownLatch + 回调）替代固定 100ms |
+| R244-R246 | Widget 配置 Activity | 让用户在添加 widget 时选择模板（配合 SetTemplateAction） |
+| R247-R250 | i18n | 提取所有硬编码中文字符串到 strings.xml |
+| R251-R255 | KDoc 补全 | 所有 public API 补 KDoc，达到 100% 文档覆盖 |
+
+### Sprint 10: 设备验证 + 合入评估 (R256-R280+)
+
+| 轮次 | 任务 | 说明 |
+|------|------|------|
+| R256-R260 | 真机渲染验证 | 在 200.49.0.233 大屏上添加 widget，验证渲染流程 |
+| R261-R263 | 延迟对比 | actionRunCallback vs PendingIntent 延迟实测 |
+| R264-R266 | 内存对比 | Widget 刷新前后内存 dump 对比 |
+| R267-R269 | APK 体积 | Glance 依赖增量精确测量 |
+| R270-R275 | 定制 ROM 兼容 | 测试设备 launcher 能否添加 Glance widget |
+| R276-R280 | 合入 main 决策 | 综合评估，产出是否合入 main 的最终决策 |
 
 ---
 
