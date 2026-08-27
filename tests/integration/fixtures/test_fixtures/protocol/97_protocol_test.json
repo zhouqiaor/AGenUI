@@ -1,0 +1,38 @@
+{
+  "messages": [
+    {
+      "type": "createSurface",
+      "surfaceId": "proto-97",
+      "catalogId": "test",
+      "sendDataModel": false,
+      "animated": false
+    },
+    {
+      "type": "updateComponents",
+      "surfaceId": "proto-97",
+      "components": [
+        {
+          "id": "c-97",
+          "type": "Container",
+          "properties": {
+            "styles": {
+              "width": "100%",
+              "height": "100%"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "updateDataModel",
+      "surfaceId": "proto-97",
+      "data": {
+        "index": 97,
+        "label": "Item 97"
+      }
+    }
+  ],
+  "expect": {
+    "componentCount": 1
+  }
+}
