@@ -105,7 +105,8 @@ object GlanceBitmapCache {
                 )
                 opts.inJustDecodeBounds = false
                 opts.inPreferredConfig = Bitmap.Config.RGB_565 // 50% memory vs ARGB_8888 for widget display
-                opts.inDither = true // reduce banding artifacts with RGB_565
+                @Suppress("DEPRECATION")
+                opts.inDither = true // reduce banding artifacts with RGB_565 (ignored API 24+)
                 val bitmap = BitmapFactory.decodeFile(file.absolutePath, opts)
                 if (bitmap != null) {
                     Log.d(TAG, "load: widget=$appWidgetId, ${bitmap.width}x${bitmap.height}, sample=${opts.inSampleSize}")
@@ -114,6 +115,7 @@ object GlanceBitmapCache {
             } else {
                 val opts = BitmapFactory.Options().apply {
                     inPreferredConfig = Bitmap.Config.RGB_565
+                    @Suppress("DEPRECATION")
                     inDither = true
                 }
                 val bitmap = BitmapFactory.decodeFile(file.absolutePath, opts)
@@ -180,6 +182,26 @@ object GlanceBitmapCache {
         val size = getCacheSize(context)
         val sizeKB = size / 1024
         return "files=$count, size=${sizeKB}KB"
+    }
+
+    /**
+     * Deletes cache files older than the specified age.
+     * Useful for periodic cleanup of stale widget bitmaps.
+     */
+    fun deleteStale(context: Context, maxAgeMs: Long) {
+        try {
+            val dir = getDir(context)
+            val now = System.currentTimeMillis()
+            dir.listFiles()?.filter { it.isFile }?.forEach { f ->
+                if (now - f.lastModified() > maxAgeMs) {
+                    if (f.delete()) {
+                        Log.d(TAG, "deleteStale: removed ${f.name} (age=${now - f.lastModified()}ms)")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "deleteStale failed", e)
+        }
     }
 
     fun getPath(context: Context, appWidgetId: Int): String {

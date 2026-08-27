@@ -48,8 +48,8 @@ object A2UIGlanceStateDefinition {
 
     private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(PREFS_NAME)
 
-    suspend fun getWidgetState(context: Context): A2UIGlanceState {
-        val prefs = context.dataStore.data.first()
+    /** Convert raw Preferences to typed A2UIGlanceState. */
+    private fun prefsToState(prefs: Preferences): A2UIGlanceState {
         return A2UIGlanceState(
             template = prefs[KEY_TEMPLATE] ?: "",
             bitmapPath = prefs[KEY_BITMAP_PATH] ?: "",
@@ -58,6 +58,11 @@ object A2UIGlanceStateDefinition {
             lastUpdateTs = prefs[KEY_LAST_UPDATE] ?: 0L,
             errorMsg = prefs[KEY_ERROR_MSG] ?: ""
         )
+    }
+
+    suspend fun getWidgetState(context: Context): A2UIGlanceState {
+        val prefs = context.dataStore.data.first()
+        return prefsToState(prefs)
     }
 
     suspend fun setWidgetState(context: Context, state: A2UIGlanceState) {
@@ -110,20 +115,30 @@ object A2UIGlanceStateDefinition {
     }
 
     /**
+     * Clears all widget state. Used for testing or full reset.
+     */
+    suspend fun clearAll(context: Context) {
+        context.dataStore.edit { prefs ->
+            prefs.clear()
+        }
+    }
+
+    /**
+     * Checks if widget state has been initialized (at least one key written).
+     */
+    suspend fun isInitialized(context: Context): Boolean {
+        val prefs = context.dataStore.data.first()
+        return prefs[KEY_HAS_CONTENT] == true ||
+               prefs[KEY_TEMPLATE]?.isNotEmpty() == true ||
+               prefs[KEY_LAST_UPDATE] != null
+    }
+
+    /**
      * Exposes widget state as a Flow for composition observation.
      * Use collectAsState() inside provideContent to react to state changes.
      */
     fun getStateFlow(context: Context): Flow<A2UIGlanceState> {
-        return context.dataStore.data.map { prefs ->
-            A2UIGlanceState(
-                template = prefs[KEY_TEMPLATE] ?: "",
-                bitmapPath = prefs[KEY_BITMAP_PATH] ?: "",
-                viewMode = prefs[KEY_VIEW_MODE] ?: VIEW_MODE_CURRENT,
-                hasContent = prefs[KEY_HAS_CONTENT] ?: false,
-                lastUpdateTs = prefs[KEY_LAST_UPDATE] ?: 0L,
-                errorMsg = prefs[KEY_ERROR_MSG] ?: ""
-            )
-        }
+        return context.dataStore.data.map { prefs -> prefsToState(prefs) }
     }
 
     /**
@@ -139,14 +154,7 @@ object A2UIGlanceStateDefinition {
         update: (A2UIGlanceState) -> A2UIGlanceState
     ) {
         updateAppWidgetState(context, glanceId) { prefs ->
-            val current = A2UIGlanceState(
-                template = prefs[KEY_TEMPLATE] ?: "",
-                bitmapPath = prefs[KEY_BITMAP_PATH] ?: "",
-                viewMode = prefs[KEY_VIEW_MODE] ?: VIEW_MODE_CURRENT,
-                hasContent = prefs[KEY_HAS_CONTENT] ?: false,
-                lastUpdateTs = prefs[KEY_LAST_UPDATE] ?: 0L,
-                errorMsg = prefs[KEY_ERROR_MSG] ?: ""
-            )
+            val current = prefsToState(prefs)
             val newState = update(current)
             prefs[KEY_TEMPLATE] = newState.template
             prefs[KEY_BITMAP_PATH] = newState.bitmapPath
@@ -176,5 +184,10 @@ data class A2UIGlanceState(
     fun isFresh(maxAgeMs: Long): Boolean {
         if (lastUpdateTs <= 0L) return false
         return System.currentTimeMillis() - lastUpdateTs < maxAgeMs
+    }
+
+    override fun toString(): String {
+        return "A2UIGlanceState(template='$template', bitmapPath='$bitmapPath', viewMode='$viewMode', " +
+               "hasContent=$hasContent, lastUpdateTs=$lastUpdateTs, hasError=$hasError)"
     }
 }

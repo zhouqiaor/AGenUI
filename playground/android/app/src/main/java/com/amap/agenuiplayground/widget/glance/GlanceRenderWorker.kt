@@ -9,6 +9,7 @@ import android.util.Log
 import android.view.View
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -21,6 +22,7 @@ import com.amap.agenui.render.surface.SurfaceSize
 import com.amap.agenuiplayground.BuildConfig
 import com.amap.agenuiplayground.widget.WidgetProtocolTemplates
 import org.json.JSONArray
+import org.json.JSONObject
 import kotlinx.coroutines.withTimeout
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -50,12 +52,19 @@ class GlanceRenderWorker(
     companion object {
         private const val TAG = "GlanceRenderWorker"
         private const val SURFACE_TIMEOUT_MS = 5000L
+        // Render dimensions: match the largest SizeMode.Responsive breakpoint (280x300)
+        // plus margin for high-density displays. Bitmap is scaled down at load time.
         private const val WIDGET_WIDTH = 300
         private const val WIDGET_HEIGHT = 400
         private const val PERIODIC_WORK_NAME = "a2ui_glance_render_periodic"
+        private const val ONE_SHOT_WORK_NAME = "a2ui_glance_render_oneshot"
         private const val PERIODIC_INTERVAL_MIN = 15L
         private const val WORKER_TOTAL_TIMEOUT_MS = 30_000L
         private const val ROOT_COMPONENT_SETTLE_DELAY_MS = 100L
+        private val WEATHER_CHILD_IDS = setOf("root_c0", "root_c1", "root_c2", "root_c3")
+        private val FORECAST_REMOVE_IDS = setOf("root_c0", "root_c1", "root_c2")
+        private val CURRENT_REMOVE_IDS = setOf("root_c3")
+        private val surfaceIdCounter = java.util.concurrent.atomic.AtomicLong(0)
 
         fun schedulePeriodic(context: Context) {
             val request = PeriodicWorkRequestBuilder<GlanceRenderWorker>(PERIODIC_INTERVAL_MIN, TimeUnit.MINUTES)
@@ -78,13 +87,18 @@ class GlanceRenderWorker(
             val request = OneTimeWorkRequestBuilder<GlanceRenderWorker>()
                 .addTag(TAG)
                 .build()
-            WorkManager.getInstance(context).enqueue(request)
+            // Use unique work to coalesce rapid renderNow calls into one execution
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                ONE_SHOT_WORK_NAME,
+                ExistingWorkPolicy.KEEP,
+                request
+            )
             Log.d(TAG, "renderNow: enqueued one-shot")
         }
     }
 
     override suspend fun doWork(): Result {
-        Log.d(TAG, "doWork: started")
+        Log.d(TAG, "doWork: started, cache=${GlanceBitmapCache.getCacheInfo(applicationContext)}")
         val context = applicationContext
 
         return try {
@@ -99,6 +113,9 @@ class GlanceRenderWorker(
             A2UIGlanceStateDefinition.setError(applicationContext, "渲染超时")
             A2UIGlanceWidgetReceiver.updateAll(applicationContext)
             Result.retry()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            // Don't catch CancellationException — let it propagate for proper coroutine cancellation
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "doWork failed", e)
             A2UIGlanceStateDefinition.setError(applicationContext, e.message ?: "未知错误")
@@ -111,6 +128,9 @@ class GlanceRenderWorker(
         val renderStartMs = System.currentTimeMillis()
         val state = A2UIGlanceStateDefinition.getWidgetState(context)
 
+        // Clean up stale bitmap cache files older than 24 hours
+        GlanceBitmapCache.deleteStale(context, 24L * 60 * 60 * 1000)
+
         // Skip if content was rendered within the periodic interval (avoids redundant work)
         if (state.isFresh(PERIODIC_INTERVAL_MIN * 60 * 1000L) && !state.hasError) {
             Log.d(TAG, "doWork: skipping, content fresh (lastUpdate=${state.lastUpdateTs})")
@@ -122,7 +142,7 @@ class GlanceRenderWorker(
 
         Log.d(TAG, "doWork: template=$templateName, viewMode=${state.viewMode}")
 
-        val surfaceId = "glance_${System.currentTimeMillis()}"
+        val surfaceId = "glance_${System.currentTimeMillis()}_${surfaceIdCounter.incrementAndGet()}"
         val templateJson = WidgetProtocolTemplates.loadTemplate(context, templateName, surfaceId)
         if (templateJson == null) {
             Log.e(TAG, "Template not found: $templateName")
@@ -139,7 +159,11 @@ class GlanceRenderWorker(
         // Apply viewMode filtering to updateComponents (weather template only)
         val filteredComponentsJson = filterWeatherComponents(updateComponentsJson, state.viewMode)
 
-        AGenUI.getInstance().initialize(context)
+        // AGenUI.initialize has internal isInitialized guard, but calling
+        // isInitialized first avoids entering the synchronized block.
+        if (!AGenUI.getInstance().isInitialized) {
+            AGenUI.getInstance().initialize(context)
+        }
         AGenUI.getInstance().setDebug(BuildConfig.DEBUG)
 
         val surfaceManager = SurfaceManager(context)
@@ -183,18 +207,21 @@ class GlanceRenderWorker(
         }
         surfaceManager.addListener(surfaceManagerListener)
 
-        surfaceManager.beginTextStream()
-        createSurfaceJson?.let { surfaceManager.receiveTextChunk(it) }
-        filteredComponentsJson?.let { surfaceManager.receiveTextChunk(it) }
-        updateDataModelJson?.let {
-            // Skip empty data model (value:{} means no data)
-            val dataObj = org.json.JSONObject(it)
-            val value = dataObj.optJSONObject("value")
-            if (value != null && value.length() > 0) {
-                surfaceManager.receiveTextChunk(it)
+        try {
+            surfaceManager.beginTextStream()
+            createSurfaceJson?.let { surfaceManager.receiveTextChunk(it) }
+            filteredComponentsJson?.let { surfaceManager.receiveTextChunk(it) }
+            updateDataModelJson?.let {
+                // Skip empty data model (value:{} means no data)
+                val dataObj = JSONObject(it)
+                val value = dataObj.optJSONObject("value")
+                if (value != null && value.length() > 0) {
+                    surfaceManager.receiveTextChunk(it)
+                }
             }
+        } finally {
+            surfaceManager.endTextStream()
         }
-        surfaceManager.endTextStream()
 
         val created = surfaceCreated.await(SURFACE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
         if (!created || surfaceRef.get() == null) {
@@ -243,16 +270,17 @@ class GlanceRenderWorker(
 
         val appWidgetId = A2UIGlanceWidget.DEFAULT_CACHE_WIDGET_ID
         val bitmapPath = GlanceBitmapCache.save(context, appWidgetId, bitmap)
+        if (bitmapPath == null) {
+            Log.e(TAG, "Bitmap cache save failed")
+            bitmap.recycle() // free bitmap on save failure
+            cleanup(surfaceManager)
+            return Result.retry()
+        }
         // Record dimensions BEFORE recycle (accessing after recycle throws)
         val bitmapW = bitmap.width
         val bitmapH = bitmap.height
         // Free the in-memory bitmap now that it's persisted to file cache
         bitmap.recycle()
-        if (bitmapPath == null) {
-            Log.e(TAG, "Bitmap cache save failed")
-            cleanup(surfaceManager)
-            return Result.retry()
-        }
 
         val newState = A2UIGlanceState(
             template = templateName,
@@ -267,6 +295,8 @@ class GlanceRenderWorker(
         Log.d(TAG, "doWork: render complete, bitmap=${bitmapW}x${bitmapH}, elapsed=${System.currentTimeMillis() - renderStartMs}ms")
 
         A2UIGlanceWidgetReceiver.updateAll(context)
+        // Note: cleanup must be called before every return path in doRenderWork.
+        // Consider refactoring to try-finally in a future round for safety.
         cleanup(surfaceManager)
         return Result.success()
     }
@@ -296,6 +326,8 @@ class GlanceRenderWorker(
 
         val bitmap = Bitmap.createBitmap(renderW, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
+        // White background — AGenUI content is rendered on top.
+        // RGB_565 (used at load time) doesn't support alpha, so transparent would become black.
         canvas.drawColor(android.graphics.Color.WHITE)
         // ViewGroup.draw() already dispatches to children via dispatchDraw();
         // manual recursion would double-draw each child.
@@ -330,11 +362,11 @@ class GlanceRenderWorker(
     private fun filterWeatherComponents(updateComponentsJson: String?, viewMode: String): String? {
         if (updateComponentsJson == null) return null
         return try {
-            val rootObj = org.json.JSONObject(updateComponentsJson)
+            val rootObj = JSONObject(updateComponentsJson)
             val components = rootObj.optJSONArray("components") ?: return updateComponentsJson
 
             // Find root_body's children array
-            var rootBodyChildren: org.json.JSONArray? = null
+            var rootBodyChildren: JSONArray? = null
             for (i in 0 until components.length()) {
                 val comp = components.optJSONObject(i)
                 if (comp?.optString("id") == "root_body") {
@@ -345,14 +377,13 @@ class GlanceRenderWorker(
             if (rootBodyChildren == null) return updateComponentsJson
 
             val isForecast = viewMode == A2UIGlanceStateDefinition.VIEW_MODE_FORECAST
-            val weatherChildIds = setOf("root_c0", "root_c1", "root_c2", "root_c3")
-            val toRemove = if (isForecast) setOf("root_c0", "root_c1", "root_c2") else setOf("root_c3")
+            val toRemove = if (isForecast) FORECAST_REMOVE_IDS else CURRENT_REMOVE_IDS
 
-            val filtered = org.json.JSONArray()
+            val filtered = JSONArray()
             for (i in 0 until rootBodyChildren.length()) {
                 val childId = rootBodyChildren.optString(i)
                 // Only filter weather-specific child IDs; pass through everything else
-                if (childId in weatherChildIds) {
+                if (childId in WEATHER_CHILD_IDS) {
                     if (childId !in toRemove) {
                         filtered.put(childId)
                     }

@@ -93,28 +93,26 @@ class A2UIGlanceWidget : GlanceAppWidget() {
     /**
      * Provides a lightweight preview for the widget picker.
      * Shows a static preview bitmap if available, otherwise the empty state.
+     * Error state is suppressed in preview to show content if available.
+     * Note: providePreview was removed in Glance 1.1.0+; the preview is now
+     * handled by the system's default screenshot mechanism.
      */
-    override suspend fun providePreview(
-        context: Context,
-        widgetCategory: Int
-    ) {
-        val state = A2UIGlanceStateDefinition.getWidgetState(context)
-        val previewBitmap = if (state.hasBitmap) {
-            GlanceBitmapCache.load(context, DEFAULT_CACHE_WIDGET_ID)
-        } else {
-            null
-        }
-        provideContent {
-            GlanceContent(state, previewBitmap)
-        }
+
+    /**
+     * Called when a widget instance is removed from the home screen.
+     * Logs the event. State cleanup happens via Receiver.onDeleted.
+     */
+    override suspend fun onDelete(context: Context, glanceId: GlanceId) {
+        Log.d(TAG, "onDelete: id=$glanceId")
     }
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         Log.d(TAG, "provideGlance: id=$id")
         // Load initial state BEFORE provideContent (heavy work goes here)
         val initialState = A2UIGlanceStateDefinition.getWidgetState(context)
+        // Use moderate dimensions for initial bitmap; composition will reload with exact size
         val initialBitmap = if (initialState.hasBitmap) {
-            GlanceBitmapCache.load(context, DEFAULT_CACHE_WIDGET_ID)
+            GlanceBitmapCache.load(context, DEFAULT_CACHE_WIDGET_ID, 600, 800)
         } else {
             null
         }
@@ -122,9 +120,12 @@ class A2UIGlanceWidget : GlanceAppWidget() {
         provideContent {
             // Observe state changes within composition for live updates
             val state by remember { A2UIGlanceStateDefinition.getStateFlow(context) }.collectAsState(initial = initialState)
+            val size = LocalSize.current
+            val maxWidthPx = (size.width.value * 2).toInt() // 2x for retina-like sharpness
+            val maxHeightPx = (size.height.value * 2).toInt()
             val bitmap = if (state.hasBitmap) {
                 remember(state.bitmapPath, state.lastUpdateTs) {
-                    GlanceBitmapCache.load(context, DEFAULT_CACHE_WIDGET_ID)
+                    GlanceBitmapCache.load(context, DEFAULT_CACHE_WIDGET_ID, maxWidthPx, maxHeightPx)
                 }
             } else null
 
@@ -140,6 +141,7 @@ class A2UIGlanceWidget : GlanceAppWidget() {
     private fun GlanceContent(state: A2UIGlanceState, bitmap: android.graphics.Bitmap?) {
         val size = LocalSize.current
         val heightDp = size.height
+        // Guard against unspecified size (can happen during preview or measure pass)
         val isCompact = heightDp.value < COMPACT_HEIGHT_DP
         val isExpanded = heightDp.value >= EXPANDED_HEIGHT_DP
 
@@ -163,7 +165,7 @@ class A2UIGlanceWidget : GlanceAppWidget() {
     @Composable
     private fun CompactContent(state: A2UIGlanceState, bitmap: android.graphics.Bitmap) {
         Box(
-            modifier = GlanceModifier.fillMaxSize().padding(2.dp),
+            modifier = GlanceModifier.fillMaxSize().padding(4.dp),
             contentAlignment = Alignment.Center
         ) {
             Image(
@@ -418,5 +420,14 @@ class A2UIGlanceWidgetReceiver : GlanceAppWidgetReceiver() {
         // Note: onDisabled is only called when the last instance is removed,
         // so clearing all cache here is correct.
         GlanceBitmapCache.clearAll(context)
+    }
+
+    /**
+     * Called when a single widget instance is removed.
+     * Logs the event; does NOT clear cache (other instances may still need it).
+     */
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        super.onDeleted(context, appWidgetIds)
+        Log.d(TAG, "onDeleted: ${appWidgetIds.size} instance(s) removed")
     }
 }

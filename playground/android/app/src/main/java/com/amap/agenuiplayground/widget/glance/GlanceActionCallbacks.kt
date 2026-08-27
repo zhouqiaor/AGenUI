@@ -53,8 +53,10 @@ object GlanceActionCallbacks {
             parameters: ActionParameters
         ) {
             Log.d(TAG, "RefreshAction: id=$glanceId")
-            // Clear error to ensure Worker doesn't skip due to stale error state
-            A2UIGlanceStateDefinition.clearError(context)
+            // Clear error via updateStateViaGlance for atomic, framework-blessed update
+            A2UIGlanceStateDefinition.updateStateViaGlance(context, glanceId) { state ->
+                state.copy(errorMsg = "")
+            }
             GlanceRenderWorker.renderNow(context)
         }
     }
@@ -77,9 +79,47 @@ object GlanceActionCallbacks {
             A2UIGlanceWidgetReceiver.updateAll(context)
         }
     }
+
+    /**
+     * Switch to a different widget template.
+     * Reads template name from ActionParameters key "template".
+     */
+    class SetTemplateAction : ActionCallback {
+        override suspend fun onAction(
+            context: Context,
+            glanceId: GlanceId,
+            parameters: ActionParameters
+        ) {
+            val template = parameters[KEY_TEMPLATE] ?: run {
+                Log.w(TAG, "SetTemplateAction: missing template parameter")
+                return
+            }
+            Log.d(TAG, "SetTemplateAction: id=$glanceId, template=$template")
+            A2UIGlanceStateDefinition.updateStateViaGlance(context, glanceId) { state ->
+                state.copy(template = template, hasContent = false, bitmapPath = "", errorMsg = "")
+            }
+            GlanceRenderWorker.renderNow(context)
+        }
+
+        companion object {
+            val KEY_TEMPLATE = ActionParameters.Key<String>("template")
+        }
+    }
 }
 
-/** Convenience factories for use with clickable(Action). */
+/**
+ * Convenience factories for use with clickable(Action).
+ * Each returns a [actionRunCallback] that executes the corresponding ActionCallback
+ * in the widget's process — no IPC roundtrip needed.
+ */
+/** Toggles between current and forecast view modes. */
 fun toggleViewModeAction() = actionRunCallback<GlanceActionCallbacks.ToggleViewModeAction>()
+
+/** Triggers a manual content refresh by enqueuing GlanceRenderWorker. */
 fun refreshAction() = actionRunCallback<GlanceActionCallbacks.RefreshAction>()
+
+/** Clears all widget content and resets to empty state. */
 fun clearContentAction() = actionRunCallback<GlanceActionCallbacks.ClearContentAction>()
+
+/** Switches to a different widget template. Requires "template" parameter. */
+fun setTemplateAction() = actionRunCallback<GlanceActionCallbacks.SetTemplateAction>()

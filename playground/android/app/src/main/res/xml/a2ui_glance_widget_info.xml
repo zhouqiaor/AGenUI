@@ -8,4 +8,5 @@
     android:targetCellHeight="2"
     android:updatePeriodMillis="1800000"
     android:widgetCategory="home_screen"
-    android:description="@string/widget_glance_description" />
+    android:description="@string/widget_glance_description"
+    android:previewLayout="@layout/a2ui_widget_placeholder" />
