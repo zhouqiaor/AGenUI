@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.coerceAtLeast
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -34,7 +35,9 @@ import androidx.glance.layout.padding
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 /**
@@ -55,6 +58,9 @@ class A2UIGlanceWidget : GlanceAppWidget() {
         private const val COMPACT_HEIGHT_DP = 80
         private const val EXPANDED_HEIGHT_DP = 140
         const val DEFAULT_CACHE_WIDGET_ID = 0
+
+        /** Scope for fire-and-forget work from non-suspend callbacks (e.g. onCompositionError). */
+        private val errorScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
 
     override val sizeMode: SizeMode = SizeMode.Responsive(
@@ -79,7 +85,7 @@ class A2UIGlanceWidget : GlanceAppWidget() {
     ) {
         Log.e(TAG, "onCompositionError: id=$glanceId, widgetId=$appWidgetId", compositionError)
         // Fire-and-forget coroutine to write error state; composition session is closing
-        kotlinx.coroutines.GlobalScope.launch {
+        errorScope.launch {
             A2UIGlanceStateDefinition.setError(context, "组合错误: ${compositionError.message ?: "未知"}")
         }
     }
@@ -171,6 +177,8 @@ class A2UIGlanceWidget : GlanceAppWidget() {
 
     @Composable
     private fun StandardContent(state: A2UIGlanceState, bitmap: android.graphics.Bitmap) {
+        val size = LocalSize.current
+        val imageHeight = (size.height - 20.dp).coerceAtLeast(60.dp) // reserve space for title
         Box(
             modifier = GlanceModifier.fillMaxSize().padding(4.dp),
             contentAlignment = Alignment.TopStart
@@ -189,7 +197,7 @@ class A2UIGlanceWidget : GlanceAppWidget() {
                 Image(
                     provider = ImageProvider(bitmap),
                     contentDescription = "AGenUI rendered content",
-                    modifier = GlanceModifier.fillMaxWidth().height(120.dp),
+                    modifier = GlanceModifier.fillMaxWidth().height(imageHeight),
                     contentScale = ContentScale.Fit
                 )
             }
@@ -198,6 +206,9 @@ class A2UIGlanceWidget : GlanceAppWidget() {
 
     @Composable
     private fun ExpandedContent(state: A2UIGlanceState, bitmap: android.graphics.Bitmap) {
+        val size = LocalSize.current
+        // Reserve space for title (~20dp) + toggle link (~20dp) + refresh link (~20dp) + spacing
+        val imageHeight = (size.height - 60.dp).coerceAtLeast(100.dp)
         Box(
             modifier = GlanceModifier.fillMaxSize().padding(8.dp),
             contentAlignment = Alignment.TopStart
@@ -216,7 +227,7 @@ class A2UIGlanceWidget : GlanceAppWidget() {
                 Image(
                     provider = ImageProvider(bitmap),
                     contentDescription = "AGenUI rendered content",
-                    modifier = GlanceModifier.fillMaxWidth().height(160.dp),
+                    modifier = GlanceModifier.fillMaxWidth().height(imageHeight),
                     contentScale = ContentScale.Fit
                 )
                 Spacer(modifier = GlanceModifier.height(4.dp))

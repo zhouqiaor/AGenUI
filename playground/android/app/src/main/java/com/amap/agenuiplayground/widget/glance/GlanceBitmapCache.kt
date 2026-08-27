@@ -105,13 +105,18 @@ object GlanceBitmapCache {
                 )
                 opts.inJustDecodeBounds = false
                 opts.inPreferredConfig = Bitmap.Config.RGB_565 // 50% memory vs ARGB_8888 for widget display
+                opts.inDither = true // reduce banding artifacts with RGB_565
                 val bitmap = BitmapFactory.decodeFile(file.absolutePath, opts)
                 if (bitmap != null) {
                     Log.d(TAG, "load: widget=$appWidgetId, ${bitmap.width}x${bitmap.height}, sample=${opts.inSampleSize}")
                 }
                 bitmap
             } else {
-                val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                val opts = BitmapFactory.Options().apply {
+                    inPreferredConfig = Bitmap.Config.RGB_565
+                    inDither = true
+                }
+                val bitmap = BitmapFactory.decodeFile(file.absolutePath, opts)
                 if (bitmap != null) {
                     Log.d(TAG, "load: widget=$appWidgetId, ${bitmap.width}x${bitmap.height}")
                 }

@@ -101,6 +101,15 @@ object A2UIGlanceStateDefinition {
     }
 
     /**
+     * Sets the widget template name. Called when user selects a different template.
+     */
+    suspend fun setTemplate(context: Context, template: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_TEMPLATE] = template
+        }
+    }
+
+    /**
      * Exposes widget state as a Flow for composition observation.
      * Use collectAsState() inside provideContent to react to state changes.
      */
