@@ -27,6 +27,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -249,13 +250,5 @@ public class WidgetRenderServiceTest {
         }
         assertEquals("Should visit all templates in rotation",
                 names.length, visited.size());
-    }
-
-    private static void assertFalse(String msg, boolean condition) {
-        org.junit.Assert.assertFalse(msg, condition);
-    }
-
-    private static void assertEquals(Object expected, Object actual) {
-        org.junit.Assert.assertEquals(expected, actual);
     }
 }

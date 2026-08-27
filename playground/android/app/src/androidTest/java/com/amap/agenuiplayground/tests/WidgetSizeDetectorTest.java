@@ -11,6 +11,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -129,9 +130,5 @@ public class WidgetSizeDetectorTest {
     public void SD13_sizeBreakpoints_areOrdered() {
         assertTrue("SMALL < MEDIUM",
                 WidgetSizeDetector.SIZE_SMALL <= WidgetSizeDetector.SIZE_MEDIUM);
-    }
-
-    private static void assertFalse(String msg, boolean condition) {
-        org.junit.Assert.assertFalse(msg, condition);
     }
 }

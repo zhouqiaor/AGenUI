@@ -1,5 +1,6 @@
 package com.amap.agenuiplayground.tests;
 
+import com.amap.agenui.render.surface.Surface;
 import com.amap.agenuiplayground.base.AGenUIBaseTest;
 
 import org.json.JSONArray;
@@ -109,7 +110,7 @@ public class ComponentEdgeCaseTest extends AGenUIBaseTest {
         richText.put("id", "test-richtext");
         richText.put("type", "RichText");
         JSONObject props = new JSONObject();
-        JSONObject segments = new JSONArray()
+        JSONArray segments = new JSONArray()
             .put(new JSONObject().put("type", "text").put("text", "Hello "))
             .put(new JSONObject().put("type", "link").put("text", "World").put("href", "https://example.com"));
         props.put("segments", segments);

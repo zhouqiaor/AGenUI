@@ -53,14 +53,9 @@ public class SettingsPanelE2ETest extends AGenUIBaseTest {
         String fixturePath = "settings_panel/01_settings_basic.json";
         JSONObject expect = loader.getExpect(fixturePath);
 
-        // 使用逐条发送避免流式截断，然后用 sendAndWaitForRender 轮询等待组件稳定
         String surfaceId = loader.getSurfaceId(fixturePath);
         org.json.JSONArray messages = loader.getMessages(fixturePath);
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < messages.length(); i++) {
-            sb.append(messages.get(i).toString());
-        }
-        Surface surface = sendAndWaitForRender(sb.toString(), surfaceId);
+        Surface surface = sendMessagesAndWaitForRender(messages, surfaceId);
         assertNotNull("Surface should be created: " + fixturePath, surface);
 
         // 验证组件数量
@@ -198,11 +193,7 @@ public class SettingsPanelE2ETest extends AGenUIBaseTest {
 
         String surfaceId = loader.getSurfaceId(fixturePath);
         org.json.JSONArray messages = loader.getMessages(fixturePath);
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < messages.length(); i++) {
-            sb.append(messages.get(i).toString());
-        }
-        Surface surface = sendAndWaitForRender(sb.toString(), surfaceId);
+        Surface surface = sendMessagesAndWaitForRender(messages, surfaceId);
 
         Map<String, A2UIComponent> tree = surface.getComponentTree();
         assertNotNull("Component tree should not be null", tree);

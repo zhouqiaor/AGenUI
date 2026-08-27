@@ -14,6 +14,7 @@ import java.util.Map;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -338,9 +339,5 @@ public class WidgetNLUParserTest {
             NLUResult r = WidgetNLUParser.parse(city + "天气");
             assertEquals("Should extract " + city, city, r.location);
         }
-    }
-
-    private static void assertFalse(String msg, boolean condition) {
-        org.junit.Assert.assertFalse(msg, condition);
     }
 }

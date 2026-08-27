@@ -14,6 +14,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -270,9 +271,5 @@ public class WidgetIntentMatcherTest {
     @Test
     public void IM35_mixedCaseAndLanguage() {
         assertEquals("weather", WidgetIntentMatcher.match("WEATHER 天气"));
-    }
-
-    private static void assertFalse(String msg, boolean condition) {
-        org.junit.Assert.assertFalse(msg, condition);
     }
 }

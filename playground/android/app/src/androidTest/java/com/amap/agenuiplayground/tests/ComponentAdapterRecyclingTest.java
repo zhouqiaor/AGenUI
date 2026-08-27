@@ -1,5 +1,6 @@
 package com.amap.agenuiplayground.tests;
 
+import com.amap.agenui.render.surface.Surface;
 import com.amap.agenuiplayground.base.AGenUIBaseTest;
 
 import org.json.JSONArray;

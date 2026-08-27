@@ -294,6 +294,44 @@ public abstract class AGenUIBaseTest {
     }
 
     /**
+     * 逐条发送 JSON 消息数组，等待 Surface 创建，并轮询等待组件数量稳定。
+     *
+     * <p>结合 {@link #sendMessagesAndWaitForSurface} 的逐条发送策略（避免流式解析截断）
+     * 和 {@link #sendAndWaitForRender} 的轮询策略（等待组件渲染稳定）。
+     *
+     * @param messages  fixture 中的消息 JSONArray（每个元素为完整的协议 JSON 对象）
+     * @param surfaceId 期待创建的 surfaceId
+     * @return 已完成组件渲染的 {@link Surface}
+     * @throws Exception 超时或解析异常
+     */
+    protected Surface sendMessagesAndWaitForRender(
+            org.json.JSONArray messages, String surfaceId) throws Exception {
+        Surface surface = sendMessagesAndWaitForSurface(messages, surfaceId);
+        // 轮询等待 componentCount 稳定（连续 3 次相同，间隔 50ms）
+        long deadline = System.currentTimeMillis() + TIMEOUT_MS;
+        int stableCount = 0;
+        int lastCount = -1;
+        while (System.currentTimeMillis() < deadline) {
+            Thread.sleep(50);
+            final int[] count = {-1};
+            CountDownLatch barrier = new CountDownLatch(1);
+            new Handler(Looper.getMainLooper()).post(() -> {
+                count[0] = surface.getComponentCount();
+                barrier.countDown();
+            });
+            barrier.await(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            if (count[0] > 0 && count[0] == lastCount) {
+                stableCount++;
+                if (stableCount >= 3) break;
+            } else {
+                stableCount = 0;
+                lastCount = count[0];
+            }
+        }
+        return surface;
+    }
+
+    /**
      * 获取当前 Activity 实例（在主线程回调中使用）。
      * 子类可通过 {@code activityRule.getScenario().onActivity(cb)} 获取 Activity。
      */
