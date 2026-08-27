@@ -47,4 +47,32 @@ public class WidgetProtocolCache {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         prefs.edit().putString("agenda_view_" + appWidgetId, view).apply();
     }
+
+    /**
+     * Returns the weather view mode ("current" by default, or "forecast").
+     */
+    public static String getWeatherView(Context context, int appWidgetId) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.getString("weather_view_" + appWidgetId, "current");
+    }
+
+    /** Persists the weather view mode for the given widget. */
+    public static void saveWeatherView(Context context, int appWidgetId, String view) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString("weather_view_" + appWidgetId, view).apply();
+    }
+
+    /**
+     * Returns the todo view mode ("pending" by default, or "done").
+     */
+    public static String getTodoView(Context context, int appWidgetId) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.getString("todo_view_" + appWidgetId, "pending");
+    }
+
+    /** Persists the todo view mode for the given widget. */
+    public static void saveTodoView(Context context, int appWidgetId, String view) {
+        SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString("todo_view_" + appWidgetId, view).apply();
+    }
 }

@@ -2,11 +2,8 @@ package com.amap.agenuiplayground.widget;
 
 import android.appwidget.AppWidgetManager;
 import android.content.Context;
-import android.os.Build;
+import android.os.Bundle;
 import android.util.Log;
-import android.util.SizeF;
-
-import java.util.List;
 
 /**
  * Detects widget dimensions and determines the appropriate layout breakpoint.
@@ -43,28 +40,31 @@ public final class WidgetSizeDetector {
     /**
      * Returns the actual widget size in pixels, or the default if unavailable.
      *
-     * <p>On Android 12+ uses {@link AppWidgetManager#getWidgetSizes}.
-     * On older APIs, returns {@code (DEFAULT_WIDTH, DEFAULT_HEIGHT)}.
+     * <p>Uses {@link AppWidgetManager#getAppWidgetOptions} which is available
+     * on all API levels. The Bundle contains MIN/MAX width/height in dips.
+     * We take the max as the current size (portrait: max = actual; landscape:
+     * min = actual width). For simplicity, we use max for both dimensions.
      *
      * @return a [width, height] int array
      */
     public static int[] getWidgetSize(Context context, int appWidgetId) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            try {
-                List<SizeF> sizes = AppWidgetManager.getInstance(context)
-                        .getWidgetSizes(appWidgetId);
-                if (sizes != null && !sizes.isEmpty()) {
-                    SizeF size = sizes.get(0);
-                    int w = Math.round(size.getWidth());
-                    int h = Math.round(size.getHeight());
-                    if (w > 0 && h > 0) {
-                        Log.d(TAG, "Widget size from API: " + w + "x" + h);
-                        return new int[]{w, h};
-                    }
+        try {
+            AppWidgetManager awm = AppWidgetManager.getInstance(context);
+            Bundle options = awm.getAppWidgetOptions(appWidgetId);
+            if (options != null) {
+                int minWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 0);
+                int maxWidth = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0);
+                int minHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0);
+                int maxHeight = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0);
+                int w = Math.max(minWidth, maxWidth);
+                int h = Math.max(minHeight, maxHeight);
+                if (w > 0 && h > 0) {
+                    Log.d(TAG, "Widget size from options: " + w + "x" + h);
+                    return new int[]{w, h};
                 }
-            } catch (Exception e) {
-                Log.w(TAG, "getWidgetSizes failed, using default", e);
             }
+        } catch (Exception e) {
+            Log.w(TAG, "getAppWidgetOptions failed, using default", e);
         }
         return new int[]{DEFAULT_WIDTH, DEFAULT_HEIGHT};
     }

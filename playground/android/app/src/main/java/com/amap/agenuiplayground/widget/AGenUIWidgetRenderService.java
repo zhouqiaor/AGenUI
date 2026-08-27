@@ -188,7 +188,8 @@ public class AGenUIWidgetRenderService extends JobIntentService {
                 : "Created new SurfaceManager");
 
         final SurfaceRenderResult result = renderSurface(
-                context, appWidgetId, template, surfaceManager, reused, versionChunks);
+                context, appWidgetId, template, surfaceManager, reused, versionChunks,
+                renderWidth, renderHeight);
 
         if (result.bitmap != null) {
             // P0 safety: remove any stale entry before putting the new bitmap
@@ -214,7 +215,7 @@ public class AGenUIWidgetRenderService extends JobIntentService {
     private static SurfaceRenderResult renderSurface(
             Context context, int appWidgetId, String template,
             SurfaceManager surfaceManager, boolean reused,
-            List<String> versionChunks) {
+            List<String> versionChunks, int renderWidth, int renderHeight) {
 
         final CountDownLatch surfaceCreated = reused ? null : new CountDownLatch(1);
         final AtomicReference<Surface> surfaceRef = new AtomicReference<>(null);
