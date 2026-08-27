@@ -24,7 +24,7 @@
                   {
                     "id": "root_c0_c0_c0",
                     "type": "Container",
-                    "styles": {"width": 48, "height": 48, "borderRadius": 999, "backgroundColor": "#E8F3FF", "alignItems": "center", "justifyContent": "center"},
+                    "styles": {"width": 48, "height": 48, "borderRadius": 999, "backgroundColor": "rgba(0,125,255,0.08)", "alignItems": "center", "justifyContent": "center"},
                     "children": [
                       {"id": "root_c0_c0_c0_c0", "type": "Text", "text": "☀", "styles": {"fontSize": 24}}
                     ]
@@ -34,15 +34,15 @@
                     "type": "Column",
                     "styles": {"marginLeft": 12, "flex": 1},
                     "children": [
-                      {"id": "root_c0_c0_c1_c0", "type": "Text", "text": "北京", "styles": {"fontSize": 16, "fontWeight": "bold", "color": "#181818"}},
-                      {"id": "root_c0_c0_c1_c1", "type": "Text", "text": "晴 · 微风", "styles": {"fontSize": 14, "color": "#666666"}}
+                      {"id": "root_c0_c0_c1_c0", "type": "Text", "text": "北京", "styles": {"fontSize": 16, "fontWeight": "Medium", "color": "rgba(0,0,0,0.90)"}},
+                      {"id": "root_c0_c0_c1_c1", "type": "Text", "text": "晴 · 微风", "styles": {"fontSize": 14, "color": "rgba(0,0,0,0.60)"}}
                     ]
                   },
                   {
                     "id": "root_c0_c0_c2",
                     "type": "Text",
                     "text": "23°",
-                    "styles": {"fontSize": 30, "fontWeight": "bold", "color": "#007DFF"}
+                    "styles": {"fontSize": 28, "fontWeight": "Medium", "color": "#007DFF"}
                   }
                 ],
                 "styles": {"paddingLeft": 16, "paddingRight": 16, "paddingTop": 16, "paddingBottom": 12, "alignItems": "center"}
@@ -50,7 +50,7 @@
               {
                 "id": "root_c0_c1",
                 "type": "Divider",
-                "styles": {"backgroundColor": "#E8EAED", "height": 1, "marginLeft": 16, "marginRight": 16}
+                "styles": {"backgroundColor": "rgba(0,0,0,0.08)", "height": 1, "marginLeft": 16, "marginRight": 16}
               },
               {
                 "id": "root_c0_c2",
@@ -61,8 +61,8 @@
                     "type": "Column",
                     "styles": {"flex": 1, "alignItems": "center"},
                     "children": [
-                      {"id": "root_c0_c2_c0_c0", "type": "Text", "text": "湿度", "styles": {"fontSize": 12, "color": "#999999"}},
-                      {"id": "root_c0_c2_c0_c1", "type": "Text", "text": "45%", "styles": {"fontSize": 14, "color": "#181818", "marginTop": 4}}
+                      {"id": "root_c0_c2_c0_c0", "type": "Text", "text": "湿度", "styles": {"fontSize": 12, "color": "rgba(0,0,0,0.40)"}},
+                      {"id": "root_c0_c2_c0_c1", "type": "Text", "text": "45%", "styles": {"fontSize": 14, "color": "rgba(0,0,0,0.90)", "marginTop": 4}}
                     ]
                   },
                   {
@@ -70,8 +70,8 @@
                     "type": "Column",
                     "styles": {"flex": 1, "alignItems": "center"},
                     "children": [
-                      {"id": "root_c0_c2_c1_c0", "type": "Text", "text": "风速", "styles": {"fontSize": 12, "color": "#999999"}},
-                      {"id": "root_c0_c2_c1_c1", "type": "Text", "text": "3级", "styles": {"fontSize": 14, "color": "#181818", "marginTop": 4}}
+                      {"id": "root_c0_c2_c1_c0", "type": "Text", "text": "风速", "styles": {"fontSize": 12, "color": "rgba(0,0,0,0.40)"}},
+                      {"id": "root_c0_c2_c1_c1", "type": "Text", "text": "3级", "styles": {"fontSize": 14, "color": "rgba(0,0,0,0.90)", "marginTop": 4}}
                     ]
                   },
                   {
@@ -79,8 +79,8 @@
                     "type": "Column",
                     "styles": {"flex": 1, "alignItems": "center"},
                     "children": [
-                      {"id": "root_c0_c2_c2_c0", "type": "Text", "text": "AQI", "styles": {"fontSize": 12, "color": "#999999"}},
-                      {"id": "root_c0_c2_c2_c1", "type": "Text", "text": "优 42", "styles": {"fontSize": 14, "color": "#181818", "marginTop": 4}}
+                      {"id": "root_c0_c2_c2_c0", "type": "Text", "text": "AQI", "styles": {"fontSize": 12, "color": "rgba(0,0,0,0.40)"}},
+                      {"id": "root_c0_c2_c2_c1", "type": "Text", "text": "优 42", "styles": {"fontSize": 14, "color": "rgba(0,0,0,0.90)", "marginTop": 4}}
                     ]
                   }
                 ],
@@ -89,7 +89,7 @@
             ]
           }
         ],
-        "styles": {"borderRadius": 16, "backgroundColor": "#FFFFFF", "elevation": 2}
+        "styles": {"borderRadius": 12, "backgroundColor": "#FFFFFF", "elevation": 2}
       }
     ]
   },

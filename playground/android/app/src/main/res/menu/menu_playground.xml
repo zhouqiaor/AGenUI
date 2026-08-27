@@ -7,13 +7,13 @@
         android:icon="@drawable/ic_qr_scan"
         android:title="@string/action_scan"
         android:contentDescription="@string/action_scan"
-        app:showAsAction="always" />
+        app:showAsAction="ifRoom" />
 
     <item
         android:id="@+id/action_toggle_theme"
         android:title="@string/action_toggle_theme"
         app:actionLayout="@layout/theme_switch_action_view"
-        app:showAsAction="always" />
+        app:showAsAction="ifRoom" />
 
     <item
         android:id="@+id/action_edit"
@@ -23,7 +23,7 @@
     <item
         android:id="@+id/action_widget_preview"
         android:title="Widget Preview"
-        app:showAsAction="always" />
+        app:showAsAction="ifRoom" />
 
     <item
         android:id="@+id/action_ai_input"

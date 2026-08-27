@@ -70,6 +70,7 @@
     <string name="widget_empty_state">暂无数据</string>
     <string name="widget_error_state">渲染失败，请刷新重试</string>
     <string name="widget_glance_description">AGenUI Glance Widget (Compose-based)</string>
+    <string name="widget_glance_title">A2UI Glance Widget</string>
 
     <!-- AI Input -->
     <string name="widget_ai_input">AI input</string>

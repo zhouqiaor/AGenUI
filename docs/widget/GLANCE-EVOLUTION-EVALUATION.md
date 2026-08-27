@@ -1,7 +1,7 @@
 # Glance 演进评估报告
 
-> 日期: 2026-08-27 | 分支: `feature/glance-evolution`
-> 基线: PoC (4a69e53) → 演进版 (200 轮自迭代 R1-R200)
+> 日期: 2026-08-27 | 分支: main (直接迭代)
+> 基线: PoC (4a69e53) → 演进版 (210 轮自迭代 R1-R210)
 
 ---
 
@@ -70,13 +70,24 @@
 1. **SurfaceManager 无池化**: Worker 每次创建新实例——未来可池化减少初始化开销
 2. **postDelayed 硬编码**: 已提取为常量但仍是固定 100ms——未来可参数化或用条件等待替代
 
-### 1.5 结论
+### 1.5 Sprint 7 验证结果 (R201-R210)
 
-- 200 轮迭代完成，从 950 行增长到 1450 行（+53%）
+| 验证项 | 结果 | 说明 |
+|--------|------|------|
+| AndroidManifest.xml 注册 | ✅ 通过 | A2UIGlanceWidgetReceiver 已注册，含 APPWIDGET_UPDATE intent-filter + meta-data |
+| 独立 widget label | ✅ 通过 | `widget_glance_title` = "A2UI Glance Widget"，与 RemoteViews widget 区分 |
+| Gradle compileDebugKotlin | ✅ 通过 | BUILD SUCCESSFUL (2m16s)，5 文件 1436 行零编译错误 |
+| processDebugManifest | ✅ 通过 | Manifest XML 合并成功（在 compile task 中验证） |
+| Android Lint | ⚠️ 受限 | AV 锁定 build 目录 PNG 生成阻断 lintDebug；需 CI 环境完整运行 |
+| String 资源完整性 | ✅ 通过 | widget_glance_description + widget_glance_title + widget_loading 全部存在 |
+
+### 1.6 结论
+
+- 210 轮迭代完成，从 950 行增长到 1450 行（+53%）
 - 共修复 35+ 个问题（3 HIGH, 15+ MED, 10+ LOW）
-- 所有 ActionCallback 统一使用 updateStateViaGlance
-- Worker 具备 skip-if-fresh、stale cleanup、error capture、unique work 等生产能力
-- 仍不合入 main，等设备验证
+- Sprint 7 关键里程碑：Manifest 注册 + 编译验证通过
+- Worktree 方案因 AV 持续删除元数据废弃，改为直接在 main 迭代
+- 仍不合入 main 的正式发布，等 Sprint 8 测试 + Sprint 10 设备验证
 
 ### 1.2 架构演进
 

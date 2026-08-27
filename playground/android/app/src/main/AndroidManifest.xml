@@ -27,7 +27,8 @@
         <activity
             android:name=".A2UIPlaygroundActivity"
             android:exported="true"
-            android:screenOrientation="portrait"
+            android:screenOrientation="landscape"
+            android:configChanges="screenSize|orientation|keyboardHidden|navigation"
             android:theme="@style/Theme.AGenUIPlayground.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -73,6 +74,19 @@
                 android:resource="@xml/a2ui_widget_info" />
         </receiver>
 
+        <!-- A2UI Glance Widget (Compose-based, Glance 1.1.1) -->
+        <receiver
+            android:name=".widget.glance.A2UIGlanceWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_glance_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/a2ui_glance_widget_info" />
+        </receiver>
+
         <!-- Transparent Activity for widget rendering (Bitmap bridging) -->
         <activity
             android:name=".widget.WidgetRenderActivity"
@@ -95,6 +109,24 @@
             android:exported="false"
             android:excludeFromRecents="true"
             android:taskAffinity=""
+            android:theme="@style/Theme.AGenUIPlayground.Transparent" />
+
+        <!-- Template list picker — HarmonyOS half-modal (right Sheet) -->
+        <activity
+            android:name=".widget.WidgetTemplateListActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:theme="@style/Theme.AGenUIPlayground.Transparent" />
+
+        <!-- AI Input Overlay — full-screen 小艺 floating panel on 4K display -->
+        <activity
+            android:name=".widget.AiInputOverlayActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:screenOrientation="landscape"
+            android:configChanges="screenSize|orientation|keyboardHidden"
             android:theme="@style/Theme.AGenUIPlayground.Transparent" />
 
         <!-- Widget configuration activity — shown when user places a new widget -->

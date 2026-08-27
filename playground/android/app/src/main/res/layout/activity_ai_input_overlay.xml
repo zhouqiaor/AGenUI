@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  小艺 AI Input 全屏浮层 — 覆盖整个 4K 大屏。
+  右侧 ~30% 宽度显示 AI 输入面板，左侧半透明遮罩点击关闭。
+  面板从右侧滑入 (slide_in_right 动画)。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#99000000">
+
+    <!-- Dim background — click to dismiss -->
+    <View
+        android:id="@+id/overlayDim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Right-side AI panel — 30% screen width, full height -->
+    <FrameLayout
+        android:id="@+id/overlayPanelContainer"
+        android:layout_width="30%"
+        android:layout_height="match_parent"
+        android:layout_gravity="end">
+
+        <!-- Reuse the existing AI drawer layout -->
+        <include layout="@layout/drawer_ai_input" />
+
+    </FrameLayout>
+
+</FrameLayout>

@@ -120,6 +120,11 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
     private View aiDrawerRoot;
     private View drawerRightContainer;
     private AiInputDrawerController aiDrawerController;
+    // Bottom input area (inline, toggles with AI drawer)
+    private EditText etQueryInput;
+    private Button btnSendQuery;
+    private View bottomInputArea;
+    private boolean bottomInputVisible = true;
     private WidgetPartialParser aiPartialParser;
     private WidgetLLMClient aiLlmClient;
     private WidgetHistoryRepository aiHistoryRepository;
@@ -235,6 +240,7 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
         setupNavigationDrawer();
         setupLogsArea();
         setupDrawer();
+        setupBottomInput();
 
         // Initialize Story loader
         initStoryLoader();
@@ -327,6 +333,15 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
         tvFps = findViewById(R.id.tvFps);
         tvMemory = findViewById(R.id.tvMemory);
         tvAvgFps = findViewById(R.id.tvAvgFps);
+
+        // Bottom input area (inline query input — toggles with right-side AI drawer)
+        etQueryInput = findViewById(R.id.etQueryInput);
+        btnSendQuery = findViewById(R.id.btnSendQuery);
+        View btnSelectImage = findViewById(R.id.btnSelectImage);
+        // The entire bottom input LinearLayout is the 2nd child of the outer vertical
+        // (index: toolbar=0, renderContainer=1, divider=2, bottomInput=3, ...)
+        // We tag it for show/hide toggling.
+        bottomInputArea = (View) btnSendQuery.getParent().getParent();
     }
 
     /**
@@ -545,8 +560,8 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
             // Widget Preview: render weather template and show bitmap in renderContent
             showWidgetPreview();
         } else if (id == R.id.action_ai_input) {
-            // Click "AI Input", open right AI input drawer
-            openAiDrawer();
+            // Launch the full-screen AI Input overlay (小艺 panel on 4K display)
+            launchAiInputOverlay();
             return true;
         }
 
@@ -736,6 +751,61 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
     }
 
     /**
+     * Setup bottom inline input area.
+     *
+     * <p>The bottom input bar (etQueryInput + btnSendQuery) is visible by default.
+     * When the user taps the toolbar "AI Input" button (action_ai_input), it
+     * toggles between:
+     * <ul>
+     *   <li>Bottom inline input (compact, always-on)</li>
+     *   <li>Right-side 小艺 panel (full keyboard/voice/file tabs)</li>
+     * </ul>
+     * If the right-side AI drawer is open, tapping "AI Input" closes it and
+     * re-shows the bottom input. If the bottom input is visible, tapping it
+     * hides the bottom bar and opens the right-side AI drawer.
+     */
+    private void setupBottomInput() {
+        if (btnSendQuery == null || etQueryInput == null) {
+            Log.e(TAG, "setupBottomInput: btnSendQuery or etQueryInput is null!");
+            return;
+        }
+        Log.d(TAG, "setupBottomInput: wiring click listener, btnSendQuery=" + btnSendQuery);
+
+        btnSendQuery.setOnClickListener(v -> {
+            Log.d(TAG, "btnSendQuery clicked!");
+            String text = etQueryInput.getText() != null
+                    ? etQueryInput.getText().toString().trim() : "";
+            if (text.isEmpty()) {
+                Log.w(TAG, "btnSendQuery: text is empty, ignoring");
+                return;
+            }
+            // Hide IME before streaming
+            android.view.inputmethod.InputMethodManager imm =
+                    (android.view.inputmethod.InputMethodManager)
+                            getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+            if (imm != null && imm.isAcceptingText()) {
+                imm.hideSoftInputFromWindow(etQueryInput.getWindowToken(), 0);
+            }
+            // Reuse the same LLM streaming pipeline as the AI drawer
+            streamLLMToPlayground(text);
+            etQueryInput.setText("");
+        });
+
+        // Allow Enter key to send (for physical keyboard / large screen)
+        etQueryInput.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEND
+                    || actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+                    || actionId == android.view.inputmethod.EditorInfo.IME_ACTION_GO
+                    || (event != null && event.getKeyCode() == android.view.KeyEvent.KEYCODE_ENTER
+                        && event.getAction() == android.view.KeyEvent.ACTION_UP)) {
+                btnSendQuery.performClick();
+                return true;
+            }
+            return false;
+        });
+    }
+
+    /**
      * Open editor
      */
     private void openEditor(EditorType type) {
@@ -822,6 +892,57 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
     }
 
     /**
+     * Toggle between bottom inline input and right-side AI drawer panel.
+     *
+     * <p>If the right-side AI drawer is currently open, close it and restore
+     * the bottom input bar. If the bottom input is visible (default state),
+     * hide it and open the right-side AI drawer panel (小艺风格).
+     */
+    private void toggleInputMode() {
+        boolean aiDrawerOpen = aiDrawerRoot != null
+                && aiDrawerRoot.getVisibility() == View.VISIBLE;
+        if (aiDrawerOpen) {
+            // Close right-side AI drawer, show bottom input
+            closeAiDrawer();
+            showBottomInput(true);
+        } else {
+            // Hide bottom input, open right-side AI drawer
+            showBottomInput(false);
+            openAiDrawer();
+        }
+    }
+
+    /** Request code for the AI Input overlay Activity. */
+    private static final int REQUEST_AI_INPUT_OVERLAY = 9001;
+
+    /**
+     * Launches the full-screen AI Input overlay (小艺 panel).
+     *
+     * <p>On 4K conference displays, the App window may be limited to a portion
+     * of the screen. This launches a separate transparent Activity that covers
+     * the entire display, with the AI panel on the right side at 30% width.
+     *
+     * <p>The overlay returns the user's input text via onActivityResult.
+     */
+    private void launchAiInputOverlay() {
+        Intent intent = new Intent(this,
+                com.amap.agenuiplayground.widget.AiInputOverlayActivity.class);
+        startActivityForResult(intent, REQUEST_AI_INPUT_OVERLAY);
+        // Disable default transition; overlay has its own slide-in animation
+        overridePendingTransition(0, 0);
+    }
+
+    /**
+     * Show or hide the bottom inline input area.
+     */
+    private void showBottomInput(boolean show) {
+        if (bottomInputArea != null) {
+            bottomInputArea.setVisibility(show ? View.VISIBLE : View.GONE);
+        }
+        bottomInputVisible = show;
+    }
+
+    /**
      * Open the AI input drawer (小艺风格侧边面板).
      *
      * <p>Hides the JSON editor view inside the right drawer container so
@@ -850,6 +971,8 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
         if (editorView != null) editorView.setVisibility(View.VISIBLE);
         if (aiDrawerRoot != null) aiDrawerRoot.setVisibility(View.GONE);
         if (aiDrawerController != null) aiDrawerController.reset();
+        // Restore bottom input bar
+        showBottomInput(true);
     }
 
     /**
@@ -1019,6 +1142,9 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
                                 Log.w(TAG, "AI Drawer: endTextStream on error failed", ex);
                             }
                             // 降级链：LLM 错误 → 智能意图匹配模板 → notecard
+                            // Bug A fix: even if LLM times out, we should still try keyword
+                            // template matching first, which doesn't need network
+                            Log.d(TAG, "AI Drawer: attempting fallback for input: " + userText);
                             final boolean recovered = applyLLMErrorFallbackChain(
                                     userText, surfaceId);
                             // 记录到对话记忆（template 为降级推荐到的模板，可能为 null）
@@ -1702,6 +1828,23 @@ public class A2UIPlaygroundActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+
+        // Handle AI Input overlay result
+        if (requestCode == REQUEST_AI_INPUT_OVERLAY) {
+            if (resultCode == RESULT_OK && data != null) {
+                String text = data.getStringExtra(
+                        com.amap.agenuiplayground.widget.AiInputOverlayActivity.EXTRA_INPUT_TEXT);
+                if (text != null && !text.trim().isEmpty()) {
+                    Log.d(TAG, "AI Overlay returned text: " + text);
+                    addLog("AI Overlay: received input, streaming to playground");
+                    streamLLMToPlayground(text.trim());
+                }
+            }
+            // Override pending transition to avoid default fade
+            overridePendingTransition(0, 0);
+            return;
+        }
+
         // Forward to AI drawer controller for file picker
         if (aiDrawerController != null) {
             aiDrawerController.onActivityResult(requestCode, resultCode, data);

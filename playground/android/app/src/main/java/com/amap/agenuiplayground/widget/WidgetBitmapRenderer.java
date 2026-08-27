@@ -66,8 +66,9 @@ public final class WidgetBitmapRenderer {
 
         int w = container.getMeasuredWidth();
         int h = container.getMeasuredHeight();
+        if (w <= 0) w = width;
         if (h <= 0) h = height;
-        Log.d(TAG, "Measured: " + w + "x" + h);
+        Log.d(TAG, "Measured: " + w + "x" + h + " (target: " + width + "x" + height + ")");
 
         container.layout(0, 0, w, h);
 

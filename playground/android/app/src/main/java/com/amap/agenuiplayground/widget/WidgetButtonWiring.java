@@ -57,13 +57,13 @@ public final class WidgetButtonWiring {
 
     private static void wireSwitchTemplate(Context context, RemoteViews views,
                                             int appWidgetId, String currentTemplate) {
-        String nextTemplate = WidgetProtocolTemplates.getNextTemplate(currentTemplate);
-        Intent switchIntent = new Intent(context, A2UIWidgetProvider.class);
-        switchIntent.setAction(A2UIWidgetProvider.ACTION_SWITCH_TEMPLATE);
-        switchIntent.putExtra(A2UIWidgetProvider.EXTRA_APPWIDGET_ID, appWidgetId);
-        switchIntent.putExtra(A2UIWidgetProvider.EXTRA_TEMPLATE, nextTemplate);
+        // Launch the template list picker Activity instead of cycling to next.
+        // This gives the user direct random access to all 10 templates.
+        Intent listIntent = new Intent(context, WidgetTemplateListActivity.class);
+        listIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        listIntent.putExtra(A2UIWidgetProvider.EXTRA_APPWIDGET_ID, appWidgetId);
         views.setOnClickPendingIntent(R.id.btnSwitchTemplate,
-                PendingIntent.getBroadcast(context, appWidgetId * 10 + 2, switchIntent,
+                PendingIntent.getActivity(context, appWidgetId * 10 + 2, listIntent,
                         PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
     }
 

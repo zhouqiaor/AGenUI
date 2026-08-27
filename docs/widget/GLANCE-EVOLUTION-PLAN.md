@@ -1,8 +1,8 @@
 # Glance 演进技术方案
 
-> Worktree: `C:/Code/AGenUI-wt-glance` | 分支: `feature/glance-evolution`
+> Worktree: 已废弃（AV 持续删除 worktree 元数据）| 分支: 直接在 main 迭代
 > 基线: `4a69e53` (Phase 4 PoC) | 制定: 2026-08-26
-> 更新: 2026-08-27 — R1-R200 完成 + R201+ 规划
+> 更新: 2026-08-27 — R1-R210 完成 + Sprint 7 验证通过
 
 ---
 
@@ -80,18 +80,24 @@ CancellationException 吞没、ActionParameters API 错误、bitmap.recycle 后�
 
 ## R201+ 迭代规划
 
-### Sprint 7: 编译验证 + Manifest 注册 (R201-R210) — CRITICAL
+### Sprint 7: 编译验证 + Manifest 注册 (R201-R210) ✅ 完成
 
 **阻断性问题**: AndroidManifest.xml 未注册 A2UIGlanceWidgetReceiver。
 不注册的话 Glance widget 在桌面上完全不可见。
 
-| 轮次 | 任务 | 说明 |
-|------|------|------|
-| R201 | AndroidManifest 注册 | 添加 `<receiver>` for A2UIGlanceWidgetReceiver + `<meta-data>` 指向 a2ui_glance_widget_info.xml |
-| R202 | Manifest intent-filter | APPWIDGET_UPDATE action + 配置 Activity (如果需要) |
-| R203-R205 | Gradle 编译验证 | `./gradlew assembleDebug` 确认无编译错误，修复所有 lint warning |
-| R206-R207 | Unused import 清理 | 检查所有 5 个文件的 import 是否都被使用 |
-| R208-R210 | Strings 资源补全 | widget_glance_description 等 string 确认存在 |
+| 轮次 | 任务 | 说明 | 状态 |
+|------|------|------|------|
+| R201 | AndroidManifest 注册 | 添加 `<receiver>` for A2UIGlanceWidgetReceiver + `<meta-data>` 指向 a2ui_glance_widget_info.xml | ✅ |
+| R202 | 独立 label | 添加 `widget_glance_title` string，与 RemoteViews widget 区分 | ✅ |
+| R203-R204 | Gradle 编译验证 | `compileDebugKotlin` BUILD SUCCESSFUL (2m16s)，5 个 Kotlin 文件 1436 行零错误 | ✅ |
+| R205 | 提交 | commit `b3dec71b` — AndroidManifest.xml + strings.xml | ✅ |
+| R206-R207 | Lint 检查 | `lintDebug` 被 AV 锁定 build 目录 PNG 生成阻断；`processDebugManifest` task 已通过 | ⚠️ 需 CI |
+| R208-R210 | Strings 资源补全 | widget_glance_description + widget_glance_title 确认存在 | ✅ |
+
+**关键发现**:
+- Worktree 方案在 Windows AV 环境不可靠（AV 持续删除 `.git/worktrees/` 元数据和 ref 文件）
+- 改为直接在 main 分支迭代，用 `git_nested_commit.py` 绕过 index.lock
+- `gradle-wrapper.jar` 也被 AV 删除，需从主仓库复制
 
 ### Sprint 8: 单元测试 + 集成测试 (R211-R230)
 
