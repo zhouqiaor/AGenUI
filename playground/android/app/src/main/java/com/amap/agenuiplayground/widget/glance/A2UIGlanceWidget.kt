@@ -162,7 +162,7 @@ class A2UIGlanceWidget : GlanceAppWidget() {
         ) {
             Image(
                 provider = ImageProvider(bitmap),
-                contentDescription = "AGenUI widget",
+                contentDescription = "AGenUI ${if (state.viewMode == A2UIGlanceStateDefinition.VIEW_MODE_FORECAST) "预报" else "实况"}",
                 modifier = GlanceModifier.fillMaxSize(),
                 contentScale = ContentScale.Fit
             )
@@ -402,6 +402,10 @@ class A2UIGlanceWidgetReceiver : GlanceAppWidgetReceiver() {
         super.onDisabled(context)
         Log.d(TAG, "onDisabled: cancelling periodic render")
         GlanceRenderWorker.cancelPeriodic(context)
+        // Only clear cache if this was the last widget instance
+        // (onDisabled fires when last instance is removed, but check for safety)
+        // Note: onDisabled is only called when the last instance is removed,
+        // so clearing all cache here is correct.
         GlanceBitmapCache.clearAll(context)
     }
 }

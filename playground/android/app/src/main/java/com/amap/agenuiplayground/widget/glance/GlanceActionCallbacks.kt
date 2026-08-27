@@ -44,6 +44,7 @@ object GlanceActionCallbacks {
 
     /**
      * Manually refresh the widget content.
+     * Clears any existing error so the render worker starts fresh.
      */
     class RefreshAction : ActionCallback {
         override suspend fun onAction(
@@ -52,6 +53,8 @@ object GlanceActionCallbacks {
             parameters: ActionParameters
         ) {
             Log.d(TAG, "RefreshAction: id=$glanceId")
+            // Clear error to ensure Worker doesn't skip due to stale error state
+            A2UIGlanceStateDefinition.clearError(context)
             GlanceRenderWorker.renderNow(context)
         }
     }

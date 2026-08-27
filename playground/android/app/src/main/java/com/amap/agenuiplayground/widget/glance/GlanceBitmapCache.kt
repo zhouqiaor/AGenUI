@@ -104,6 +104,7 @@ object GlanceBitmapCache {
                     opts.outWidth, opts.outHeight, maxWidth, maxHeight
                 )
                 opts.inJustDecodeBounds = false
+                opts.inPreferredConfig = Bitmap.Config.RGB_565 // 50% memory vs ARGB_8888 for widget display
                 val bitmap = BitmapFactory.decodeFile(file.absolutePath, opts)
                 if (bitmap != null) {
                     Log.d(TAG, "load: widget=$appWidgetId, ${bitmap.width}x${bitmap.height}, sample=${opts.inSampleSize}")

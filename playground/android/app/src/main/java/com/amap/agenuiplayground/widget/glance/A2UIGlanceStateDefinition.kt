@@ -159,4 +159,13 @@ data class A2UIGlanceState(
 ) {
     val hasBitmap: Boolean get() = bitmapPath.isNotEmpty()
     val hasError: Boolean get() = errorMsg.isNotEmpty()
+
+    /**
+     * True if the state was updated within the given freshness window.
+     * Use to decide whether a periodic Worker should skip rendering.
+     */
+    fun isFresh(maxAgeMs: Long): Boolean {
+        if (lastUpdateTs <= 0L) return false
+        return System.currentTimeMillis() - lastUpdateTs < maxAgeMs
+    }
 }

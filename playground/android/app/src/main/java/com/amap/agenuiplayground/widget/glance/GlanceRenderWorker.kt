@@ -111,6 +111,12 @@ class GlanceRenderWorker(
         val renderStartMs = System.currentTimeMillis()
         val state = A2UIGlanceStateDefinition.getWidgetState(context)
 
+        // Skip if content was rendered within the periodic interval (avoids redundant work)
+        if (state.isFresh(PERIODIC_INTERVAL_MIN * 60 * 1000L) && !state.hasError) {
+            Log.d(TAG, "doWork: skipping, content fresh (lastUpdate=${state.lastUpdateTs})")
+            return Result.success()
+        }
+
         val templateName = if (state.template.isNotEmpty()) state.template
                            else WidgetProtocolTemplates.DEFAULT_TEMPLATE
 
@@ -138,6 +144,7 @@ class GlanceRenderWorker(
 
         val surfaceManager = SurfaceManager(context)
         val surfaceRef = AtomicReference<Surface?>(null)
+        val surfaceErrorRef = AtomicReference<String?>(null)
         val surfaceCreated = CountDownLatch(1)
         val rootComponentReady = CountDownLatch(1)
 
@@ -156,8 +163,11 @@ class GlanceRenderWorker(
             }
             override fun onError(surface: Surface?, code: Int, message: String?) {
                 Log.e(TAG, "Surface error: code=$code, msg=$message")
+                // Unblock any waiting latches so Worker can proceed to error handling
                 surfaceCreated.countDown()
                 rootComponentReady.countDown()
+                // Capture error for doRenderWork to report
+                surfaceErrorRef.set("Surface error: $code/$${message ?: "unknown"}")
             }
             override fun onBlankCheckResult(surface: Surface?, isBlank: Boolean) {}
             override fun onComponentAppeared(
@@ -188,6 +198,15 @@ class GlanceRenderWorker(
             return Result.retry()
         }
         rootComponentReady.await(SURFACE_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+
+        // Check if SurfaceManager reported an error during creation/streaming
+        surfaceErrorRef.get()?.let { errMsg ->
+            Log.e(TAG, "Surface error during render: $errMsg")
+            A2UIGlanceStateDefinition.setError(context, errMsg)
+            A2UIGlanceWidgetReceiver.updateAll(context)
+            cleanup(surfaceManager)
+            return Result.failure()
+        }
 
         val surface = surfaceRef.get()
         if (surface == null) {
@@ -258,12 +277,16 @@ class GlanceRenderWorker(
 
         val w = container.measuredWidth
         var h = container.measuredHeight
+        if (w <= 0) {
+            Log.w(TAG, "Measured width is 0, falling back to WIDGET_WIDTH")
+        }
         if (h <= 0) h = WIDGET_HEIGHT
-        Log.d(TAG, "Measured: ${w}x${h}")
+        val renderW = if (w <= 0) WIDGET_WIDTH else w
+        Log.d(TAG, "Measured: ${renderW}x${h}")
 
-        container.layout(0, 0, w, h)
+        container.layout(0, 0, renderW, h)
 
-        val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val bitmap = Bitmap.createBitmap(renderW, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.drawColor(android.graphics.Color.WHITE)
         // ViewGroup.draw() already dispatches to children via dispatchDraw();
