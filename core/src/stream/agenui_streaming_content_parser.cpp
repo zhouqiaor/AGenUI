@@ -114,10 +114,38 @@ namespace agenui {
         if (_pendingUpdates.empty()) {
             return;
         }
-        // Dispatch the pending results as a batch.
-        dispatchParseResultsBatched(_pendingUpdates);
-        _pendingUpdates.clear();
+        // Move pending to a local variable to avoid re-buffering inside dispatchParseResultsBatched.
+        // dispatchParseResultsBatched would see the single contiguous run as "isLastRun" and
+        // re-buffer it into _pendingUpdates instead of dispatching — creating an infinite loop
+        // where flushPendingUpdates re-invokes dispatchParseResultsBatched which re-buffers.
+        // By moving the data out first, dispatchParseResultsBatched's isLastRun branch will
+        // still buffer into _pendingUpdates, but that's fine because we clear it right after.
+        auto pending = std::move(_pendingUpdates);
         _pendingSurfaceId.clear();
+        dispatchParseResultsBatched(pending);
+        // After dispatch, if dispatchParseResultsBatched re-buffered into _pendingUpdates
+        // (because it was isLastRun), we need to force-dispatch those now.
+        if (!_pendingUpdates.empty()) {
+            pending = std::move(_pendingUpdates);
+            _pendingSurfaceId.clear();
+            // Force dispatch: call sendSingleComponentUpdate / sendBatchedComponentUpdate directly.
+            size_t cursor = 0;
+            const size_t count = pending.size();
+            while (cursor < count) {
+                size_t batchEnd = cursor + 1;
+                while (batchEnd < count && pending[batchEnd].surfaceId == pending[cursor].surfaceId) {
+                    ++batchEnd;
+                }
+                if (batchEnd - cursor == 1) {
+                    sendSingleComponentUpdate(pending[cursor].componentJson,
+                                              pending[cursor].surfaceId,
+                                              pending[cursor].version);
+                } else {
+                    sendBatchedComponentUpdate(pending, cursor, batchEnd);
+                }
+                cursor = batchEnd;
+            }
+        }
     }
 
     void StreamingContentParser::dispatchParseResultsBatched(const std::vector<ProtocolStreamExtractor::ParseResult>& results) {

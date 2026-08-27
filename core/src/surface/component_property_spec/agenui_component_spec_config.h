@@ -40,6 +40,14 @@ static const char* const kBaseComponentSpecConfig = R"JSON({
         }
       }
     },
+    "Container": {
+      "styles": {
+        "default": {
+          "width": "auto",
+          "height": "auto"
+        }
+      }
+    },
     "Divider": {
       "axis": {
         "default": "horizontal",
