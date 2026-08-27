@@ -55,3 +55,9 @@ test_screenshots/
 
 # Temp gradle output logs
 gradle_out*.txt
+
+# Build output logs
+build_output.txt
+
+# Playground temp caches
+playground/android/tmp/
