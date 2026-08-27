@@ -1,9 +1,10 @@
-# AGenUI Test Coverage Report (R81-R220)
+# AGenUI Test Coverage Report (R81-R280)
 
 ## Overview
 
-This report summarizes the test coverage expansion from Round 81 through Round 220,
-covering C++ edge case tests, Android widget E2E tests, and performance benchmarks.
+This report summarizes the test coverage expansion from Round 81 through Round 280,
+covering C++ edge case tests, Android widget E2E tests, LLM/NLU tests, full regression,
+and performance benchmarks.
 
 ## 1. C++ Core Engine Tests (R81-R180)
 
@@ -83,17 +84,76 @@ WidgetInfrastructure    ██████████████████ 1
 
 **Pre-R181 Total: 119 test cases**
 
-## 4. Grand Total
+## 4. LLM/NLU Tests (R221-R250)
+
+### Test Files Created
+
+| File | Focus Area | Test Count | Key Classes Tested |
+|------|-----------|-----------|-------------------|
+| WidgetNLUParserTest.java | Entity extraction | 40 | WidgetNLUParser, NLUResult |
+| WidgetConversationMemoryTest.java | Multi-turn context | 23 | WidgetConversationMemory, Entry |
+
+**LLM/NLU Total: 63 test cases across 2 test files**
+
+### NLU Test Coverage
+
+- Number extraction (standalone, with units, deduplication)
+- Time expression extraction (today/tomorrow/weekday/period, dedup of synonyms)
+- City/location detection (36 Chinese cities, multiple city first-match)
+- Weather entities (temperature, humidity, wind level, AQI)
+- Number-with-unit entities (days, people, hours, minutes, etc.)
+- toPromptHint() format (comma-separated key=value pairs)
+- Edge cases: null, empty, whitespace, no entities
+
+### Conversation Memory Test Coverage
+
+- addEntry + getEntries (order, trimming, null/empty rejection)
+- MAX_HISTORY (5) cap with FIFO eviction
+- getLastTemplate (skips null templates, empty history)
+- getLastUserText (most recent, empty history)
+- getHistoryJson (LLM messages format, user/assistant roles)
+- clear (removes all entries, safe on empty)
+- Persistence (survives new instance via SharedPreferences)
+
+## 5. Full Regression (R251-R280)
+
+### Test File Created
+
+| File | Test Count | Focus |
+|------|-----------|-------|
+| WidgetFullRegressionTest.java | 20 | Cross-module integration |
+
+**Regression Total: 20 test cases**
+
+### Regression Coverage
+
+- FR01-FR04: Registry → Intent Matcher cross-validation
+- FR05: Template loading → Validator pipeline
+- FR06: Bitmap cache → Metrics recording pipeline
+- FR07-FR08: Fallback builder produces valid JSON
+- FR09: Size detector → Dimensions for all sizes
+- FR10: Pool obtain → State controller transitions
+- FR11-FR12: Template rotation + category partition
+- FR13-FR14: Validator rejects malformed / accepts fallback
+- FR15: Cache key consistency
+- FR16: Metrics reset
+- FR17: Intent matcher + NLU integration
+- FR18-FR19: State uniqueness + pool cap enforcement
+- FR20: End-to-end degradation chain (intent → template → fallback)
+
+## 6. Grand Total
 
 | Category | Files | Test Cases |
 |----------|-------|-----------|
 | C++ Core (R81-R180) | 12 | 160 |
 | Android Widget (R181-R210) | 6 | 122 |
+| LLM/NLU (R221-R250) | 2 | 63 |
+| Full Regression (R251-R280) | 1 | 20 |
 | Android Pre-R181 | 13 | 119 |
 | Protocol Fixtures (R141-R170) | 75 fixtures | 75 scenarios |
-| **Total** | **31+ files** | **476+ cases** |
+| **Total** | **34+ files** | **559+ cases** |
 
-## 5. Coverage by Module
+## 7. Coverage by Module
 
 ### C++ Core Engine (113 .h + 87 .cpp)
 
@@ -114,6 +174,9 @@ WidgetInfrastructure    ██████████████████ 1
 | Template Registry | 1 | 25 tests, all entries + categories | ✅ Comprehensive |
 | Bitmap Cache | 1 | 20 tests, lifecycle safety + LRU | ✅ Comprehensive |
 | Intent Matcher | 1 | 35 tests, keyword + fuzzy + score | ✅ Comprehensive |
+| NLU Parser | 1 | 40 tests, number/time/location/entity | ✅ Comprehensive |
+| Conversation Memory | 1 | 23 tests, multi-turn + persistence | ✅ Comprehensive |
+| Full Regression | 1 | 20 tests, cross-module integration | ✅ Good |
 | Size Detector | 1 | 13 tests, breakpoints + resolve | ✅ Good |
 | Render Metrics | 1 | 11 tests, record + summary + reset | ✅ Good |
 | State Controller | 1 | 8 tests, all 4 states | ✅ Good |
@@ -123,7 +186,7 @@ WidgetInfrastructure    ██████████████████ 1
 | Degradation | 1 | 12 tests (existing) | ✅ Good |
 | E2E (UiAutomator) | 1 | 3 tests (existing) | ⚠️ Device-dependent |
 
-## 6. Test Quality Metrics
+## 8. Test Quality Metrics
 
 ### Assertion Density
 - Average assertions per test: 2.3
@@ -140,16 +203,17 @@ WidgetInfrastructure    ██████████████████ 1
 - C++: `<Module>_<Scenario>_<ExpectedBehavior>` (e.g., `gradient_parser_empty_stops`)
 - Android: `<Prefix><Number>_<scenario>_<expected>` (e.g., `TR01_registry_hasAtLeast10Entries`)
 - Consistent prefix system: TR=TemplateRegistry, BC=BitmapCache, SD=SizeDetector,
-  RM=RenderMetrics, IM=IntentMatcher, SC=StateController, RP=RemoteViewsPool
+  RM=RenderMetrics, IM=IntentMatcher, SC=StateController, RP=RemoteViewsPool,
+  NLU=NLUParser, CM=ConversationMemory, FR=FullRegression
 
-## 7. Gaps and Future Work
+## 8. Gaps and Future Work
 
 ### Identified Gaps
 
 1. **WidgetConfigActivity** — No dedicated test for the config activity UI flow
-2. **WidgetNLUParser** — No unit tests for NLU parsing logic
-3. **WidgetConversationMemory** — No tests for multi-turn context
-4. **WidgetFallbackBuilder** — Only covered via WidgetStabilityTest, no dedicated suite
+2. ~~**WidgetNLUParser** — No unit tests for NLU parsing logic~~ ✅ Resolved (R221-R240)
+3. ~~**WidgetConversationMemory** — No tests for multi-turn context~~ ✅ Resolved (R241-R250)
+4. **WidgetFallbackBuilder** — Only covered via WidgetStabilityTest + FullRegression, no dedicated suite
 5. **AGenUIWidgetRenderService** — Orchestrator still has low direct test coverage
 6. **Partial widget updates** — `partiallyUpdateAppWidget` not tested (not implemented)
 7. **WorkManager periodic refresh** — Not tested (not implemented)
@@ -158,7 +222,7 @@ WidgetInfrastructure    ██████████████████ 1
 ### Recommended Next Steps
 
 1. Write WidgetConfigActivity instrumented test (template picker → selection → render)
-2. Write WidgetNLUParser unit tests (entity extraction, template suggestion)
+2. ~~Write WidgetNLUParser unit tests~~ ✅ Done (40 tests)
 3. Add AGenUIWidgetRenderService integration tests with mocked dependencies
 4. Implement partial update testing once feature is built
 5. Cross-launcher E2E testing on physical devices

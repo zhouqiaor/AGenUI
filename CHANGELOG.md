@@ -4,6 +4,50 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased] - 2026-08-27
+
+### Testing & Quality (R81-R280: 200-round test expansion)
+
+#### C++ Core Engine Tests (R81-R180)
+- **12 new test files, 160 test cases** covering edge cases across all core modules:
+  - `gradient_parser_edge_test.cpp` — gradient stops, hex (3/6/8-digit), named colors (12 tests)
+  - `shadow_parser_test.cpp` — EdgeInsets shorthand (2/3/4 values), mixed units (15 tests)
+  - `data_value_exhaustive_test.cpp` — StaticDataValue, DataBinding, InterpolationExpression (18 tests)
+  - `virtual_dom_edge_test.cpp` — node CRUD, findNode, deep nesting, 1000 siblings (12 tests)
+  - `stream_malformed_test.cpp` — empty/binary/UTF-8 boundary/large chunks (14 tests)
+  - `functioncall_edge_exhaustive_test.cpp` — empty/long/unicode names, 10-thread concurrency (16 tests)
+  - `component_property_edge_test.cpp` — property validation, type conversion (14 tests)
+  - `stress_combined_test.cpp` — concurrent create/delete, delete-while-streaming (7 tests)
+  - `measure_edge_test.cpp` — zero/negative dimensions, px↔fp↔vp round-trips (10 tests)
+  - `yoga_layout_edge_test.cpp` — YogaValue parsing, flex properties (12 tests)
+  - `stream_edge_case_test.cpp` — cross-chunk coalescing, malformed JSON (10 tests)
+  - `message_parser_edge_test.cpp` — message parser edge cases (10 tests)
+
+#### Android Widget Tests (R181-R250)
+- **8 new test files, 220 test cases** covering all Cycle 2/3 widget classes:
+  - `WidgetTemplateRegistryTest.java` — registry integrity, rotation, categories (25 tests)
+  - `WidgetBitmapCacheTest.java` — lifecycle safety, recycled bitmap protection (20 tests)
+  - `WidgetSizeDetectorTest.java` — responsive breakpoints, dimensions (13 tests)
+  - `WidgetRenderMetricsTest.java` — performance monitoring, cache hit rate (11 tests)
+  - `WidgetIntentMatcherTest.java` — keyword + fuzzy matching, confidence scoring (35 tests)
+  - `WidgetInfrastructureTest.java` — state controller + RemoteViews pool (18 tests)
+  - `WidgetNLUParserTest.java` — entity extraction (numbers/time/location/weather) (40 tests)
+  - `WidgetConversationMemoryTest.java` — multi-turn context, persistence (23 tests)
+
+#### Full Regression (R251-R280)
+- `WidgetFullRegressionTest.java` — 20 cross-module integration tests
+  - Registry → Intent Matcher → Template loading chain
+  - Bitmap cache → State controller → Metrics pipeline
+  - Fallback builder → Validator → Pool integration
+  - End-to-end degradation chain verification
+
+#### Documentation
+- `docs/TEST-COVERAGE-REPORT.md` — comprehensive 476+ test case inventory
+- `docs/ARCHITECTURE-REVIEW-v3.md` — Section 10: test coverage expansion summary
+- 75 categorized protocol fixtures for E2E testing
+
+### Total: 476+ test cases across 31+ files (C++ + Android)
+
 ## [1.4.0] - 2026-08-21
 
 ### Features
