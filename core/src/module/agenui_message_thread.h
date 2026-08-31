@@ -8,6 +8,10 @@
 #include <queue>
 #include <condition_variable>
 
+#if defined(__linux__) || defined(__ANDROID__) || defined(HARMONY)
+#include <pthread.h>
+#endif
+
 namespace agenui {
 
 /**
@@ -78,7 +82,11 @@ public:
     };
 
     std::string _name;                                              // thread name
-    std::thread _workerThread;                                      // worker thread
+    std::thread _workerThread;                                      // worker thread (Windows/Apple fallback)
+#if defined(__linux__) || defined(__ANDROID__) || defined(HARMONY)
+    pthread_t _nativeThread{};                                      // native pthread handle (16MB stack)
+    bool _useNativeThread = false;                                  // true if using pthread instead of std::thread
+#endif
     std::queue<std::function<void()>> _taskQueue;                   // task queue
     std::priority_queue<DelayedTask, std::vector<DelayedTask>,
                         std::greater<DelayedTask>> _delayedTaskQueue; // delayed task queue
