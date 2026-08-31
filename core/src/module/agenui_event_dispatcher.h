@@ -2,6 +2,7 @@
 
 #include "agenui_dispatcher_types.h"
 #include "agenui_message_listener.h"
+#include "surface/virtual_dom/agenui_virtual_dom_observer.h"
 #include <string>
 #include <vector>
 #include <mutex>
@@ -40,6 +41,13 @@ public:
      * @param msg Error message containing code, surfaceId, and description
      */
     void dispatchError(const ErrorMessage& msg);
+
+    /**
+     * @brief Dispatches HitMap to all listeners.
+     * @param surfaceId Surface identifier
+     * @param hitRegions Hit regions computed from the laid-out tree
+     */
+    void onHitMapReady(const std::string& surfaceId, const std::vector<HitRegion>& hitRegions);
 
 private:
     std::mutex _mutex;

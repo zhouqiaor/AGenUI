@@ -1,6 +1,7 @@
 #pragma once
 
 #include "agenui_dispatcher_types.h"
+#include "surface/virtual_dom/agenui_virtual_dom_observer.h"
 
 namespace agenui {
 
@@ -56,6 +57,15 @@ public:
      * @param msg Error message containing code, surfaceId, and description
      */
     virtual void onError(const ErrorMessage& msg) {};
+
+    /**
+     * @brief Called when the HitMap is ready after layout
+     * @param surfaceId Surface identifier
+     * @param hitRegions Hit regions computed from the laid-out tree
+     * @remark Default no-op for backward compatibility. Platform listeners
+     *        override this to build clickable overlays (e.g. Glance HitRegionOverlay).
+     */
+    virtual void onHitMapReady(const std::string& surfaceId, const std::vector<HitRegion>& hitRegions) { (void)surfaceId; (void)hitRegions; };
 };
 
 }  // namespace agenui
