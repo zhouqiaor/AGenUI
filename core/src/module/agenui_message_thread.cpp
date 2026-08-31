@@ -10,6 +10,16 @@
 
 namespace agenui {
 
+// Stack size for the message thread. The default std::thread stack is ~8 MB
+// on most platforms, which is insufficient for deeply nested Yoga layout
+// recursion (YGLayoutNodeInternal uses one stack frame per tree level).
+// 16 MB gives a safe margin for trees up to ~256 levels without hitting the
+// OS thread stack limit. Only applied on Linux/Android/HarmonyOS where
+// pthread stack size is directly controllable; Windows keeps std::thread.
+#if defined(__linux__) || defined(__ANDROID__) || defined(HARMONY)
+static constexpr size_t kMessageThreadStackSize = 16 * 1024 * 1024;  // 16 MB
+#endif
+
 MessageThread::MessageThread(const std::string& name) : _name(name), _isRunning(false), _shouldStop(false) {
 }
 
@@ -25,11 +35,58 @@ bool MessageThread::start() {
     _shouldStop = false;
     _isRunning = true;
 
-    // Start the worker thread
+#if defined(__linux__) || defined(__ANDROID__) || defined(HARMONY)
+    // Use pthread_create with a 16 MB stack to avoid Yoga layout recursion
+    // stack overflow. std::thread uses the system default (~8 MB) which is
+    // insufficient for deeply nested component trees during YGLayoutNodeInternal
+    // recursion. This is platform-isolated: Linux/Android/HarmonyOS use
+    // pthread with custom stack; Windows and Apple keep std::thread.
+    pthread_attr_t attr;
+    if (pthread_attr_init(&attr) != 0) {
+        AGENUI_LOG("pthread_attr_init failed, falling back to std::thread");
+        _workerThread = std::thread(&MessageThread::workerThreadLoop, this);
+        _threadId = _workerThread.get_id();
+        AGENUI_LOG("started (std::thread fallback), thread_id: %zu",
+                   std::hash<std::thread::id>{}(_threadId));
+        return true;
+    }
+    pthread_attr_setstacksize(&attr, kMessageThreadStackSize);
+
+    auto entry = [](void* arg) -> void* {
+        auto* self = static_cast<MessageThread*>(arg);
+        self->workerThreadLoop();
+        return nullptr;
+    };
+
+    pthread_t tid;
+    int ret = pthread_create(&tid, &attr, entry, this);
+    pthread_attr_destroy(&attr);
+
+    if (ret != 0) {
+        AGENUI_LOG("pthread_create failed (ret=%d), falling back to std::thread", ret);
+        _workerThread = std::thread(&MessageThread::workerThreadLoop, this);
+        _threadId = _workerThread.get_id();
+        AGENUI_LOG("started (std::thread fallback), thread_id: %zu",
+                   std::hash<std::thread::id>{}(_threadId));
+        return true;
+    }
+
+    // Store native handle so join() works in stop()
+    _nativeThread = tid;
+    _useNativeThread = true;
+    _threadId = std::thread::id{};
+
+    AGENUI_LOG("started (pthread, stack=%zuMB), tid: %lu",
+               kMessageThreadStackSize / (1024 * 1024),
+               (unsigned long)tid);
+#else
+    // Windows / Apple: use std::thread with default stack
     _workerThread = std::thread(&MessageThread::workerThreadLoop, this);
     _threadId = _workerThread.get_id();
 
-    AGENUI_LOG("started, thread_id: %zu", std::hash<std::thread::id>{}(_threadId));
+    AGENUI_LOG("started (std::thread), thread_id: %zu",
+               std::hash<std::thread::id>{}(_threadId));
+#endif
     return true;
 }
 
@@ -57,9 +114,19 @@ void MessageThread::stop() {
     }
 
     // Wait for the worker thread to exit
+#if defined(__linux__) || defined(__ANDROID__) || defined(HARMONY)
+    if (_useNativeThread) {
+        void* retval = nullptr;
+        pthread_join(_nativeThread, &retval);
+        _useNativeThread = false;
+    } else if (_workerThread.joinable()) {
+        _workerThread.join();
+    }
+#else
     if (_workerThread.joinable()) {
         _workerThread.join();
     }
+#endif
 
     AGENUI_LOG("stopped");
 }

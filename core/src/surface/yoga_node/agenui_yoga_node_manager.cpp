@@ -6,6 +6,14 @@
 
 namespace agenui {
 
+// Maximum Yoga tree depth before layout is skipped to prevent stack overflow.
+// Yoga's YGLayoutNodeInternal recurses one frame per tree level; a deeply
+// nested component tree (e.g. nested Lists orContainers) can exceed the
+// default thread stack (8 MB on most platforms) and trigger SIGSEGV.
+// 256 levels is well above any realistic UI tree depth (typical apps <30),
+// but safely below the ~512-frame limit that overflows an 8 MB stack.
+static constexpr uint32_t kMaxTreeDepth = 256;
+
 YogaNodeManager::YogaNodeManager() {
     // _nodes is the YogaNode pool for all VirtualDOMNodes.
     // The layout root is _nodes["root"], calculated via calculateLayout.
@@ -116,6 +124,18 @@ void YogaNodeManager::calculateLayout(float rootWidth, float rootHeight) {
     YogaNode* rootNode = _rootNode;
     if (!rootNode || !rootNode->get()) return;
 
+    // Guard: compute tree depth and skip layout if it exceeds the safety limit.
+    // This prevents YGNodeCalculateLayout from recursing into a tree so deep
+    // that YGLayoutNodeInternal overflows the thread stack and crashes with
+    // SIGSEGV. The actual limit is enforced by computeYogaTreeDepth() which
+    // walks the YGNode tree (not the VirtualDOM tree) via YGNodeGetChild.
+    uint32_t depth = computeYogaTreeDepth(rootNode->get());
+    if (depth > kMaxTreeDepth) {
+        AGENUI_LOG("calculateLayout: skipping layout, tree depth %u exceeds limit %u",
+                   depth, kMaxTreeDepth);
+        return;
+    }
+
     // Yoga does NOT apply aspect-ratio on the root node (only on children).
     // If the root has aspect-ratio set and its height is not explicitly defined,
     // manually derive the height from the known root width before calling
@@ -165,6 +185,20 @@ bool YogaNodeManager::calculateLayoutWithAdjust(
 
 void YogaNodeManager::updateTabsSelectedIndex(const std::string& tabsId, int selectedIndex) {
     _tabsSelectedIndices[tabsId] = selectedIndex;
+}
+
+uint32_t YogaNodeManager::computeYogaTreeDepth(YGNodeRef root) const {
+    if (!root) return 0;
+    uint32_t maxDepth = 0;
+    uint32_t childCount = YGNodeGetChildCount(root);
+    for (uint32_t i = 0; i < childCount; ++i) {
+        YGNodeRef child = YGNodeGetChild(root, i);
+        if (child) {
+            uint32_t childDepth = computeYogaTreeDepth(child);
+            if (childDepth > maxDepth) maxDepth = childDepth;
+        }
+    }
+    return maxDepth + 1;
 }
 
 }  // namespace agenui

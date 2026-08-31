@@ -1,6 +1,8 @@
 #pragma once
 
 #include "agenui_yoga_node.h"
+#include "agenui_logger_internal.h"
+#include <yoga/Yoga.h>
 #include <memory>
 #include <map>
 #include <string>
@@ -119,6 +121,18 @@ public:
      * @param selectedIndex Selected tab index
      */
     void updateTabsSelectedIndex(const std::string& tabsId, int selectedIndex);
+
+    /**
+     * @brief Compute the maximum depth of the Yoga node tree rooted at `root`.
+     *
+     * Walks the YGNode tree via YGNodeGetChild/YGNodeGetChildCount to determine
+     * the deepest path. Used by calculateLayout to enforce kMaxTreeDepth guard
+     * and prevent stack overflow from excessively deep component trees.
+     *
+     * @param root YGNodeRef to the root Yoga node
+     * @return Maximum tree depth (root = 1, root+child = 2, etc.)
+     */
+    uint32_t computeYogaTreeDepth(YGNodeRef root) const;
 
 private:
     std::map<std::string, std::unique_ptr<YogaNode>> _nodes;
