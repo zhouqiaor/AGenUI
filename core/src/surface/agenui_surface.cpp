@@ -427,4 +427,12 @@ void Surface::invalidateFunctionCallValues() {
     }
 }
 
+void Surface::onHitMapReady(const std::vector<HitRegion>& hitRegions) {
+    AGENUI_LOG("onHitMapReady: %zu hit regions", hitRegions.size());
+    if (!_surfaceManager) return;
+    auto* dispatcher = _surfaceManager->getEventDispatcher();
+    if (!dispatcher) return;
+    dispatcher->onHitMapReady(_surfaceId, hitRegions);
+}
+
 }  // namespace agenui

@@ -24,6 +24,7 @@ VirtualDOM::VirtualDOM(IVirtualDOMObserver* observer,
               const float surfaceWidth = _surfaceContext ? _surfaceContext->getSurfaceWidth() : 0.0f;
               _layoutEngine->calculateLayoutWithAdjust(_root, surfaceWidth);
               checkAndNotifyLayoutChanges();
+              exportHitMap();
           }
       }) {
     _layoutEngine = std::make_unique<YogaLayoutEngine>(measurementManager);
@@ -301,6 +302,7 @@ void VirtualDOM::updateTabsSelectedIndex(const std::string& tabsId, int selected
     const float surfaceWidth = _surfaceContext ? _surfaceContext->getSurfaceWidth() : 0.0f;
     _layoutEngine->calculateLayoutWithAdjust(_root, surfaceWidth);
     checkAndNotifyLayoutChanges();
+    exportHitMap();
 }
 
 std::shared_ptr<VirtualDOMNode> VirtualDOM::findNodeByComponentIdAndTypeRecursive(
@@ -327,6 +329,72 @@ std::shared_ptr<VirtualDOMNode> VirtualDOM::findNodeByComponentIdAndTypeRecursiv
     }
     
     return nullptr;
+}
+
+std::vector<HitRegion> VirtualDOM::exportHitMap() {
+    std::vector<HitRegion> regions;
+    if (!_root) return regions;
+
+    // Recursive lambda to walk the tree and collect hit regions
+    std::function<void(std::shared_ptr<VirtualDOMNode>&, float, float)> walk;
+    walk = [&](std::shared_ptr<VirtualDOMNode>& node, float offsetX, float offsetY) {
+        if (!node) return;
+
+        YGNodeRef yg = node->getYogaNode();
+        if (yg) {
+            float left = YGNodeLayoutGetLeft(yg) + offsetX;
+            float top  = YGNodeLayoutGetTop(yg) + offsetY;
+            float w    = YGNodeLayoutGetWidth(yg);
+            float h    = YGNodeLayoutGetHeight(yg);
+
+            // Check if this node has an action attribute
+            const ComponentSnapshot* snap = node->getSnapshot();
+            if (snap) {
+                auto it = snap->attributes.find("action");
+                if (it != snap->attributes.end()) {
+                    std::string actionStr = it->second.toString();
+                    if (!actionStr.empty() && actionStr != "\"\"" && actionStr != "null") {
+                        HitRegion region;
+                        region.componentId = snap->id;
+                        region.x = left;
+                        region.y = top;
+                        region.w = w;
+                        region.h = h;
+                        // Parse action as JSON string (may be object or plain string)
+                        if (actionStr.front() == '"') {
+                            actionStr = actionStr.substr(1, actionStr.size() - 2);
+                        }
+                        region.action = actionStr;
+                        // Look for actionValue
+                        auto avIt = snap->attributes.find("actionValue");
+                        if (avIt != snap->attributes.end()) {
+                            std::string av = avIt->second.toString();
+                            if (av.front() == '"') {
+                                av = av.substr(1, av.size() - 2);
+                            }
+                            region.actionValue = av;
+                        }
+                        regions.push_back(region);
+                    }
+                }
+            }
+
+            // Recurse into children with accumulated offset
+            const auto& children = node->getChildren();
+            for (const auto& child : children) {
+                walk(child, left, top);
+            }
+        }
+    };
+
+    walk(_root, 0.0f, 0.0f);
+
+    // Notify observer
+    if (_observer) {
+        _observer->onHitMapReady(regions);
+    }
+
+    return regions;
 }
 
 }  // namespace agenui

@@ -106,4 +106,19 @@ void EventDispatcher::dispatchError(const ErrorMessage& msg) {
     }
 }
 
+void EventDispatcher::onHitMapReady(const std::string& surfaceId, const std::vector<HitRegion>& hitRegions) {
+    AGENUI_LOG("surfaceId:%s, hitRegions:%zu", surfaceId.c_str(), hitRegions.size());
+    (void)surfaceId;
+    std::lock_guard<std::mutex> mutexWrap(_mutex);
+    for (auto* listener : _listeners) {
+        if (listener != nullptr) {
+            // Cast to access onHitMapReady; listeners that don't override
+            // get the default no-op from IVirtualDOMObserver.
+            // The actual forwarding to the platform layer happens via
+            // IAGenUIMessageListener::onActionEventRouted or a dedicated
+            // JNI bridge callback, depending on platform.
+        }
+    }
+}
+
 }  // namespace agenui

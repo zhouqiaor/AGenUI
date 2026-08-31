@@ -64,6 +64,7 @@ public:
     void onNodeUpdate(const std::string& componentId, const std::string& nodeJson) override;
     void onNodeAdded(const std::string& parentId, const std::string& nodeJson) override;
     void onNodeRemoved(const std::string& parentId, const std::string& id) override;
+    void onHitMapReady(const std::vector<HitRegion>& hitRegions) override;
     
     // Data model management
     void updateDataModel(const nlohmann::json& dataModelData);

@@ -2,6 +2,7 @@
 
 #include "surface/virtual_dom/agenui_virtual_dom_node.h"
 #include "surface/virtual_dom/agenui_ivirtual_dom.h"
+#include "surface/virtual_dom/agenui_virtual_dom_observer.h"
 #include "agenui_batch_guard.h"
 
 #include <memory>
@@ -97,6 +98,17 @@ public:
      * @remark Called by the rendering layer on tab switch; updates Tabs Yoga minHeight and triggers re-layout
      */
     void updateTabsSelectedIndex(const std::string& tabsId, int selectedIndex);
+
+    /**
+     * @brief Export the HitMap from the laid-out component tree.
+     * @return Vector of HitRegion structs, one per interactive component.
+     * @remark Called after layout (checkAndNotifyLayoutChanges). Walks the
+     *        tree, reads Yoga layout bounds (YGNodeLayoutGetLeft/Top/Width/Height),
+     *        and collects regions for components that have an "action" attribute.
+     *        The observer is notified via onHitMapReady(). Empty if no
+     *        components have actions or the tree is empty.
+     */
+    std::vector<HitRegion> exportHitMap();
 
 private:
     /**
